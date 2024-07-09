@@ -1,0 +1,30 @@
+{
+    "name": "rpgm-translation-gui",
+    "private": true,
+    "version": "3.6.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "tsc && vite build",
+        "preview": "vite preview",
+        "tauri": "tauri",
+        "tw": "tailwindcss -i ./input.css -o ./src/style.css -w --minify",
+        "build-x64": "tauri build",
+        "build-i686": "tauri build --target i686-pc-windows-msvc"
+    },
+    "dependencies": {
+        "@hyrious/marshal": "^0.3.3",
+        "@tauri-apps/api": "^1.5.6",
+        "immutable": "^4.3.6",
+        "pako": "^2.1.0",
+        "xregexp": "^5.1.1"
+    },
+    "devDependencies": {
+        "@tauri-apps/cli": "^1.5.14",
+        "@types/pako": "^2.0.3",
+        "tailwindcss": "^3.4.4",
+        "typescript": "^5.5.2",
+        "vite": "^5.3.1",
+        "vite-plugin-minify": "^1.5.2"
+    }
+}

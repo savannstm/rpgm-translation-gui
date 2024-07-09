@@ -1,0 +1,40 @@
+{
+    "fuflo-light": {
+        "name": "fuflo-light",
+        "backgroundDark": "#f4f4f5",
+        "backgroundPrimary": "#e4e4e7",
+        "outlinePrimary": "#d4d4d8",
+        "outlineSecond": "#71717a",
+        "outlineThird": "#52525b",
+        "outlineFocused": "#a1a1aa",
+        "borderPrimary": "#d4d4d8",
+        "borderSecond": "#a1a1aa",
+        "borderFocused": "#d4d4d8",
+        "backgroundSecond": "#d4d4d8",
+        "backgroundPrimaryHovered": "#a1a1aa",
+        "backgroundSecondHovered": "#71717a",
+        "textPrimary": "#18181b",
+        "textSecond": "#27272a",
+        "textThird": "#3f3f46",
+        "backgroundThird": "#a1a1aa"
+    },
+    "cool-zinc": {
+        "name": "cool-zinc",
+        "backgroundDark": "#18181b",
+        "backgroundPrimary": "#27272a",
+        "outlinePrimary": "#3f3f46",
+        "outlineSecond": "#71717a",
+        "outlineThird": "#52525b",
+        "outlineFocused": "#a1a1aa",
+        "borderPrimary": "#52525b",
+        "borderSecond": "#3f3f46",
+        "borderFocused": "#52525b",
+        "backgroundSecond": "#3f3f46",
+        "backgroundPrimaryHovered": "#52525b",
+        "backgroundSecondHovered": "#3f3f46",
+        "textPrimary": "#d4d4d8",
+        "textSecond": "#e4e4e7",
+        "textThird": "#a1a1aa",
+        "backgroundThird": "#71717a"
+    }
+}

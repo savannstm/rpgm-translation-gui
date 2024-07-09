@@ -1,0 +1,48 @@
+.backgroundDark {
+    background-color: transparent;
+}
+.backgroundPrimary {
+    background-color: transparent;
+}
+.backgroundSecond {
+    background-color: transparent;
+}
+.backgroundThird {
+    background-color: transparent;
+}
+.textPrimary {
+    color: transparent;
+}
+.textSecond {
+    color: transparent;
+}
+.textThird {
+    color: transparent;
+}
+.outlinePrimary {
+    outline-color: transparent;
+}
+.outlineSecond {
+    outline-color: transparent;
+}
+.outlineThird {
+    outline-color: transparent;
+}
+.borderPrimary {
+    border-color: transparent;
+}
+.borderSecond {
+    border-color: transparent;
+}
+.borderFocused:focus {
+    border-color: transparent;
+}
+.outlineFocused:focus {
+    outline-color: transparent;
+}
+.backgroundPrimaryHovered:hover {
+    background-color: transparent;
+}
+.backgroundSecondHovered:hover {
+    background-color: transparent;
+}
