@@ -2,18 +2,20 @@ import { open as openLink } from "@tauri-apps/api/shell";
 import { readTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory, join } from "@tauri-apps/api/path";
 import { getVersion } from "@tauri-apps/api/app";
+import { AboutLocalization } from "./localization";
 
 window.addEventListener("DOMContentLoaded", async () => {
-    let sheet: CSSStyleSheet;
-
-    for (const styleSheet of document.styleSheets) {
-        for (const rule of styleSheet.cssRules) {
-            if (rule.selectorText === ".backgroundDark") {
-                sheet = styleSheet;
-                break;
+    function getThemeStyleSheet(): CSSStyleSheet | undefined {
+        for (const styleSheet of document.styleSheets) {
+            for (const rule of styleSheet.cssRules) {
+                if (rule.selectorText === ".backgroundDark") {
+                    return styleSheet;
+                }
             }
         }
     }
+
+    const sheet: CSSStyleSheet = getThemeStyleSheet()!;
 
     const version = document.getElementById("version") as HTMLSpanElement;
     const versionNumber = document.getElementById("version-number") as HTMLSpanElement;
@@ -30,26 +32,11 @@ window.addEventListener("DOMContentLoaded", async () => {
         await readTextFile(await join("../res", "settings.json"), { dir: BaseDirectory.Resource })
     ) as Settings;
 
-    let aboutLocalization: aboutLocalization;
-
-    switch (language) {
-        case "ru":
-            aboutLocalization = JSON.parse(
-                await readTextFile(await join("../res", "ru.json"), { dir: BaseDirectory.Resource })
-            ).about;
-            break;
-        default:
-        case "en":
-            aboutLocalization = JSON.parse(
-                await readTextFile(await join("../res", "en.json"), { dir: BaseDirectory.Resource })
-            ).about;
-            break;
-    }
-
+    const aboutLocalization: AboutLocalization = new AboutLocalization(language);
     const themeObj: Theme = JSON.parse(await readTextFile(await join("../res", "themes.json")))[theme];
 
     for (const [key, value] of Object.entries(themeObj)) {
-        for (const rule of sheet!.cssRules) {
+        for (const rule of sheet.cssRules) {
             if (key.endsWith("Focused") && rule.selectorText === `.${key}:focus`) {
                 rule.style.setProperty(rule.style[0], value);
             } else if (key.endsWith("Hovered") && rule.selectorText === `.${key}:hover`) {

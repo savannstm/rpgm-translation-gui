@@ -10,7 +10,7 @@ The program is written using Rust and TypeScript, and the graphical interface is
 
 The program can open folders with games on the above-mentioned engines, and then parse the text of the games into .txt files from the source files located in the "data" folder.
 
-In some cases, the source files of the games may be encrypted (in this case, generally, there is no data folder in the root directory of the game).
+In some cases, the source files of the XP/VX/VXAce games may be encrypted (in this case, generally, there is no data folder in the root directory of the game).
 
 The graphical interface does not yet know how to handle such cases, and you will have to manually unpack the source files of games from an encrypted file using tools available on the internet.
 

@@ -1,18 +1,20 @@
 import { readTextFile, writeTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory, join } from "@tauri-apps/api/path";
 import { appWindow } from "@tauri-apps/api/window";
+import { OptionsLocalization } from "./localization";
 
 document.addEventListener("DOMContentLoaded", async () => {
-    let sheet: CSSStyleSheet;
-
-    for (const styleSheet of document.styleSheets) {
-        for (const rule of styleSheet.cssRules) {
-            if (rule.selectorText === ".backgroundDark") {
-                sheet = styleSheet;
-                break;
+    function getThemeStyleSheet(): CSSStyleSheet | undefined {
+        for (const styleSheet of document.styleSheets) {
+            for (const rule of styleSheet.cssRules) {
+                if (rule.selectorText === ".backgroundDark") {
+                    return styleSheet;
+                }
             }
         }
     }
+
+    const sheet: CSSStyleSheet = getThemeStyleSheet()!;
 
     const backupPeriodLabel = document.getElementById("backup-period-label") as HTMLSpanElement;
     const backupPeriodNote = document.getElementById("backup-period-note") as HTMLSpanElement;
@@ -31,26 +33,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const language = settings.language;
     const theme = settings.theme;
 
-    let optionsLocalization: optionsLocalization;
-
-    switch (language) {
-        case "ru":
-            optionsLocalization = JSON.parse(
-                await readTextFile(await join("../res", "ru.json"), { dir: BaseDirectory.Resource })
-            ).options;
-            break;
-        default:
-        case "en":
-            optionsLocalization = JSON.parse(
-                await readTextFile(await join("../res", "en.json"), { dir: BaseDirectory.Resource })
-            ).options;
-            break;
-    }
-
+    const optionsLocalization: OptionsLocalization = new OptionsLocalization(language);
     const themeObj: Theme = JSON.parse(await readTextFile(await join("../res", "themes.json")))[theme];
 
     for (const [key, value] of Object.entries(themeObj)) {
-        for (const rule of sheet!.cssRules) {
+        for (const rule of sheet.cssRules) {
             if (key.endsWith("Focused") && rule.selectorText === `.${key}:focus`) {
                 rule.style.setProperty(rule.style[0], value);
             } else if (key.endsWith("Hovered") && rule.selectorText === `.${key}:hover`) {
@@ -109,7 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     appWindow.onCloseRequested(async (): Promise<void> => {
-        writeTextFile(
+        await writeTextFile(
             await join("../res", "settings.json"),
             JSON.stringify({
                 ...settings,

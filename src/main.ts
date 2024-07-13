@@ -1,5 +1,7 @@
 import "./string-extensions";
 import "./htmlelement-extensions";
+import { Language, EngineType, State } from "./enums";
+import { MainLocalization } from "./localization";
 
 import { exists, readDir, readTextFile, removeFile, writeTextFile, createDir } from "@tauri-apps/api/fs";
 import { BaseDirectory, join } from "@tauri-apps/api/path";
@@ -13,19 +15,10 @@ import { Command } from "@tauri-apps/api/shell";
 import XRegExp from "xregexp";
 
 document.addEventListener("DOMContentLoaded", async () => {
-    let sheet: CSSStyleSheet;
+    const sheet: CSSStyleSheet = getThemeStyleSheet()!;
 
-    for (const styleSheet of document.styleSheets) {
-        for (const rule of styleSheet.cssRules) {
-            if (rule.selectorText === ".backgroundDark") {
-                sheet = styleSheet;
-                break;
-            }
-        }
-    }
-
-    let projDir: string = "";
-    let RPGMVer: string = "";
+    let projectDir: string = "";
+    let gameEngineType: EngineType;
 
     const resDir = "res";
     const translationDir = "translation";
@@ -37,8 +30,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const settingsFile = "settings.json";
     const logFile = "replacement-log.json";
-    const ruTranslation = "ru.json";
-    const enTranslation = "en.json";
     const themesFile = "themes.json";
 
     const settingsPath = await join(resDir, settingsFile);
@@ -53,7 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const searchCurrentPage = document.getElementById("search-current-page") as HTMLSpanElement;
     const searchTotalPages = document.getElementById("search-total-pages") as HTMLSpanElement;
     const topPanel = document.getElementById("top-panel") as HTMLDivElement;
-    const topPanelButtons = document.getElementById("top-panel-buttons") as HTMLDivElement;
+    const topPanelButtonsDiv = document.getElementById("top-panel-buttons") as HTMLDivElement;
     const saveButton = document.getElementById("save-button") as HTMLButtonElement;
     const compileButton = document.getElementById("compile-button") as HTMLButtonElement;
     const themeButton = document.getElementById("theme-button") as HTMLButtonElement;
@@ -82,49 +73,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? JSON.parse(await readTextFile(settingsPath, { dir: BaseDirectory.Resource }))
         : null;
 
-    let locale: string | null = await getLocale();
+    let language: Language = await determineLanguage();
+    let mainLocalization: MainLocalization;
 
-    let language: Language = (
-        locale
-            ? settings
-                ? settings.language
-                : ["ru", "uk", "be"].some((loc: string): boolean => locale!.startsWith(loc))
-                ? "ru"
-                : "en"
-            : "en"
-    ) as Language;
+    let themes = JSON.parse(
+        await readTextFile(await join(resDir, themesFile), { dir: BaseDirectory.Resource })
+    ) as ThemeObject;
 
-    locale = null;
+    let theme: Theme = settings?.theme ? themes[settings.theme] : themes["cool-zinc"];
+    let currentTheme: null | string = null;
 
-    let mainLocalization: mainLocalization;
-
-    switch (language) {
-        case "ru":
-            mainLocalization = JSON.parse(
-                await readTextFile(await join(resDir, ruTranslation), { dir: BaseDirectory.Resource })
-            ).main;
-            break;
-        default:
-        case "en":
-            mainLocalization = JSON.parse(
-                await readTextFile(await join(resDir, enTranslation), { dir: BaseDirectory.Resource })
-            ).main;
-            break;
-    }
+    await changeLanguage(language);
 
     if (!settings) {
         settings = (await createSettings()) as Settings;
     }
 
     const { enabled: backupEnabled, period: backupPeriod, max: backupMax }: BackupSetting = settings.backup;
-
-    let themes = JSON.parse(
-        await readTextFile(await join(resDir, themesFile), { dir: BaseDirectory.Resource })
-    ) as ThemeObject;
-
-    let theme: Theme = settings.theme ? themes[settings.theme] : themes["cool-zinc"];
-
-    let currentTheme: null | string = null;
 
     await setTheme(theme);
     await initializeFirstLaunch(settings.firstLaunch);
@@ -139,7 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let searchTranslation: boolean = false;
     let searchLocation: boolean = false;
 
-    let state: State = null;
+    let state: State | null = null;
     let statePrevious: State | null = null;
 
     let saved: boolean = true;
@@ -187,248 +152,36 @@ document.addEventListener("DOMContentLoaded", async () => {
         { root: searchPanelReplaced, threshold: 0.1 }
     );
 
-    leftPanel.addEventListener("click", (event) => {
-        const newState = leftPanel.secondHighestParent(event.target as HTMLElement).textContent as State;
-        changeState(newState, true);
-    });
+    async function determineLanguage(): Promise<Language> {
+        let locale: string | null = await getLocale();
 
-    topPanelButtons.addEventListener("click", async (event) => {
-        if (event.target === topPanelButtons) {
-            return;
+        if (settings && settings.language) {
+            locale = settings.language;
         }
 
-        const target: HTMLElement = topPanelButtons.secondHighestParent(event.target as HTMLElement);
-
-        switch (target.id) {
-            case "menu-button":
-                if (!projDir) {
-                    return;
-                }
-
-                leftPanel.toggleMultiple("translate-x-0", "-translate-x-full");
-                break;
-            case "save-button":
-                await save();
-                break;
-            case "compile-button":
-                await compile();
-                break;
-            case "open-button":
-                await openFolder();
-                break;
-            case "options-button":
-                createOptionsWindow();
-                break;
-            case "theme-button":
-                themeMenu.toggleMultiple("hidden", "flex");
-
-                requestAnimationFrame((): void => {
-                    themeMenu.style.left = `${themeButton.offsetLeft}px`;
-                    themeMenu.style.top = `${themeButton.offsetTop + themeButton.clientHeight + 16}px`;
-
-                    themeMenu.addEventListener("click", async (event: MouseEvent): Promise<void> => {
-                        const target: HTMLButtonElement = event.target as HTMLButtonElement;
-
-                        if (!themeMenu.contains(target)) {
-                            return;
-                        }
-
-                        if (target.id === "create-theme-menu-button") {
-                            showThemeWindow();
-                            return;
-                        }
-
-                        await setTheme(themes[target.id]);
-                    });
-                });
-
-                break;
-            case "search-button":
-                if (!projDir) {
-                    return;
-                }
-
-                if (searchInput.value) {
-                    searchPanelFound.innerHTML = "";
-                    await displaySearchResults(searchInput.value, false);
-                } else if (document.activeElement === document.body) {
-                    searchInput.focus();
-                }
-                break;
-            case "replace-button":
-                if (!projDir) {
-                    return;
-                }
-
-                if (searchInput.value.trim() && replaceInput.value.trim()) {
-                    await replaceText(searchInput.value, true);
-                }
-                break;
-            case "case-button":
-                switchCase();
-                break;
-            case "whole-button":
-                switchWhole();
-                break;
-            case "regex-button":
-                switchRegExp();
-                break;
-            case "translation-button":
-                switchTranslation();
-                break;
-            case "location-button":
-                switchLocation();
-                break;
+        if (!locale) {
+            return Language.English;
         }
-    });
 
-    searchPanel.addEventListener("click", async (event) => {
-        const target = event.target as HTMLElement;
-        let page: number | null = null;
-
-        switch (target.id) {
-            case "switch-search-content":
-                searchPanelFound.toggleMultiple("hidden", "flex");
-                searchPanelReplaced.toggleMultiple("hidden", "flex");
-
-                const searchSwitch: HTMLElement = target;
-
-                if (searchSwitch.innerHTML.trim() === "search") {
-                    searchSwitch.innerHTML = "menu_book";
-
-                    const replacementLogContent: { [key: string]: { original: string; translation: string } } =
-                        JSON.parse(await readTextFile(await join(projDir, logFile)));
-
-                    for (const [key, value] of Object.entries(replacementLogContent)) {
-                        const replacedContainer: HTMLDivElement = document.createElement("div");
-
-                        const replacedElement: HTMLDivElement = document.createElement("div");
-                        replacedElement.classList.add(
-                            "replaced-element",
-                            "textSecond",
-                            "borderPrimary",
-                            "backgroundSecond"
-                        );
-
-                        replacedElement.innerHTML = `<div class="text-base textThird">${key}</div><div class=text-base>${value.original}</div><div class="flex justify-center items-center text-xl textPrimary font-material">arrow_downward</div><div class="text-base">${value.translation}</div>`;
-
-                        replacedContainer.appendChild(replacedElement);
-                        searchPanelReplaced.appendChild(replacedContainer);
-                    }
-
-                    observerFound.disconnect();
-                    searchPanelReplaced.style.height = `${searchPanelReplaced.scrollHeight}px`;
-
-                    for (const container of searchPanelReplaced.children as HTMLCollectionOf<HTMLElement>) {
-                        container.style.width = `${container.clientWidth}px`;
-                        container.style.height = `${container.clientHeight}px`;
-
-                        observerReplaced.observe(container);
-                        container.firstElementChild!.classList.add("hidden");
-                    }
-
-                    searchPanelReplaced.addEventListener(
-                        "mousedown",
-                        async (event) => await handleReplacedClick(event)
-                    );
-                } else {
-                    searchSwitch.innerHTML = "search";
-                    searchPanelReplaced.innerHTML = "";
-
-                    searchPanelReplaced.removeEventListener(
-                        "mousedown",
-                        async (event) => await handleReplacedClick(event)
-                    );
-                }
-                break;
-            case "previous-page-button":
-                page = Number.parseInt(searchCurrentPage.textContent!);
-
-                if (page > 1) {
-                    searchCurrentPage.textContent = (page - 1).toString();
-
-                    searchPanelFound.innerHTML = "";
-
-                    for (const [id, result] of Object.entries(
-                        JSON.parse(
-                            await readTextFile(
-                                await join(
-                                    projDir,
-                                    `matches-${Number.parseInt(searchCurrentPage.textContent) - 1}.json`
-                                )
-                            )
-                        )
-                    )) {
-                        appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
-                    }
-                }
-                break;
-            case "next-page-button":
-                page = Number.parseInt(searchCurrentPage.textContent!);
-
-                if (page < Number.parseInt(searchTotalPages.textContent!)) {
-                    searchCurrentPage.textContent = (page + 1).toString();
-                    searchPanelFound.innerHTML = "";
-
-                    for (const [id, result] of Object.entries(
-                        JSON.parse(
-                            await readTextFile(
-                                await join(
-                                    projDir,
-                                    `matches-${Number.parseInt(searchCurrentPage.textContent) + 1}.json`
-                                )
-                            )
-                        )
-                    )) {
-                        appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
-                    }
-                }
-                break;
+        switch (locale) {
+            case "ru":
+            case "uk":
+            case "be":
+                return Language.Russian;
+            default:
+                return Language.English;
         }
-    });
+    }
 
-    searchInput.addEventListener("blur", () => (searchInput.value = searchInput.value.trim()));
-    replaceInput.addEventListener("blur", () => (replaceInput.value = replaceInput.value.trim()));
-
-    searchInput.addEventListener("keydown", async (event) => await handleKeypressSearch(event));
-    menuBar.addEventListener("click", (event) => menuBarClick(event.target as HTMLElement));
-
-    document.addEventListener("keydown", async (event) => await handleKeypress(event));
-    document.addEventListener("keyup", (event) => (event.key === "Shift" ? (shiftPressed = false) : null));
-
-    document.addEventListener("focus", handleFocus, true);
-    document.addEventListener("blur", handleBlur, true);
-
-    goToRowInput.addEventListener("keydown", (event) => {
-        if (event.code === "Enter") {
-            const rowNumber: string = goToRowInput.value;
-            const targetRow: HTMLTextAreaElement = document.getElementById(
-                `${state}-${rowNumber}`
-            ) as HTMLTextAreaElement;
-
-            if (targetRow) {
-                targetRow.scrollIntoView({
-                    block: "center",
-                    inline: "center",
-                });
+    function getThemeStyleSheet(): CSSStyleSheet | undefined {
+        for (const styleSheet of document.styleSheets) {
+            for (const rule of styleSheet.cssRules) {
+                if (rule.selectorText === ".backgroundDark") {
+                    return styleSheet;
+                }
             }
-
-            goToRowInput.value = "";
-            goToRowInput.classList.add("hidden");
         }
-
-        if (event.code === "Escape") {
-            goToRowInput.value = "";
-            goToRowInput.classList.add("hidden");
-        }
-    });
-
-    document.addEventListener("mousedown", (event) => handleMousedown(event));
-
-    await appWindow.onCloseRequested(async (event) => {
-        await awaitSaving();
-        (await exitProgram()) ? await exit() : event.preventDefault();
-    });
+    }
 
     function handleMousedown(event: MouseEvent): void {
         if (event.button === 0) {
@@ -568,8 +321,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    async function ensureProjectIsValid(folder: string): Promise<boolean | undefined> {
-        if (!(await exists(folder))) {
+    async function ensureProjectIsValid(projectDir: string): Promise<boolean | undefined> {
+        async function ensureTranslationSubdirsExist(): Promise<boolean> {
+            for (const dir of [mapsDir, otherDir]) {
+                if (!(await exists(await join(translationPath, dir)))) {
+                    await message(mainLocalization.missingTranslationSubdirs);
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        if (!(await exists(projectDir))) {
             await message(mainLocalization.selectedFolderMissing);
             return false;
         }
@@ -577,109 +341,65 @@ document.addEventListener("DOMContentLoaded", async () => {
         const noProjectSelected = document.getElementById("no-project-selected") as HTMLDivElement;
         noProjectSelected.innerHTML = mainLocalization.loadingProject;
 
-        const dirs = [mapsDir, otherDir, pluginsDir];
-        const translationPath = await join(folder, translationDir);
-        const folderDirs = await readDir(folder);
+        const translationPath = await join(projectDir, translationDir);
+        const parsed = (await exists(translationPath)) ? true : false;
 
-        let parsed = true;
-        if (!(await exists(translationPath))) {
-            parsed = false;
+        let originalDir = await join(projectDir, "data");
+
+        if (!(await exists(originalDir))) {
+            originalDir = await join(projectDir, "Data");
+
+            if (!(await exists(originalDir))) {
+                originalDir = await join(projectDir, "original");
+
+                if (!(await exists(originalDir))) {
+                    await message(mainLocalization.missingOriginalDir);
+                    return false;
+                }
+            }
         }
 
-        const re = /^data|Data|original/;
+        const currentGameEngine = document.getElementById("current-game-engine")!;
 
-        const originalFolder = folderDirs.find((dir) => re.test(dir.name!))?.path;
-
-        if (!originalFolder) {
-            await message(mainLocalization.missingOriginalDir);
+        if (await exists(await join(originalDir, "System.rxdata"))) {
+            gameEngineType = EngineType.XP;
+            currentGameEngine.innerHTML = "XP";
+        } else if (await exists(await join(originalDir, "System.rvdata"))) {
+            gameEngineType = EngineType.VX;
+            currentGameEngine.innerHTML = "VX";
+        } else if (await exists(await join(originalDir, "System.rvdata2"))) {
+            gameEngineType = EngineType.VXAce;
+            currentGameEngine.innerHTML = "VX Ace";
+        } else if (await exists(await join(originalDir, "System.json"))) {
+            gameEngineType = EngineType.New;
+            currentGameEngine.innerHTML = "MV / MZ";
+        } else {
+            await message(mainLocalization.cannotDetermineEngine);
             return false;
-        } else if (!parsed) {
-            if (await exists(await join(originalFolder, "Map001.json"))) {
-                await appWindow.emit("read", [folder, originalFolder]);
-                await appWindow.listen("read-finished", async () => {
-                    for (const dir of dirs) {
-                        const subDirPath = await join(translationPath, dir);
+        }
 
-                        if (dir === pluginsDir && RPGMVer !== "new") {
-                            continue;
-                        }
-
-                        if (!(await exists(subDirPath))) {
-                            await message(mainLocalization.missingTranslationSubdirs);
-                            return false;
-                        }
-
-                        if (dir === otherDir) {
-                            const files = await readDir(subDirPath);
-
-                            for (const file of files) {
-                                const name = file.name as string;
-
-                                if (name.startsWith("scripts")) {
-                                    if (name.endsWith(".rxdata")) {
-                                        RPGMVer = "xp";
-                                    } else if (name.endsWith(".rvdata")) {
-                                        RPGMVer = "vx";
-                                    } else {
-                                        RPGMVer = "vxace";
-                                    }
-                                    break;
-                                } else {
-                                    RPGMVer = "new";
-                                }
-                            }
-                        }
-                    }
+        if (!parsed) {
+            if (gameEngineType === EngineType.New) {
+                await invoke<string>("read", {
+                    projectDir: projectDir,
+                    originalDir: originalDir,
+                    disableCustomParsing: false,
                 });
             } else {
                 const platform = await getPlatform();
 
                 platform === "win32"
-                    ? await new Command("rvpacker-txt-win", ["read", "--input-dir", folder]).execute()
-                    : await new Command("rvpacker-txt-linux", ["read", "--input-dir", folder]).execute();
+                    ? await new Command("rvpacker-txt-win", ["read", "--input-dir", projectDir]).execute()
+                    : await new Command("rvpacker-txt-linux", ["read", "--input-dir", projectDir]).execute();
             }
 
             return true;
         } else {
-            for (const dir of dirs) {
-                const subDirPath = await join(translationPath, dir);
-
-                if (dir === pluginsDir && RPGMVer !== "new") {
-                    continue;
-                }
-
-                if (!(await exists(subDirPath))) {
-                    await message(mainLocalization.missingTranslationSubdirs);
-                    return false;
-                }
-
-                if (dir === otherDir) {
-                    const files = await readDir(subDirPath);
-
-                    for (const file of files) {
-                        const name = file.name as string;
-
-                        if (name.startsWith("scripts")) {
-                            if (name.endsWith(".rxdata")) {
-                                RPGMVer = "xp";
-                            } else if (name.endsWith(".rvdata")) {
-                                RPGMVer = "vx";
-                            } else {
-                                RPGMVer = "vxace";
-                            }
-                            break;
-                        } else {
-                            RPGMVer = "new";
-                        }
-                    }
-                }
-            }
-
-            return true;
+            return await ensureTranslationSubdirsExist();
         }
     }
 
-    async function openFolder(): Promise<void> {
+    async function openDirectory(): Promise<void> {
         const folder = await openPath({ directory: true, multiple: false });
 
         if (folder) {
@@ -691,16 +411,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            projDir = folder as string;
+            projectDir = folder as string;
 
             contentContainer.innerHTML = "";
 
-            settings!.project = projDir;
-            await writeTextFile(settingsPath, JSON.stringify({ ...settings, project: projDir }), {
+            settings!.project = projectDir;
+            await writeTextFile(settingsPath, JSON.stringify({ ...settings, project: projectDir }), {
                 dir: BaseDirectory.Resource,
             });
 
-            await createDir(await join(projDir, backupDir), { recursive: true });
+            await createDir(await join(projectDir, backupDir), { recursive: true });
             nextBackupNumber = Number.parseInt(await determineLastBackupNumber());
             if (backupEnabled) {
                 backup(backupPeriod);
@@ -739,20 +459,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function changeLanguage(lang: Language): Promise<void> {
         language = lang;
-
-        switch (lang) {
-            case "ru":
-                mainLocalization = JSON.parse(
-                    await readTextFile(await join(resDir, ruTranslation), { dir: BaseDirectory.Resource })
-                ).main;
-                break;
-            default:
-            case "en":
-                mainLocalization = JSON.parse(
-                    await readTextFile(await join(resDir, enTranslation), { dir: BaseDirectory.Resource })
-                ).main;
-                break;
-        }
+        mainLocalization = new MainLocalization(language);
 
         setLanguage();
     }
@@ -794,7 +501,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function determineLastBackupNumber(): Promise<string> {
-        const backups = await readDir(await join(projDir, backupDir));
+        const backups = await readDir(await join(projectDir, backupDir));
         return backups.length === 0
             ? "00"
             : backups
@@ -816,7 +523,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               });
 
         //fuck boundaries, they aren't working with symbols other than from ascii
-        regexp = searchWhole ? `(?<!\\p{L})${regexp}(?!\\p{L})` : regexp;
+        regexp = searchWhole ? `(?<!\\p{L})${regexp}(?!\\p{L})` : `${regexp}`;
 
         const attr: string = searchCase ? "g" : "gi";
 
@@ -911,7 +618,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        for (const file of await readDir(projDir)) {
+        for (const file of await readDir(projectDir)) {
             if (file.name!.startsWith("matches")) {
                 await removeFile(file.path);
             }
@@ -973,7 +680,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             if (count % 1000 === 0) {
-                await writeTextFile(await join(projDir, `matches-${file}.json`), JSON.stringify(objectToWrite));
+                await writeTextFile(await join(projectDir, `matches-${file}.json`), JSON.stringify(objectToWrite));
 
                 objectToWrite = {};
                 file++;
@@ -981,14 +688,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (file === 0) {
-            await writeTextFile(await join(projDir, "matches-0.json"), JSON.stringify(objectToWrite));
+            await writeTextFile(await join(projectDir, "matches-0.json"), JSON.stringify(objectToWrite));
         }
 
         searchTotalPages.textContent = file.toString();
         searchCurrentPage.textContent = "0";
 
         for (const [id, result] of Object.entries(
-            JSON.parse(await readTextFile(await join(projDir, "matches-0.json")))
+            JSON.parse(await readTextFile(await join(projectDir, "matches-0.json")))
         )) {
             appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
         }
@@ -1024,12 +731,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             element.setAttribute("reverted", "");
 
             const replacementLogContent: { [key: string]: { original: string; translation: string } } = JSON.parse(
-                await readTextFile(await join(projDir, logFile))
+                await readTextFile(await join(projectDir, logFile))
             );
 
             delete replacementLogContent[clicked.id];
 
-            await writeTextFile(await join(projDir, logFile), JSON.stringify(replacementLogContent));
+            await writeTextFile(await join(projectDir, logFile), JSON.stringify(replacementLogContent));
         }
     }
 
@@ -1221,7 +928,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             replaced.set(text.id, { original: text.value, translation: newValue });
             const prevFile: { [key: string]: { [key: string]: string } } = JSON.parse(
-                await readTextFile(await join(projDir, logFile))
+                await readTextFile(await join(projectDir, logFile))
             );
 
             const newObject: { [key: string]: { [key: string]: string } } = {
@@ -1229,7 +936,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ...Object.fromEntries([...replaced]),
             };
 
-            await writeTextFile(await join(projDir, logFile), JSON.stringify(newObject));
+            await writeTextFile(await join(projectDir, logFile), JSON.stringify(newObject));
             replaced.clear();
 
             text.value = newValue;
@@ -1265,7 +972,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const prevFile: { [key: string]: { [key: string]: string } } = JSON.parse(
-            await readTextFile(await join(projDir, logFile))
+            await readTextFile(await join(projectDir, logFile))
         );
 
         const newObject: { [key: string]: { [key: string]: string } } = {
@@ -1273,19 +980,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             ...Object.fromEntries([...replaced]),
         };
 
-        await writeTextFile(await join(projDir, logFile), JSON.stringify(newObject));
+        await writeTextFile(await join(projectDir, logFile), JSON.stringify(newObject));
         replaced.clear();
     }
 
     async function save(backup: boolean = false): Promise<void> {
-        if (saving || !projDir) {
+        if (saving || !projectDir) {
             return;
         }
 
         saving = true;
         saveButton.firstElementChild!.classList.add("animate-spin");
 
-        let dirName: string = await join(projDir, translationDir);
+        let dirName: string = await join(projectDir, translationDir);
 
         if (backup) {
             const date = new Date();
@@ -1301,7 +1008,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             nextBackupNumber = (nextBackupNumber % backupMax) + 1;
 
             dirName = await join(
-                projDir,
+                projectDir,
                 backupDir,
                 `${formattedDate}_${nextBackupNumber.toString().padStart(2, "0")}`
             );
@@ -1320,14 +1027,26 @@ document.addEventListener("DOMContentLoaded", async () => {
                 outputArray.push(node.value.replaceAll("\n", "\\#"));
             }
 
+            if (contentElement.id === "system") {
+                outputArray.push((document.getElementById("current-game-title") as HTMLInputElement).value);
+            }
+
             let dirPath: string;
 
             dirPath =
-                RPGMVer === "new" ? (i < 2 ? mapsDir : i < 12 ? otherDir : pluginsDir) : i < 2 ? mapsDir : otherDir;
+                gameEngineType === EngineType.New
+                    ? i < 2
+                        ? mapsDir
+                        : i < 12
+                        ? otherDir
+                        : pluginsDir
+                    : i < 2
+                    ? mapsDir
+                    : otherDir;
 
             const filePath = `${dirPath}/${contentElement.id}_trans.txt`;
-
             await writeTextFile(await join(dirName, filePath), outputArray.join("\n"));
+
             i++;
         }
 
@@ -1339,23 +1058,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         saving = false;
     }
 
-    function backup(s: number): void {
+    function backup(seconds: number): void {
         if (!backupEnabled) {
             return;
         }
 
-        setTimeout(async (): Promise<void> => {
+        setTimeout(async () => {
             if (backupEnabled) {
                 await save(true);
-                backup(s);
+                backup(seconds);
             }
-        }, s * 1000);
+        }, seconds * 1000);
     }
 
     function updateState(newState: string, slide: boolean = true): void {
+        const contentParent = document.getElementById(newState) as HTMLDivElement;
+
+        if (!contentParent) {
+            alert(mainLocalization.missingFileText);
+            return;
+        }
+
         currentState.innerHTML = newState;
 
-        const contentParent = document.getElementById(newState) as HTMLDivElement;
         contentParent.classList.replace("hidden", "flex");
 
         if (statePrevious) {
@@ -1377,7 +1102,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function changeState(newState: State, slide: boolean = false): void {
+    function changeState(newState: State | null, slide: boolean = false): void {
         if (state === newState) {
             return;
         }
@@ -1438,7 +1163,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleKeypress(event: KeyboardEvent): Promise<void> {
-        if (!projDir) {
+        if (!projectDir) {
             return;
         }
 
@@ -1508,40 +1233,40 @@ document.addEventListener("DOMContentLoaded", async () => {
                     }
                     break;
                 case "Digit1":
-                    changeState("maps");
+                    changeState(State.Maps);
                     break;
                 case "Digit2":
-                    changeState("names");
+                    changeState(State.Names);
                     break;
                 case "Digit3":
-                    changeState("actors");
+                    changeState(State.Actors);
                     break;
                 case "Digit4":
-                    changeState("armors");
+                    changeState(State.Armors);
                     break;
                 case "Digit5":
-                    changeState("classes");
+                    changeState(State.Classes);
                     break;
                 case "Digit6":
-                    changeState("commonevents");
+                    changeState(State.CommonEvents);
                     break;
                 case "Digit7":
-                    changeState("enemies");
+                    changeState(State.Enemies);
                     break;
                 case "Digit8":
-                    changeState("items");
+                    changeState(State.Items);
                     break;
                 case "Digit9":
-                    changeState("skills");
+                    changeState(State.Skills);
                     break;
                 case "Digit0":
-                    changeState("system");
+                    changeState(State.System);
                     break;
                 case "Minus":
-                    changeState("troops");
+                    changeState(State.Troops);
                     break;
                 case "Equal":
-                    changeState("weapons");
+                    changeState(State.Weapons);
                     break;
             }
         } else {
@@ -1569,7 +1294,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleKeypressSearch(event: KeyboardEvent): Promise<void> {
-        if (!projDir) {
+        if (!projectDir) {
             return;
         }
 
@@ -1608,14 +1333,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function createContent(): Promise<void> {
-        if (!projDir) {
+        if (!projectDir) {
             return;
         }
 
         const contentNames: string[] = [];
         const content: string[][] = [];
 
-        for (const entry of await readDir(await join(projDir, translationDir), {
+        for (const entry of await readDir(await join(projectDir, translationDir), {
             recursive: true,
         })) {
             const folder = entry.name as string;
@@ -1628,15 +1353,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
 
                 contentNames.push(name.slice(0, -4));
-                content.push((await readTextFile(await join(projDir, translationDir, folder, name))).split("\n"));
+                content.push((await readTextFile(await join(projectDir, translationDir, folder, name))).split("\n"));
             }
         }
 
         if (contentNames.includes("scripts")) {
-            leftPanel.lastElementChild!.innerHTML = "scripts";
+            leftPanel.lastElementChild!.innerHTML = State.Scripts;
         }
-
-        console.log(content);
 
         for (let i = 0; i < contentNames.length - 1; i += 2) {
             const contentName = contentNames[i];
@@ -1644,7 +1367,21 @@ document.addEventListener("DOMContentLoaded", async () => {
             contentDiv.id = contentName;
             contentDiv.classList.add("hidden", "flex-col", "h-auto");
 
-            for (let j = 0; j < content[i].length; j++) {
+            let length = content[i].length;
+
+            if (contentName === "system") {
+                const currentGameTitle = document.getElementById("current-game-title") as HTMLInputElement;
+
+                if (content[i + 1].at(-1)) {
+                    currentGameTitle.value = content[i + 1].at(-1)!;
+                } else {
+                    currentGameTitle.value = content[i].at(-1)!;
+                }
+
+                length -= 1;
+            }
+
+            for (let j = 0; j < length; j++) {
                 const originalText = content[i][j];
                 const translationText = content[i + 1][j];
 
@@ -1691,30 +1428,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function compile(): Promise<void> {
-        if (!projDir) {
+        if (!projectDir) {
             return;
         }
 
         compileButton.firstElementChild!.classList.add("animate-spin");
 
-        if (RPGMVer === "new") {
+        if (gameEngineType === EngineType.New) {
             await appWindow.listen("compile-finished", () => {
                 compileButton.firstElementChild!.classList.remove("animate-spin");
                 alert(`${mainLocalization.compileSuccess} ${(performance.now() - startTime) / 1000}`);
             });
 
             const startTime = performance.now();
-            await appWindow.emit("compile", projDir);
+            await appWindow.emit("compile", projectDir);
         } else {
             const startTime = performance.now();
-            const outputPath = await join(projDir, "output", "data");
+            const outputPath = await join(projectDir, "output", "data");
             await createDir(outputPath, { recursive: true });
 
             const platform = await getPlatform();
 
             platform === "win32"
-                ? await new Command("rvpacker-txt-win", ["read", "--input-dir", projDir]).execute()
-                : await new Command("rvpacker-txt-linux", ["read", "--input-dir", projDir]).execute();
+                ? await new Command("rvpacker-txt-win", ["read", "--input-dir", projectDir]).execute()
+                : await new Command("rvpacker-txt-linux", ["read", "--input-dir", projectDir]).execute();
 
             alert(`${mainLocalization.compileSuccess} ${(performance.now() - startTime) / 1000}`);
             compileButton.firstElementChild!.classList.remove("animate-spin");
@@ -1923,13 +1660,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         switch (target.id) {
             case "ru-button":
-                if (language !== "ru") {
-                    await changeLanguage("ru");
+                if (language !== Language.Russian) {
+                    await changeLanguage(Language.Russian);
                 }
                 break;
             case "en-button":
-                if (language !== "en") {
-                    await changeLanguage("en");
+                if (language !== Language.English) {
+                    await changeLanguage(Language.English);
                 }
                 break;
         }
@@ -1988,11 +1725,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function createLogFile() {
-        if (!projDir) {
+        if (!projectDir) {
             return;
         }
 
-        const logPath = await join(projDir, logFile);
+        const logPath = await join(projectDir, logFile);
 
         if (!(await exists(logPath))) {
             await writeTextFile(logPath, "{}");
@@ -2049,6 +1786,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         for (const div of themeWindow.children[1].children) {
             for (const subdiv of div.children) {
                 const label = subdiv.lastElementChild as HTMLLabelElement;
+                // @ts-ignore
                 label.innerHTML = mainLocalization[subdiv.firstElementChild!.id];
             }
         }
@@ -2081,8 +1819,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const noProjectSelected = document.getElementById("no-project-selected") as HTMLDivElement;
             noProjectSelected.innerHTML = mainLocalization.noProjectSelected;
         } else {
-            console.log("project is valid");
-            projDir = project;
+            projectDir = project;
             await createContent();
         }
     }
@@ -2098,6 +1835,246 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    leftPanel.addEventListener("click", (event) => {
+        const newState = leftPanel.secondHighestParent(event.target as HTMLElement).textContent as State;
+        changeState(newState, true);
+    });
+
+    topPanelButtonsDiv.addEventListener("click", async (event) => {
+        if (event.target === topPanelButtonsDiv) {
+            return;
+        }
+
+        const target: HTMLElement = topPanelButtonsDiv.secondHighestParent(event.target as HTMLElement);
+
+        switch (target.id) {
+            case "menu-button":
+                if (!projectDir) {
+                    return;
+                }
+
+                leftPanel.toggleMultiple("translate-x-0", "-translate-x-full");
+                break;
+            case "save-button":
+                await save();
+                break;
+            case "compile-button":
+                await compile();
+                break;
+            case "open-button":
+                await openDirectory();
+                break;
+            case "options-button":
+                createOptionsWindow();
+                break;
+            case "theme-button":
+                themeMenu.toggleMultiple("hidden", "flex");
+
+                requestAnimationFrame((): void => {
+                    themeMenu.style.left = `${themeButton.offsetLeft}px`;
+                    themeMenu.style.top = `${themeButton.offsetTop + themeButton.clientHeight + 16}px`;
+
+                    themeMenu.addEventListener("click", async (event: MouseEvent): Promise<void> => {
+                        const target = event.target as HTMLButtonElement;
+
+                        if (!themeMenu.contains(target)) {
+                            return;
+                        }
+
+                        if (target.id === "create-theme-menu-button") {
+                            showThemeWindow();
+                            return;
+                        }
+
+                        await setTheme(themes[target.id]);
+                    });
+                });
+
+                break;
+            case "search-button":
+                if (!projectDir) {
+                    return;
+                }
+
+                if (searchInput.value) {
+                    searchPanelFound.innerHTML = "";
+                    await displaySearchResults(searchInput.value, false);
+                } else if (document.activeElement === document.body) {
+                    searchInput.focus();
+                }
+                break;
+            case "replace-button":
+                if (!projectDir) {
+                    return;
+                }
+
+                if (searchInput.value.trim() && replaceInput.value.trim()) {
+                    await replaceText(searchInput.value, true);
+                }
+                break;
+            case "case-button":
+                switchCase();
+                break;
+            case "whole-button":
+                switchWhole();
+                break;
+            case "regex-button":
+                switchRegExp();
+                break;
+            case "translation-button":
+                switchTranslation();
+                break;
+            case "location-button":
+                switchLocation();
+                break;
+        }
+    });
+
+    searchPanel.addEventListener("click", async (event) => {
+        const target = event.target as HTMLElement;
+
+        switch (target.id) {
+            case "switch-search-content":
+                searchPanelFound.toggleMultiple("hidden", "flex");
+                searchPanelReplaced.toggleMultiple("hidden", "flex");
+
+                const searchSwitch: HTMLElement = target;
+
+                if (searchSwitch.innerHTML.trim() === "search") {
+                    searchSwitch.innerHTML = "menu_book";
+
+                    const replacementLogContent: { [key: string]: { original: string; translation: string } } =
+                        JSON.parse(await readTextFile(await join(projectDir, logFile)));
+
+                    for (const [key, value] of Object.entries(replacementLogContent)) {
+                        const replacedContainer: HTMLDivElement = document.createElement("div");
+
+                        const replacedElement: HTMLDivElement = document.createElement("div");
+                        replacedElement.classList.add(
+                            "replaced-element",
+                            "textSecond",
+                            "borderPrimary",
+                            "backgroundSecond"
+                        );
+
+                        replacedElement.innerHTML = `<div class="text-base textThird">${key}</div><div class=text-base>${value.original}</div><div class="flex justify-center items-center text-xl textPrimary font-material">arrow_downward</div><div class="text-base">${value.translation}</div>`;
+
+                        replacedContainer.appendChild(replacedElement);
+                        searchPanelReplaced.appendChild(replacedContainer);
+                    }
+
+                    observerFound.disconnect();
+                    searchPanelReplaced.style.height = `${searchPanelReplaced.scrollHeight}px`;
+
+                    for (const container of searchPanelReplaced.children as HTMLCollectionOf<HTMLElement>) {
+                        container.style.width = `${container.clientWidth}px`;
+                        container.style.height = `${container.clientHeight}px`;
+
+                        observerReplaced.observe(container);
+                        container.firstElementChild!.classList.add("hidden");
+                    }
+
+                    searchPanelReplaced.addEventListener(
+                        "mousedown",
+                        async (event) => await handleReplacedClick(event)
+                    );
+                } else {
+                    searchSwitch.innerHTML = "search";
+                    searchPanelReplaced.innerHTML = "";
+
+                    searchPanelReplaced.removeEventListener(
+                        "mousedown",
+                        async (event) => await handleReplacedClick(event)
+                    );
+                }
+                break;
+            case "previous-page-button": {
+                const page = Number.parseInt(searchCurrentPage.textContent!);
+
+                if (page > 1) {
+                    searchCurrentPage.textContent = (page - 1).toString();
+
+                    searchPanelFound.innerHTML = "";
+
+                    for (const [id, result] of Object.entries(
+                        JSON.parse(
+                            await readTextFile(
+                                await join(
+                                    projectDir,
+                                    `matches-${Number.parseInt(searchCurrentPage.textContent) - 1}.json`
+                                )
+                            )
+                        )
+                    )) {
+                        appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
+                    }
+                }
+
+                break;
+            }
+            case "next-page-button": {
+                const page = Number.parseInt(searchCurrentPage.textContent!);
+
+                if (page < Number.parseInt(searchTotalPages.textContent!)) {
+                    searchCurrentPage.textContent = (page + 1).toString();
+                    searchPanelFound.innerHTML = "";
+
+                    for (const [id, result] of Object.entries(
+                        JSON.parse(
+                            await readTextFile(
+                                await join(
+                                    projectDir,
+                                    `matches-${Number.parseInt(searchCurrentPage.textContent) + 1}.json`
+                                )
+                            )
+                        )
+                    )) {
+                        appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
+                    }
+                }
+                break;
+            }
+        }
+    });
+
+    searchInput.addEventListener("blur", () => (searchInput.value = searchInput.value.trim()));
+    replaceInput.addEventListener("blur", () => (replaceInput.value = replaceInput.value.trim()));
+
+    searchInput.addEventListener("keydown", async (event) => await handleKeypressSearch(event));
+    menuBar.addEventListener("click", (event) => menuBarClick(event.target as HTMLElement));
+
+    document.addEventListener("keydown", async (event) => await handleKeypress(event));
+    document.addEventListener("keyup", (event) => (event.key === "Shift" ? (shiftPressed = false) : null));
+
+    document.addEventListener("focus", handleFocus, true);
+    document.addEventListener("blur", handleBlur, true);
+
+    goToRowInput.addEventListener("keydown", (event) => {
+        if (event.code === "Enter") {
+            const rowNumber: string = goToRowInput.value;
+            const targetRow: HTMLTextAreaElement = document.getElementById(
+                `${state}-${rowNumber}`
+            ) as HTMLTextAreaElement;
+
+            if (targetRow) {
+                targetRow.scrollIntoView({
+                    block: "center",
+                    inline: "center",
+                });
+            }
+
+            goToRowInput.value = "";
+            goToRowInput.classList.add("hidden");
+        }
+
+        if (event.code === "Escape") {
+            goToRowInput.value = "";
+            goToRowInput.classList.add("hidden");
+        }
+    });
+
+    document.addEventListener("mousedown", (event) => handleMousedown(event));
+
     document.addEventListener(
         "paste",
         (event) => {
@@ -2106,10 +2083,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (
                 contentContainer.contains(document.activeElement) &&
                 document.activeElement?.tagName === "TEXTAREA" &&
-                text?.includes("\\/#")
+                text?.includes("\\\\#")
             ) {
                 event.preventDefault();
-                const clipboardTextSplit = text.split("\\/#");
+                const clipboardTextSplit = text.split("\\\\#");
                 const textRows = clipboardTextSplit.length;
 
                 if (textRows < 1) {
@@ -2146,7 +2123,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             ) {
                 event.preventDefault();
                 selectedTextareas.set(document.activeElement.id, (document.activeElement as HTMLTextAreaElement).value);
-                event.clipboardData?.setData("text", Array.from(selectedTextareas.values()).join("\\/#"));
+                event.clipboardData?.setData("text", Array.from(selectedTextareas.values()).join("\\\\#"));
             }
         },
         true
@@ -2161,7 +2138,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 document.activeElement?.tagName === "TEXTAREA"
             ) {
                 event.preventDefault();
-                event.clipboardData?.setData("text", Array.from(selectedTextareas.values()).join("\\/#"));
+                event.clipboardData?.setData("text", Array.from(selectedTextareas.values()).join("\\\\#"));
 
                 for (const key of selectedTextareas.keys()) {
                     const textarea = document.getElementById(key) as HTMLTextAreaElement;
@@ -2173,4 +2150,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         },
         true
     );
+
+    await appWindow.onCloseRequested(async (event) => {
+        await awaitSaving();
+        (await exitProgram()) ? await exit() : event.preventDefault();
+    });
 });

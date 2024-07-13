@@ -1,12 +1,93 @@
 use fancy_regex::Regex;
-use fnv::{FnvHashMap, FnvHashSet};
 use rayon::prelude::*;
 use serde_json::{from_str, to_string, to_value, Value};
 use std::{
+    collections::{HashMap, HashSet},
     fs::{read_dir, read_to_string, write, DirEntry},
+    hash::BuildHasherDefault,
     path::Path,
 };
+use xxhash_rust::xxh3::Xxh3;
 
+#[allow(clippy::single_match, clippy::match_single_binding, unused_mut)]
+fn get_parameter_translated<'a>(
+    code: u16,
+    mut parameter: &'a str,
+    hashmap: &'a HashMap<&str, &str, BuildHasherDefault<Xxh3>>,
+    game_type: Option<&str>,
+) -> Option<&'a &'a str> {
+    if let Some(game_type) = game_type {
+        match code {
+            401 | 405 => match game_type {
+                // Implement custom parsing
+                _ => {}
+            },
+            102 | 402 => match game_type {
+                // Implement custom parsing
+                _ => {}
+            },
+            356 => match game_type {
+                "termina" => {
+                    if !parameter.starts_with("GabText")
+                        && (!parameter.starts_with("choice_text") || parameter.ends_with("????"))
+                    {
+                        return None;
+                    }
+                }
+                // Implement custom parsing
+                _ => {}
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    hashmap.get(parameter)
+}
+
+#[allow(clippy::single_match, clippy::match_single_binding, unused_mut)]
+fn get_variable_translated(
+    mut variable_text: &str,
+    variable_name: &str,
+    filename: &str,
+    hashmap: &HashMap<&str, &str, BuildHasherDefault<Xxh3>>,
+    game_type: Option<&str>,
+) -> Option<String> {
+    if let Some(game_type) = game_type {
+        match variable_name {
+            "name" => match game_type {
+                _ => {}
+            },
+            "nickname" => match game_type {
+                _ => {}
+            },
+            "description" => match game_type {
+                _ => {}
+            },
+            "note" => match game_type {
+                "termina" => {
+                    if filename.starts_with("Items") {
+                        for string in [
+                            "<Menu Category: Items>",
+                            "<Menu Category: Food>",
+                            "<Menu Category: Healing>",
+                            "<Menu Category: Body bag>",
+                        ] {
+                            if variable_text.contains(string) {
+                                return Some(variable_text.replacen(string, hashmap[string], 1));
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            },
+            _ => unreachable!(),
+        }
+    }
+
+    hashmap.get(variable_text).map(|s| s.to_string())
+}
+
+// ! Maybe this function must be removed in favor of splitting translation strings at '\#'s and replacing by parts
 /// Merges sequences of objects with codes 401 and 405 inside list objects.
 /// Merging is perfectly valid in RPG Maker MV/MZ, and it's much faster and easier than replacing text in each object in a loop.
 /// # Parameters
@@ -14,7 +95,7 @@ use std::{
 fn merge_seq(json: &mut Value) {
     let mut first: Option<usize> = None;
     let mut number: i16 = -1;
-    let mut prev: bool = false;
+    let mut sequence: bool = false;
     let mut string_vec: Vec<String> = Vec::new();
 
     let mut i: usize = 0;
@@ -25,15 +106,15 @@ fn merge_seq(json: &mut Value) {
         let object: &Value = &json_array[i];
         let code: u16 = object["code"].as_u64().unwrap() as u16;
 
-        if code == 401 || code == 405 {
+        if [401, 405].contains(&code) {
             if first.is_none() {
                 first = Some(i);
             }
 
             number += 1;
             string_vec.push(object["parameters"][0].as_str().unwrap().to_string());
-            prev = true;
-        } else if i > 0 && prev && first.is_some() && number != -1 {
+            sequence = true;
+        } else if i > 0 && sequence && first.is_some() && number != -1 {
             json_array[first.unwrap()]["parameters"][0] = to_value(string_vec.join("\n")).unwrap();
 
             let start_index: usize = first.unwrap() + 1;
@@ -44,7 +125,7 @@ fn merge_seq(json: &mut Value) {
             i -= number as usize;
             number = -1;
             first = None;
-            prev = false;
+            sequence = false;
         }
 
         i += 1;
@@ -105,36 +186,49 @@ pub fn merge_other(mut obj_arr: Vec<Value>) -> Vec<Value> {
 /// * `maps_path` - path to the maps directory
 /// * `original_path` - path to the original directory
 /// * `output_path` - path to the output directory
-pub fn write_maps(maps_path: &Path, original_path: &Path, output_path: &Path) {
-    let re: Regex = Regex::new(r"^Map[0-9].*json$").unwrap();
+pub fn write_maps(
+    maps_path: &Path,
+    original_path: &Path,
+    output_path: &Path,
+    game_type: Option<&str>,
+) {
+    let select_maps_re: Regex = Regex::new(r"^Map[0-9].*json$").unwrap();
 
-    let mut maps_obj_map: FnvHashMap<String, Value> = read_dir(original_path)
-        .unwrap()
-        .par_bridge()
-        .flatten()
-        .fold(
-            FnvHashMap::default,
-            |mut map: FnvHashMap<String, Value>, entry: DirEntry| {
-                let filename: String = entry.file_name().into_string().unwrap();
+    let mut maps_obj_map: HashMap<String, Value, BuildHasherDefault<Xxh3>> =
+        read_dir(original_path)
+            .unwrap()
+            .par_bridge()
+            .flatten()
+            .fold(
+                HashMap::default,
+                |mut map: HashMap<String, Value, BuildHasherDefault<Xxh3>>, entry: DirEntry| {
+                    let filename: String = entry.file_name().into_string().unwrap();
 
-                if re.is_match(&filename).unwrap() {
-                    map.insert(
-                        filename,
-                        merge_map(from_str(&read_to_string(entry.path()).unwrap()).unwrap()),
-                    );
-                }
-                map
-            },
-        )
-        .reduce(
-            FnvHashMap::default,
-            |mut a: FnvHashMap<String, Value>, b: FnvHashMap<String, Value>| {
-                a.extend(b);
-                a
-            },
-        );
+                    if select_maps_re.is_match(&filename).unwrap() {
+                        map.insert(
+                            filename,
+                            merge_map(from_str(&read_to_string(entry.path()).unwrap()).unwrap()),
+                        );
+                    }
+                    map
+                },
+            )
+            .reduce(
+                HashMap::default,
+                |mut a: HashMap<String, Value, BuildHasherDefault<Xxh3>>,
+                 b: HashMap<String, Value, BuildHasherDefault<Xxh3>>| {
+                    a.extend(b);
+                    a
+                },
+            );
 
     let maps_original_text_vec: Vec<String> = read_to_string(maps_path.join("maps.txt"))
+        .unwrap()
+        .par_split('\n')
+        .map(|line: &str| line.replace(r"\#", "\n"))
+        .collect();
+
+    let names_original_text_vec: Vec<String> = read_to_string(maps_path.join("names.txt"))
         .unwrap()
         .par_split('\n')
         .map(|line: &str| line.replace(r"\#", "\n"))
@@ -146,49 +240,46 @@ pub fn write_maps(maps_path: &Path, original_path: &Path, output_path: &Path) {
         .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
         .collect();
 
-    let names_original_text_vec: Vec<String> = read_to_string(maps_path.join("names.txt"))
-        .unwrap()
-        .par_split('\n')
-        .map(|line: &str| line.replace(r"\#", "\n"))
-        .collect();
-
     let names_translated_text_vec: Vec<String> = read_to_string(maps_path.join("names_trans.txt"))
         .unwrap()
         .par_split('\n')
         .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
         .collect();
 
-    let maps_translation_map: FnvHashMap<&str, &str> = maps_original_text_vec
-        .par_iter()
-        .zip(maps_translated_text_vec.par_iter())
-        .fold(
-            FnvHashMap::default,
-            |mut map: FnvHashMap<&str, &str>, (key, value): (&String, &String)| {
-                map.insert(key.as_str(), value.as_str());
-                map
-            },
-        )
-        .reduce(
-            FnvHashMap::default,
-            |mut a: FnvHashMap<&str, &str>, b: FnvHashMap<&str, &str>| {
-                a.extend(b);
-                a
-            },
-        );
+    let maps_translation_map: HashMap<&str, &str, BuildHasherDefault<Xxh3>> =
+        maps_original_text_vec
+            .par_iter()
+            .zip(maps_translated_text_vec.par_iter())
+            .fold(
+                HashMap::default,
+                |mut map: HashMap<&str, &str, BuildHasherDefault<Xxh3>>,
+                 (key, value): (&String, &String)| {
+                    map.insert(key.as_str(), value.as_str());
+                    map
+                },
+            )
+            .reduce(
+                HashMap::default,
+                |mut a: HashMap<&str, &str, BuildHasherDefault<Xxh3>>,
+                 b: HashMap<&str, &str, BuildHasherDefault<Xxh3>>| {
+                    a.extend(b);
+                    a
+                },
+            );
 
-    let names_translation_map: FnvHashMap<&str, &str> = names_original_text_vec
+    let names_translation_map: HashMap<&str, &str> = names_original_text_vec
         .par_iter()
         .zip(names_translated_text_vec.par_iter())
         .fold(
-            FnvHashMap::default,
-            |mut map: FnvHashMap<&str, &str>, (key, value): (&String, &String)| {
+            HashMap::default,
+            |mut map: HashMap<&str, &str>, (key, value): (&String, &String)| {
                 map.insert(key.as_str(), value.as_str());
                 map
             },
         )
         .reduce(
-            FnvHashMap::default,
-            |mut a: FnvHashMap<&str, &str>, b: FnvHashMap<&str, &str>| {
+            HashMap::default,
+            |mut a: HashMap<&str, &str>, b: HashMap<&str, &str>| {
                 a.extend(b);
                 a
             },
@@ -240,13 +331,19 @@ pub fn write_maps(maps_path: &Path, original_path: &Path, output_path: &Path) {
                                         .par_iter_mut()
                                         .for_each(|parameter_value: &mut Value| {
                                             if parameter_value.is_string() {
-                                                let parameter: &str =
-                                                    parameter_value.as_str().unwrap();
+                                                let parameter_str: &str =
+                                                    parameter_value.as_str().unwrap().trim();
 
-                                                if code == 401 || code == 402 || code == 356 {
-                                                    if let Some(text) =
-                                                        maps_translation_map.get(parameter)
-                                                    {
+                                                if [401, 402, 356].contains(&code) {
+                                                    let translated: Option<&&str> =
+                                                        get_parameter_translated(
+                                                            code,
+                                                            parameter_str,
+                                                            &maps_translation_map,
+                                                            game_type,
+                                                        );
+
+                                                    if let Some(text) = translated {
                                                         *parameter_value = to_value(text).unwrap();
                                                     }
                                                 }
@@ -255,12 +352,25 @@ pub fn write_maps(maps_path: &Path, original_path: &Path, output_path: &Path) {
                                                     .as_array_mut()
                                                     .unwrap()
                                                     .par_iter_mut()
-                                                    .for_each(|param: &mut Value| {
-                                                        if param.is_string() {
-                                                            if let Some(text) = maps_translation_map
-                                                                .get(param.as_str().unwrap())
-                                                            {
-                                                                *param = to_value(text).unwrap();
+                                                    .for_each(|subparameter_value: &mut Value| {
+                                                        let subparameter_str: &str =
+                                                            subparameter_value
+                                                                .as_str()
+                                                                .unwrap()
+                                                                .trim();
+
+                                                        if subparameter_value.is_string() {
+                                                            let translated: Option<&&str> =
+                                                                get_parameter_translated(
+                                                                    code,
+                                                                    subparameter_str,
+                                                                    &maps_translation_map,
+                                                                    game_type,
+                                                                );
+
+                                                            if let Some(text) = translated {
+                                                                *subparameter_value =
+                                                                    to_value(text).unwrap();
                                                             }
                                                         }
                                                     });
@@ -269,6 +379,7 @@ pub fn write_maps(maps_path: &Path, original_path: &Path, output_path: &Path) {
                                 });
                         });
                 });
+
             write(output_path.join(filename), obj.to_string()).unwrap();
         });
 }
@@ -278,19 +389,25 @@ pub fn write_maps(maps_path: &Path, original_path: &Path, output_path: &Path) {
 /// * `other_path` - path to the other directory
 /// * `original_path` - path to the original directory
 /// * `output_path` - path to the output directory
-pub fn write_other(other_path: &Path, original_path: &Path, output_path: &Path) {
-    let re: Regex = Regex::new(r"^(?!Map|Tilesets|Animations|States|System).*json$").unwrap();
+pub fn write_other(
+    other_path: &Path,
+    original_path: &Path,
+    output_path: &Path,
+    game_type: Option<&str>,
+) {
+    let select_other_re: Regex =
+        Regex::new(r"^(?!Map|Tilesets|Animations|States|System).*json$").unwrap();
 
-    let mut other_obj_arr_map: FnvHashMap<String, Vec<Value>> = read_dir(original_path)
+    let mut other_obj_arr_map: HashMap<String, Vec<Value>> = read_dir(original_path)
         .unwrap()
         .par_bridge()
         .flatten()
         .fold(
-            FnvHashMap::default,
-            |mut map: FnvHashMap<String, Vec<Value>>, entry: DirEntry| {
+            HashMap::default,
+            |mut map: HashMap<String, Vec<Value>>, entry: DirEntry| {
                 let filename: String = entry.file_name().into_string().unwrap();
 
-                if re.is_match(&filename).unwrap() {
+                if select_other_re.is_match(&filename).unwrap() {
                     let json: Vec<Value> =
                         if filename.starts_with("Common") || filename.starts_with("Troops") {
                             merge_other(from_str(&read_to_string(entry.path()).unwrap()).unwrap())
@@ -304,20 +421,12 @@ pub fn write_other(other_path: &Path, original_path: &Path, output_path: &Path) 
             },
         )
         .reduce(
-            FnvHashMap::default,
-            |mut a: FnvHashMap<String, Vec<Value>>, b: FnvHashMap<String, Vec<Value>>| {
+            HashMap::default,
+            |mut a: HashMap<String, Vec<Value>>, b: HashMap<String, Vec<Value>>| {
                 a.extend(b);
                 a
             },
         );
-
-    // Strings inside notes that must be replaced to translated in Termina
-    const TO_REPLACE: [&str; 4] = [
-        "<Menu Category: Items>",
-        "<Menu Category: Food>",
-        "<Menu Category: Healing>",
-        "<Menu Category: Body bag>",
-    ];
 
     //401 - dialogue lines
     //102, 402 - dialogue choices
@@ -328,39 +437,42 @@ pub fn write_other(other_path: &Path, original_path: &Path, output_path: &Path) 
     other_obj_arr_map
         .par_iter_mut()
         .for_each(|(filename, obj_arr): (&String, &mut Vec<Value>)| {
-            let processed_filename: &str = &filename[..filename.len() - 5];
+            let other_processed_filename: &str = &filename[..filename.len() - 5];
 
             let other_original_text: Vec<String> =
-                read_to_string(other_path.join(format!("{processed_filename}.txt")))
+                read_to_string(other_path.join(format!("{other_processed_filename}.txt")))
                     .unwrap()
                     .par_split('\n')
-                    .map(|line: &str| line.replace(r"\#", "\n"))
+                    .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
                     .collect();
 
             let other_translated_text: Vec<String> =
-                read_to_string(other_path.join(format!("{processed_filename}_trans.txt")))
+                read_to_string(other_path.join(format!("{other_processed_filename}_trans.txt")))
                     .unwrap()
                     .par_split('\n')
-                    .map(|line: &str| line.replace(r"\#", "\n"))
+                    .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
                     .collect();
 
-            let other_translation_map: FnvHashMap<&str, &str> = other_original_text
-                .par_iter()
-                .zip(other_translated_text.par_iter())
-                .fold(
-                    FnvHashMap::default,
-                    |mut map: FnvHashMap<&str, &str>, (key, value): (&String, &String)| {
-                        map.insert(key.as_str(), value.as_str());
-                        map
-                    },
-                )
-                .reduce(
-                    FnvHashMap::default,
-                    |mut a: FnvHashMap<&str, &str>, b: FnvHashMap<&str, &str>| {
-                        a.extend(b);
-                        a
-                    },
-                );
+            let other_translation_map: HashMap<&str, &str, BuildHasherDefault<Xxh3>> =
+                other_original_text
+                    .par_iter()
+                    .zip(other_translated_text.par_iter())
+                    .fold(
+                        HashMap::default,
+                        |mut map: HashMap<&str, &str, BuildHasherDefault<Xxh3>>,
+                         (key, value): (&String, &String)| {
+                            map.insert(key.as_str(), value.as_str());
+                            map
+                        },
+                    )
+                    .reduce(
+                        HashMap::default,
+                        |mut a: HashMap<&str, &str, BuildHasherDefault<Xxh3>>,
+                         b: HashMap<&str, &str, BuildHasherDefault<Xxh3>>| {
+                            a.extend(b);
+                            a
+                        },
+                    );
 
             // Other files except CommonEvents.json and Troops.json have the structure that consists
             // of name, nickname, description and note
@@ -369,48 +481,30 @@ pub fn write_other(other_path: &Path, original_path: &Path, output_path: &Path) 
                     .par_iter_mut()
                     .skip(1) //Skipping first element in array as it is null
                     .for_each(|obj: &mut Value| {
-                        if let Some(text) = other_translation_map.get(obj["name"].as_str().unwrap())
-                        {
-                            obj["name"] = to_value(text).unwrap();
-                        }
-
-                        if filename.starts_with("Actors") {
-                            if let Some(text) =
-                                other_translation_map.get(obj["nickname"].as_str().unwrap())
-                            {
-                                obj["nickname"] = to_value(text).unwrap();
+                        for (variable_value, variable_name) in [
+                            (obj["name"].take(), "name"),
+                            (obj["nickname"].take(), "nickname"),
+                            (obj["description"].take(), "description"),
+                            (obj["note"].take(), "note"),
+                        ] {
+                            if !variable_value.is_string() {
+                                continue;
                             }
-                        }
 
-                        if obj["description"].is_string() {
-                            if let Some(text) =
-                                other_translation_map.get(obj["description"].as_str().unwrap())
-                            {
-                                obj["description"] = to_value(text).unwrap();
-                            }
-                        }
+                            let variable_str: &str = variable_value.as_str().unwrap().trim();
 
-                        if obj["note"].is_string() {
-                            let note: &str = obj["note"].as_str().unwrap();
+                            if !variable_str.is_empty() {
+                                let translated: Option<String> = get_variable_translated(
+                                    variable_str,
+                                    variable_name,
+                                    filename,
+                                    &other_translation_map,
+                                    game_type,
+                                );
 
-                            if filename.starts_with("Items") {
-                                for string in TO_REPLACE {
-                                    if note.contains(string) {
-                                        // In F&H2 Termina, note contains Menu Category that should be replaced with translated text
-                                        if let Some(text) = other_translation_map.get(string) {
-                                            obj["note"] =
-                                                to_value(note.replace(string, text)).unwrap();
-                                            break;
-                                        }
-                                    }
+                                if let Some(text) = translated {
+                                    obj[variable_name] = to_value(text).unwrap();
                                 }
-                            }
-
-                            // For other games, note probably should be replaced entirely
-                            if let Some(text) =
-                                other_translation_map.get(obj["note"].as_str().unwrap())
-                            {
-                                obj["note"] = to_value(text).unwrap();
                             }
                         }
                     });
@@ -421,8 +515,8 @@ pub fn write_other(other_path: &Path, original_path: &Path, output_path: &Path) 
                     .skip(1) //Skipping first element in array as it is null
                     .for_each(|obj: &mut Value| {
                         //CommonEvents doesn't have pages, so we can just check if it's Troops
-                        let pages_length: usize = if filename.starts_with("Troops") {
-                            obj["pages"].as_array().unwrap().len()
+                        let pages_length: u32 = if filename.starts_with("Troops") {
+                            obj["pages"].as_array().unwrap().len() as u32
                         } else {
                             1
                         };
@@ -431,7 +525,7 @@ pub fn write_other(other_path: &Path, original_path: &Path, output_path: &Path) 
                             //If element has pages, then we'll iterate over them
                             //Otherwise we'll just iterate over the list
                             let list: &mut Value = if pages_length != 1 {
-                                &mut obj["pages"][i]["list"]
+                                &mut obj["pages"][i as usize]["list"]
                             } else {
                                 &mut obj["list"]
                             };
@@ -454,17 +548,19 @@ pub fn write_other(other_path: &Path, original_path: &Path, output_path: &Path) 
                                         .par_iter_mut()
                                         .for_each(|parameter_value: &mut Value| {
                                             if parameter_value.is_string() {
-                                                let parameter: &str =
-                                                    parameter_value.as_str().unwrap();
+                                                let parameter_str: &str =
+                                                    parameter_value.as_str().unwrap().trim();
 
-                                                if code == 401
-                                                    || code == 402
-                                                    || code == 405
-                                                    || code == 356
-                                                {
-                                                    if let Some(text) =
-                                                        other_translation_map.get(parameter)
-                                                    {
+                                                if [401, 402, 405, 356].contains(&code) {
+                                                    let translated: Option<&&str> =
+                                                        get_parameter_translated(
+                                                            code,
+                                                            parameter_str,
+                                                            &other_translation_map,
+                                                            game_type,
+                                                        );
+
+                                                    if let Some(text) = translated {
                                                         *parameter_value = to_value(text).unwrap();
                                                     }
                                                 }
@@ -473,13 +569,25 @@ pub fn write_other(other_path: &Path, original_path: &Path, output_path: &Path) 
                                                     .as_array_mut()
                                                     .unwrap()
                                                     .par_iter_mut()
-                                                    .for_each(|param: &mut Value| {
-                                                        if param.is_string() {
-                                                            if let Some(text) =
-                                                                other_translation_map
-                                                                    .get(param.as_str().unwrap())
-                                                            {
-                                                                *param = to_value(text).unwrap();
+                                                    .for_each(|subparameter_value: &mut Value| {
+                                                        let subparameter_str: &str =
+                                                            subparameter_value
+                                                                .as_str()
+                                                                .unwrap()
+                                                                .trim();
+
+                                                        if subparameter_value.is_string() {
+                                                            let translated: Option<&&str> =
+                                                                get_parameter_translated(
+                                                                    code,
+                                                                    subparameter_str,
+                                                                    &other_translation_map,
+                                                                    game_type,
+                                                                );
+
+                                                            if let Some(text) = translated {
+                                                                *subparameter_value =
+                                                                    to_value(text).unwrap();
                                                             }
                                                         }
                                                     });
@@ -490,6 +598,7 @@ pub fn write_other(other_path: &Path, original_path: &Path, output_path: &Path) 
                         }
                     });
             }
+
             write(output_path.join(filename), to_string(obj_arr).unwrap()).unwrap();
         });
 }
@@ -502,7 +611,7 @@ pub fn write_other(other_path: &Path, original_path: &Path, output_path: &Path) 
 /// * `other_path` - path to the other directory
 /// * `output_path` - path to the output directory
 pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Path) {
-    let mut obj: Value = from_str(&read_to_string(system_file_path).unwrap()).unwrap();
+    let mut system_obj: Value = from_str(&read_to_string(system_file_path).unwrap()).unwrap();
 
     let system_original_text: Vec<String> = read_to_string(other_path.join("system.txt"))
         .unwrap()
@@ -516,25 +625,25 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
         .map(|line: &str| line.to_string())
         .collect();
 
-    let system_translation_map: FnvHashMap<&str, &str> = system_original_text
+    let system_translation_map: HashMap<&str, &str> = system_original_text
         .par_iter()
         .zip(system_translated_text.par_iter())
         .fold(
-            FnvHashMap::default,
-            |mut map: FnvHashMap<&str, &str>, (key, value): (&String, &String)| {
+            HashMap::default,
+            |mut map: HashMap<&str, &str>, (key, value): (&String, &String)| {
                 map.insert(key.as_str(), value.as_str());
                 map
             },
         )
         .reduce(
-            FnvHashMap::default,
-            |mut a: FnvHashMap<&str, &str>, b: FnvHashMap<&str, &str>| {
+            HashMap::default,
+            |mut a: HashMap<&str, &str>, b: HashMap<&str, &str>| {
                 a.extend(b);
                 a
             },
         );
 
-    obj["armorTypes"]
+    system_obj["armorTypes"]
         .as_array_mut()
         .unwrap()
         .par_iter_mut()
@@ -544,7 +653,7 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
             }
         });
 
-    obj["elements"]
+    system_obj["elements"]
         .as_array_mut()
         .unwrap()
         .par_iter_mut()
@@ -554,7 +663,7 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
             }
         });
 
-    obj["equipTypes"]
+    system_obj["equipTypes"]
         .as_array_mut()
         .unwrap()
         .par_iter_mut()
@@ -564,11 +673,7 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
             }
         });
 
-    if let Some(text) = system_translation_map.get(obj["gameTitle"].as_str().unwrap()) {
-        obj["gameTitle"] = to_value(text).unwrap();
-    }
-
-    obj["skillTypes"]
+    system_obj["skillTypes"]
         .as_array_mut()
         .unwrap()
         .par_iter_mut()
@@ -578,7 +683,7 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
             }
         });
 
-    obj["terms"]
+    system_obj["terms"]
         .as_object_mut()
         .unwrap()
         .iter_mut()
@@ -615,7 +720,7 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
             }
         });
 
-    obj["weaponTypes"]
+    system_obj["weaponTypes"]
         .as_array_mut()
         .unwrap()
         .par_iter_mut()
@@ -625,7 +730,13 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
             }
         });
 
-    write(output_path.join("System.json"), to_string(&obj).unwrap()).unwrap();
+    system_obj["gameTitle"] = to_value(system_translated_text.last().unwrap()).unwrap();
+
+    write(
+        output_path.join("System.json"),
+        to_string(&system_obj).unwrap(),
+    )
+    .unwrap();
 }
 
 /// Writes plugins.txt file back to its initial form.
@@ -649,19 +760,19 @@ pub fn write_plugins(pluigns_file_path: &Path, plugins_path: &Path, output_path:
             .map(|line: &str| line.to_string())
             .collect();
 
-    let plugins_translation_map: FnvHashMap<&str, &str> = plugins_original_text_vec
+    let plugins_translation_map: HashMap<&str, &str> = plugins_original_text_vec
         .par_iter()
         .zip(plugins_translated_text_vec.par_iter())
         .fold(
-            FnvHashMap::default,
-            |mut map: FnvHashMap<&str, &str>, (key, value): (&String, &String)| {
+            HashMap::default,
+            |mut map: HashMap<&str, &str>, (key, value): (&String, &String)| {
                 map.insert(key.as_str(), value.as_str());
                 map
             },
         )
         .reduce(
-            FnvHashMap::default,
-            |mut a: FnvHashMap<&str, &str>, b: FnvHashMap<&str, &str>| {
+            HashMap::default,
+            |mut a: HashMap<&str, &str>, b: HashMap<&str, &str>| {
                 a.extend(b);
                 a
             },
@@ -671,7 +782,7 @@ pub fn write_plugins(pluigns_file_path: &Path, plugins_path: &Path, output_path:
         // For now, plugins writing only implemented for Fear & Hunger: Termina, so you should manually translate the plugins.js file if it's not Termina
 
         // Plugins with needed text
-        let plugin_names: FnvHashSet<&str> = FnvHashSet::from_iter([
+        let plugin_names: HashSet<&str> = HashSet::from_iter([
             "YEP_BattleEngineCore",
             "YEP_OptionsCore",
             "SRD_NameInputUpgrade",

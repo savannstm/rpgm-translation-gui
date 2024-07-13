@@ -87,7 +87,7 @@
                             id="search-input"
                             rows="1"
                             cols="50"
-                            class="w-64 input min-h-8 textSecond backgroundSecond"
+                            class="w-64 text-base input min-h-8 textSecond backgroundSecond"
                         ></textarea>
                     </div>
                     <button id="replace-button" class="button backgroundPrimaryHovered textThird replaceButtonTitle">
@@ -98,7 +98,7 @@
                             id="replace-input"
                             rows="1"
                             cols="50"
-                            class="w-64 input min-h-8 textSecond backgroundSecond"
+                            class="w-64 text-base input min-h-8 textSecond backgroundSecond"
                         ></textarea>
                     </div>
                     <button id="case-button" class="button backgroundPrimaryHovered textThird caseButtonTitle">
@@ -119,7 +119,15 @@
                     <button id="location-button" class="button backgroundPrimaryHovered textThird locationButtonTitle">
                         location_on
                     </button>
-                    <div id="current-state" class="flex items-center justify-center p-4"></div>
+                    <div id="current-state" class="flex items-center justify-center p-4 text-sm min-w-32"></div>
+                    <div id="game-info" class="flex flex-col items-center justify-center text-sm">
+                        <input
+                            id="current-game-title"
+                            type="text"
+                            class="input min-h-8 textSecond backgroundSecond w-80"
+                        />
+                        <div id="current-game-engine"></div>
+                    </div>
                 </div>
             </div>
 
@@ -244,7 +252,12 @@
             <div class="flex flex-col items-center justify-center pb-4">
                 <div class="flex flex-row gap-2">
                     <label for="theme-name-input" class="themeName"></label>
-                    <input type="text" name="" id="theme-name-input" class="h-8 input textSecond backgroundSecond" />
+                    <input
+                        type="text"
+                        name=""
+                        id="theme-name-input"
+                        class="h-8 text-base input textSecond backgroundSecond"
+                    />
                 </div>
 
                 <label for="create-theme" class="allowedThemeNameCharacters"></label>

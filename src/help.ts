@@ -1,17 +1,19 @@
 import { readTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory, join } from "@tauri-apps/api/path";
+import { HelpLocalization } from "./localization";
 
 document.addEventListener("DOMContentLoaded", async () => {
-    let sheet: CSSStyleSheet;
-
-    for (const styleSheet of document.styleSheets) {
-        for (const rule of styleSheet.cssRules) {
-            if (rule.selectorText === ".backgroundDark") {
-                sheet = styleSheet;
-                break;
+    function getThemeStyleSheet(): CSSStyleSheet | undefined {
+        for (const styleSheet of document.styleSheets) {
+            for (const rule of styleSheet.cssRules) {
+                if (rule.selectorText === ".backgroundDark") {
+                    return styleSheet;
+                }
             }
         }
     }
+
+    const sheet: CSSStyleSheet = getThemeStyleSheet()!;
 
     const helpTitle = document.getElementById("help-title") as HTMLDivElement;
     const help = document.getElementById("help") as HTMLDivElement;
@@ -20,26 +22,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         await readTextFile(await join("../res", "settings.json"), { dir: BaseDirectory.Resource })
     ) as Settings;
 
-    let helpLocalization: helpLocalization;
-
-    switch (language) {
-        case "ru":
-            helpLocalization = JSON.parse(
-                await readTextFile(await join("../res", "ru.json"), { dir: BaseDirectory.Resource })
-            ).help;
-            break;
-        default:
-        case "en":
-            helpLocalization = JSON.parse(
-                await readTextFile(await join("../res", "en.json"), { dir: BaseDirectory.Resource })
-            ).help;
-            break;
-    }
-
+    const helpLocalization: HelpLocalization = new HelpLocalization(language);
     const themeObj: Theme = JSON.parse(await readTextFile(await join("../res", "themes.json")))[theme];
 
     for (const [key, value] of Object.entries(themeObj)) {
-        for (const rule of sheet!.cssRules) {
+        for (const rule of sheet.cssRules) {
             if (key.endsWith("Focused") && rule.selectorText === `.${key}:focus`) {
                 rule.style.setProperty(rule.style[0], value);
             } else if (key.endsWith("Hovered") && rule.selectorText === `.${key}:hover`) {
