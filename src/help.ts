@@ -32,6 +32,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else if (key.endsWith("Hovered") && rule.selectorText === `.${key}:hover`) {
                 rule.style.setProperty(rule.style[0], value);
             } else if (rule.selectorText === `.${key}`) {
+                const styleLength = rule.style.length;
+                if (styleLength > 1) {
+                    for (let i = 0; i < styleLength; i++) {
+                        rule.style.setProperty(rule.style[i], value);
+                    }
+                    continue;
+                }
+
                 rule.style.setProperty(rule.style[0], value);
             }
         }

@@ -225,13 +225,13 @@ pub fn write_maps(
     let maps_original_text_vec: Vec<String> = read_to_string(maps_path.join("maps.txt"))
         .unwrap()
         .par_split('\n')
-        .map(|line: &str| line.replace(r"\#", "\n"))
+        .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
         .collect();
 
     let names_original_text_vec: Vec<String> = read_to_string(maps_path.join("names.txt"))
         .unwrap()
         .par_split('\n')
-        .map(|line: &str| line.replace(r"\#", "\n"))
+        .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
         .collect();
 
     let maps_translated_text_vec: Vec<String> = read_to_string(maps_path.join("maps_trans.txt"))
@@ -481,29 +481,28 @@ pub fn write_other(
                     .par_iter_mut()
                     .skip(1) //Skipping first element in array as it is null
                     .for_each(|obj: &mut Value| {
-                        for (variable_value, variable_name) in [
-                            (obj["name"].take(), "name"),
-                            (obj["nickname"].take(), "nickname"),
-                            (obj["description"].take(), "description"),
-                            (obj["note"].take(), "note"),
-                        ] {
-                            if !variable_value.is_string() {
-                                continue;
-                            }
+                        for variable_name in ["name", "nickname", "description", "note"] {
+                            if let Some(variable_value) = obj.get(variable_name) {
+                                if !variable_value.is_string() {
+                                    continue;
+                                }
 
-                            let variable_str: &str = variable_value.as_str().unwrap().trim();
+                                if let Some(variable_str) = variable_value.as_str() {
+                                    let variable_str: &str = variable_str.trim();
 
-                            if !variable_str.is_empty() {
-                                let translated: Option<String> = get_variable_translated(
-                                    variable_str,
-                                    variable_name,
-                                    filename,
-                                    &other_translation_map,
-                                    game_type,
-                                );
+                                    if !variable_str.is_empty() {
+                                        let translated: Option<String> = get_variable_translated(
+                                            variable_str,
+                                            variable_name,
+                                            filename,
+                                            &other_translation_map,
+                                            game_type,
+                                        );
 
-                                if let Some(text) = translated {
-                                    obj[variable_name] = to_value(text).unwrap();
+                                        if let Some(text) = translated {
+                                            obj[variable_name] = to_value(text).unwrap();
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -616,13 +615,13 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
     let system_original_text: Vec<String> = read_to_string(other_path.join("system.txt"))
         .unwrap()
         .par_split('\n')
-        .map(|line: &str| line.to_string())
+        .map(|line: &str| line.trim().to_string())
         .collect();
 
     let system_translated_text: Vec<String> = read_to_string(other_path.join("system_trans.txt"))
         .unwrap()
         .par_split('\n')
-        .map(|line: &str| line.to_string())
+        .map(|line: &str| line.trim().to_string())
         .collect();
 
     let system_translation_map: HashMap<&str, &str> = system_original_text
@@ -648,7 +647,7 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
         .unwrap()
         .par_iter_mut()
         .for_each(|string: &mut Value| {
-            if let Some(text) = system_translation_map.get(string.as_str().unwrap()) {
+            if let Some(text) = system_translation_map.get(string.as_str().unwrap().trim()) {
                 *string = to_value(text).unwrap();
             }
         });
@@ -658,7 +657,7 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
         .unwrap()
         .par_iter_mut()
         .for_each(|string: &mut Value| {
-            if let Some(text) = system_translation_map.get(string.as_str().unwrap()) {
+            if let Some(text) = system_translation_map.get(string.as_str().unwrap().trim()) {
                 *string = to_value(text).unwrap();
             }
         });
@@ -668,7 +667,7 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
         .unwrap()
         .par_iter_mut()
         .for_each(|string: &mut Value| {
-            if let Some(text) = system_translation_map.get(string.as_str().unwrap()) {
+            if let Some(text) = system_translation_map.get(string.as_str().unwrap().trim()) {
                 *string = to_value(text).unwrap();
             }
         });
@@ -678,7 +677,7 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
         .unwrap()
         .par_iter_mut()
         .for_each(|string: &mut Value| {
-            if let Some(text) = system_translation_map.get(string.as_str().unwrap()) {
+            if let Some(text) = system_translation_map.get(string.as_str().unwrap().trim()) {
                 *string = to_value(text).unwrap();
             }
         });
@@ -696,7 +695,8 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
                     .par_iter_mut()
                     .for_each(|string: &mut Value| {
                         if string.is_string() {
-                            if let Some(text) = system_translation_map.get(string.as_str().unwrap())
+                            if let Some(text) =
+                                system_translation_map.get(string.as_str().unwrap().trim())
                             {
                                 *string = to_value(text).unwrap();
                             }
@@ -713,7 +713,9 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
                     .values_mut()
                     .par_bridge()
                     .for_each(|string: &mut Value| {
-                        if let Some(text) = system_translation_map.get(string.as_str().unwrap()) {
+                        if let Some(text) =
+                            system_translation_map.get(string.as_str().unwrap().trim())
+                        {
                             *string = to_value(text).unwrap();
                         }
                     });
@@ -725,7 +727,7 @@ pub fn write_system(system_file_path: &Path, other_path: &Path, output_path: &Pa
         .unwrap()
         .par_iter_mut()
         .for_each(|string: &mut Value| {
-            if let Some(text) = system_translation_map.get(string.as_str().unwrap()) {
+            if let Some(text) = system_translation_map.get(string.as_str().unwrap().trim()) {
                 *string = to_value(text).unwrap();
             }
         });

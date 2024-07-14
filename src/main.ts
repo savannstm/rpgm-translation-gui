@@ -11,6 +11,7 @@ import { exit } from "@tauri-apps/api/process";
 import { appWindow, WebviewWindow } from "@tauri-apps/api/window";
 import { locale as getLocale, platform as getPlatform } from "@tauri-apps/api/os";
 import { Command } from "@tauri-apps/api/shell";
+const { Resource } = BaseDirectory;
 
 import XRegExp from "xregexp";
 
@@ -69,16 +70,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const replaced: Map<string, { [key: string]: string }> = new Map();
     const activeGhostLines: HTMLDivElement[] = [];
 
-    let settings: Settings | null = (await exists(settingsPath, { dir: BaseDirectory.Resource }))
-        ? JSON.parse(await readTextFile(settingsPath, { dir: BaseDirectory.Resource }))
+    let settings: Settings | null = (await exists(settingsPath, { dir: Resource }))
+        ? JSON.parse(await readTextFile(settingsPath, { dir: Resource }))
         : null;
 
     let language: Language = await determineLanguage();
     let mainLocalization: MainLocalization;
 
-    let themes = JSON.parse(
-        await readTextFile(await join(resDir, themesFile), { dir: BaseDirectory.Resource })
-    ) as ThemeObject;
+    let themes = JSON.parse(await readTextFile(await join(resDir, themesFile), { dir: Resource })) as ThemeObject;
 
     let theme: Theme = settings?.theme ? themes[settings.theme] : themes["cool-zinc"];
     let currentTheme: null | string = null;
@@ -321,7 +320,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    async function ensureProjectIsValid(projectDir: string): Promise<boolean | undefined> {
+    async function ensureProjectIsValid(projectDir: string): Promise<boolean> {
         async function ensureTranslationSubdirsExist(): Promise<boolean> {
             for (const dir of [mapsDir, otherDir]) {
                 if (!(await exists(await join(translationPath, dir)))) {
@@ -405,7 +404,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (folder) {
             const projectIsValid = await ensureProjectIsValid(folder as string);
 
-            if (projectIsValid === false) {
+            if (!projectIsValid) {
                 const noProjectSelected = document.getElementById("no-project-selected") as HTMLDivElement;
                 noProjectSelected.innerHTML = mainLocalization.noProjectSelected;
                 return;
@@ -417,7 +416,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             settings!.project = projectDir;
             await writeTextFile(settingsPath, JSON.stringify({ ...settings, project: projectDir }), {
-                dir: BaseDirectory.Resource,
+                dir: Resource,
             });
 
             await createDir(await join(projectDir, backupDir), { recursive: true });
@@ -446,12 +445,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     project: null,
                 }),
                 {
-                    dir: BaseDirectory.Resource,
+                    dir: Resource,
                 }
             );
 
             alert(mainLocalization.createdSettings);
-            return JSON.parse(await readTextFile(settingsPath, { dir: BaseDirectory.Resource }));
+            return JSON.parse(await readTextFile(settingsPath, { dir: Resource }));
         } else {
             await exit();
         }
@@ -1750,6 +1749,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 } else if (key.endsWith("Hovered") && rule.selectorText === `.${key}:hover`) {
                     rule.style.setProperty(rule.style[0], value);
                 } else if (rule.selectorText === `.${key}`) {
+                    const styleLength = rule.style.length;
+                    if (styleLength > 1) {
+                        for (let i = 0; i < styleLength; i++) {
+                            rule.style.setProperty(rule.style[i], value);
+                        }
+                        continue;
+                    }
+
                     rule.style.setProperty(rule.style[0], value);
                 }
             }
@@ -1757,7 +1764,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         settings!.theme = newTheme.name;
         await writeTextFile(settingsPath, JSON.stringify({ ...settings, theme: newTheme.name }), {
-            dir: BaseDirectory.Resource,
+            dir: Resource,
         });
     }
 
@@ -1804,16 +1811,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             await writeTextFile(settingsPath, JSON.stringify({ ...settings, firstLaunch: false }), {
-                dir: BaseDirectory.Resource,
+                dir: Resource,
             });
         }
     }
 
     async function initializeProject(project: string | null): Promise<void> {
-        if (!project || (await ensureProjectIsValid(project)) === false) {
+        if (!project || !(await ensureProjectIsValid(project))) {
             settings!.project = null;
             await writeTextFile(settingsPath, JSON.stringify({ ...settings, project: null }), {
-                dir: BaseDirectory.Resource,
+                dir: Resource,
             });
 
             const noProjectSelected = document.getElementById("no-project-selected") as HTMLDivElement;
@@ -1870,7 +1877,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             case "theme-button":
                 themeMenu.toggleMultiple("hidden", "flex");
 
-                requestAnimationFrame((): void => {
+                requestAnimationFrame(() => {
                     themeMenu.style.left = `${themeButton.offsetLeft}px`;
                     themeMenu.style.top = `${themeButton.offsetTop + themeButton.clientHeight + 16}px`;
 
@@ -1889,7 +1896,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         await setTheme(themes[target.id]);
                     });
                 });
-
                 break;
             case "search-button":
                 if (!projectDir) {
@@ -2009,7 +2015,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
                     }
                 }
-
                 break;
             }
             case "next-page-button": {
@@ -2065,9 +2070,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             goToRowInput.value = "";
             goToRowInput.classList.add("hidden");
-        }
-
-        if (event.code === "Escape") {
+        } else if (event.code === "Escape") {
             goToRowInput.value = "";
             goToRowInput.classList.add("hidden");
         }

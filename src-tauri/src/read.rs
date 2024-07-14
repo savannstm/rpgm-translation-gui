@@ -558,7 +558,6 @@ pub fn read_system(system_file_path: &Path, output_path: &Path) {
     // Translators may add something like "ELFISH TRANSLATION v1.0.0" to the title
     {
         let game_title_string: String = system_obj["gameTitle"].as_str().unwrap().to_string();
-
         system_lines.insert(game_title_string);
     }
 
