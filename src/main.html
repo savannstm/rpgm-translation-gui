@@ -1,11 +1,11 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
     <head>
         <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="stylesheet" href="style.css" />
         <link rel="stylesheet" href="theme-styles.css" />
         <link rel="stylesheet" href="material.css" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <script type="module" src="main.ts" defer></script>
     </head>
 
@@ -13,13 +13,13 @@
         <div>
             <div id="menu-bar" class="sticky top-0 z-40 flex items-center w-full h-6 mr-2 text-sm backgroundPrimary">
                 <div class="menu-bar-button backgroundSecondHovered">
-                    <button id="file" class="px-2 fileMenu"></button>
+                    <button id="file-menu-button" class="px-2 fileMenu"></button>
                 </div>
                 <div class="menu-bar-button backgroundSecondHovered">
-                    <button id="help" class="px-2 helpMenu"></button>
+                    <button id="help-menu-button" class="px-2 helpMenu"></button>
                 </div>
                 <div class="menu-bar-button backgroundSecondHovered">
-                    <button id="language" class="px-2 languageMenu"></button>
+                    <button id="language-menu-button" class="px-2 languageMenu"></button>
                 </div>
                 <div id="file-menu" class="hidden dropdown-menu backgroundSecond">
                     <button
@@ -29,16 +29,12 @@
                 </div>
                 <div id="help-menu" class="hidden dropdown-menu backgroundSecond">
                     <button
-                        id="help-button-sub"
+                        id="help-button"
                         class="dropdown-menu-button backgroundPrimary backgroundPrimaryHovered helpButton"
                     ></button>
                     <button
                         id="about-button"
                         class="dropdown-menu-button backgroundPrimary backgroundPrimaryHovered aboutButton"
-                    ></button>
-                    <button
-                        id="hotkeys-button"
-                        class="dropdown-menu-button backgroundPrimary backgroundPrimaryHovered hotkeysButton"
                     ></button>
                 </div>
                 <div id="language-menu" class="hidden dropdown-menu backgroundSecond">
@@ -51,27 +47,60 @@
                 </div>
             </div>
             <div id="top-panel" class="sticky z-30 flex items-center w-full h-16 top-6 backgroundPrimary">
-                <div id="top-panel-buttons" class="flex items-center w-full h-16">
+                <div id="top-panel-buttons" class="flex items-center w-full h-16 text-3xl">
                     <button
                         id="menu-button"
-                        class="button backgroundPrimaryHovered textThird backgroundPrimary menuButtonTitle"
+                        class="button backgroundPrimaryHovered textThird backgroundPrimary font-material menuButtonTitle"
                     >
                         <div>menu</div>
                     </button>
-                    <button id="save-button" class="button backgroundPrimaryHovered textThird saveButtonTitle">
+                    <button
+                        id="save-button"
+                        class="button backgroundPrimaryHovered textThird font-material saveButtonTitle"
+                    >
                         <div>save</div>
                     </button>
-                    <button id="compile-button" class="button backgroundPrimaryHovered textThird compileButtonTitle">
+                    <button
+                        id="compile-button"
+                        class="button backgroundPrimaryHovered textThird font-material compileButtonTitle"
+                    >
                         <div>upload</div>
                     </button>
-                    <button id="open-button" class="button backgroundPrimaryHovered textThird openButtonTitle">
+                    <button
+                        id="open-button"
+                        class="button backgroundPrimaryHovered textThird font-material openButtonTitle"
+                    >
                         <div>folder_open</div>
                     </button>
-                    <button id="options-button" class="button backgroundPrimaryHovered textThird optionsButtonTitle">
+                    <button
+                        id="options-button"
+                        class="button backgroundPrimaryHovered textThird font-material optionsButtonTitle"
+                    >
                         <div>settings</div>
                     </button>
-                    <button id="theme-button" class="mr-16 button backgroundPrimaryHovered textThird themeButtonTitle">
+                    <button
+                        id="theme-button"
+                        class="button backgroundPrimaryHovered textThird font-material themeButtonTitle"
+                    >
                         <div>palette</div>
+                    </button>
+                    <button
+                        id="bookmarks-button"
+                        class="button backgroundPrimaryHovered textThird font-material bookmarksButtonTitle"
+                    >
+                        <div>bookmarks</div>
+                    </button>
+                    <button
+                        id="read-button"
+                        class="button backgroundPrimaryHovered textThird font-material readButtonTitle"
+                    >
+                        <div>menu_book</div>
+                    </button>
+                    <button
+                        id="search-button"
+                        class="button backgroundPrimaryHovered textThird font-material searchButtonTitle"
+                    >
+                        search
                     </button>
                     <div id="theme-menu" class="hidden w-16 dropdown-menu backgroundSecond">
                         <button
@@ -79,54 +108,17 @@
                             class="dropdown-menu-button backgroundPrimary backgroundPrimaryHovered createTheme"
                         ></button>
                     </div>
-                    <button id="search-button" class="button backgroundPrimaryHovered textThird searchButtonTitle">
-                        search
-                    </button>
-                    <div id="search-field" class="flex flex-row items-center p-4">
-                        <textarea
-                            id="search-input"
-                            rows="1"
-                            cols="50"
-                            class="w-64 text-base input min-h-8 textSecond backgroundSecond"
-                        ></textarea>
-                    </div>
-                    <button id="replace-button" class="button backgroundPrimaryHovered textThird replaceButtonTitle">
-                        arrow_right_alt
-                    </button>
-                    <div id="replace-field" class="flex flex-row items-center p-4">
-                        <textarea
-                            id="replace-input"
-                            rows="1"
-                            cols="50"
-                            class="w-64 text-base input min-h-8 textSecond backgroundSecond"
-                        ></textarea>
-                    </div>
-                    <button id="case-button" class="button backgroundPrimaryHovered textThird caseButtonTitle">
-                        match_case
-                    </button>
-                    <button id="whole-button" class="button backgroundPrimaryHovered textThird wholeButtonTitle">
-                        match_word
-                    </button>
-                    <button id="regex-button" class="button backgroundPrimaryHovered textThird regexButtonTitle">
-                        regular_expression
-                    </button>
-                    <button
-                        id="translation-button"
-                        class="button backgroundPrimaryHovered textThird translationButtonTitle"
-                    >
-                        translate
-                    </button>
-                    <button id="location-button" class="button backgroundPrimaryHovered textThird locationButtonTitle">
-                        location_on
-                    </button>
-                    <div id="current-state" class="flex items-center justify-center p-4 text-sm min-w-32"></div>
-                    <div id="game-info" class="flex flex-col items-center justify-center text-sm">
-                        <input
-                            id="current-game-title"
-                            type="text"
-                            class="input min-h-8 textSecond backgroundSecond w-80"
-                        />
-                        <div id="current-game-engine"></div>
+
+                    <div class="flex content-end justify-end w-full h-full pr-4">
+                        <div id="current-state" class="flex items-center justify-center p-4 text-sm min-w-32"></div>
+                        <div id="game-info" class="flex flex-col items-center justify-center text-sm">
+                            <input
+                                id="current-game-title"
+                                type="text"
+                                class="input min-h-8 textSecond backgroundSecond w-96"
+                            />
+                            <div id="current-game-engine"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -268,5 +260,67 @@
             </div>
         </div>
         <div id="no-project-selected" class="flex items-center justify-center p-8"></div>
+        <div id="search-menu" class="fixed z-50 hidden h-auto w-96 backgroundPrimary">
+            <br />
+            <div class="flex flex-col h-auto">
+                <div id="search-field" class="flex flex-row items-center h-auto p-4">
+                    <textarea
+                        id="search-input"
+                        rows="1"
+                        cols="50"
+                        class="h-auto text-base input textSecond backgroundSecond"
+                    ></textarea>
+                </div>
+                <div class="flex flex-row items-center justify-center">
+                    <button
+                        id="replace-button"
+                        class="w-16 button backgroundPrimaryHovered font-material textThird replaceButtonTitle"
+                    >
+                        arrow_downward
+                    </button>
+                </div>
+
+                <div id="replace-field" class="flex flex-row items-center p-4">
+                    <textarea
+                        id="replace-input"
+                        rows="1"
+                        cols="50"
+                        class="h-auto text-base input textSecond backgroundSecond"
+                    ></textarea>
+                </div>
+            </div>
+            <div class="flex flex-row justify-center">
+                <button
+                    id="case-button"
+                    class="font-material button backgroundPrimaryHovered textThird caseButtonTitle"
+                >
+                    match_case
+                </button>
+                <button
+                    id="whole-button"
+                    class="font-material button backgroundPrimaryHovered textThird wholeButtonTitle"
+                >
+                    match_word
+                </button>
+                <button
+                    id="regex-button"
+                    class="font-material button backgroundPrimaryHovered textThird regexButtonTitle"
+                >
+                    regular_expression
+                </button>
+                <button
+                    id="translation-button"
+                    class="font-material button backgroundPrimaryHovered textThird translationButtonTitle"
+                >
+                    translate
+                </button>
+                <button
+                    id="location-button"
+                    class="font-material button backgroundPrimaryHovered textThird locationButtonTitle"
+                >
+                    location_on
+                </button>
+            </div>
+        </div>
     </body>
 </html>

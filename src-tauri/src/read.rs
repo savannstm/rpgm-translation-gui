@@ -1,71 +1,74 @@
-use fancy_regex::Regex;
-use indexmap::IndexSet;
+use crate::{Code, GameType, ProcessingType, Variable};
+use indexmap::{IndexMap, IndexSet};
 use rayon::prelude::*;
-use serde_json::{from_str, Value};
+use sonic_rs::{from_str, Array, JsonContainerTrait, JsonValueTrait, Object, Value};
 use std::{
-    collections::HashMap,
+    ffi::OsString,
     fs::{read_dir, read_to_string, write, DirEntry},
     hash::BuildHasherDefault,
     path::Path,
+    str::from_utf8_unchecked,
 };
 use xxhash_rust::xxh3::Xxh3;
 
+pub static mut LOG_MSG: &str = "";
+pub static mut FILE_ALREADY_PARSED: &str = "";
+pub static mut FILE_IS_NOT_PARSED: &str = "";
+
 #[allow(clippy::single_match, clippy::match_single_binding, unused_mut)]
-fn parse_parameter<'a>(
-    code: u16,
-    mut parameter: &'a str,
-    game_type: Option<&str>,
-) -> Option<&'a str> {
+fn parse_parameter(
+    code: Code,
+    mut parameter: &str,
+    game_type: &Option<GameType>,
+) -> Option<String> {
     if let Some(game_type) = game_type {
         match code {
-            401 | 405 => match game_type {
+            Code::Dialogue => match game_type {
                 // Implement custom parsing
                 _ => {}
             },
-            102 => match game_type {
+            Code::Choice => match game_type {
                 // Implement custom parsing
                 _ => {}
             },
-            356 => match game_type {
-                "termina" => {
-                    if !parameter.starts_with("GabText")
+            Code::System => match game_type {
+                GameType::Termina => {
+                    if !parameter.starts_with("Gab")
                         && (!parameter.starts_with("choice_text") || parameter.ends_with("????"))
                     {
                         return None;
                     }
                 }
-                // Implement custom parsing
-                _ => {}
             },
-            _ => unreachable!(),
+            Code::Unknown => {}
         }
     }
 
-    Some(parameter)
+    Some(parameter.to_string())
 }
 
 #[allow(clippy::single_match, clippy::match_single_binding, unused_mut)]
 fn parse_variable(
     mut variable: &str,
-    name: &str,
+    name: Variable,
     filename: &str,
-    game_type: Option<&str>,
+    game_type: &Option<GameType>,
 ) -> Option<String> {
     if let Some(game_type) = game_type {
         match name {
-            "name" => match game_type {
+            Variable::Name => match game_type {
                 _ => {}
             },
-            "nickname" => match game_type {
+            Variable::Nickname => match game_type {
                 _ => {}
             },
-            "description" => match game_type {
+            Variable::Description => match game_type {
                 _ => {}
             },
-            "note" => match game_type {
-                "termina" => {
-                    if !filename.starts_with("Common") && !filename.starts_with("Troops") {
-                        if filename.starts_with("Items") {
+            Variable::Note => match game_type {
+                GameType::Termina => {
+                    if !filename.starts_with("Co") && !filename.starts_with("Tr") {
+                        if filename.starts_with("It") {
                             for string in [
                                 "<Menu Category: Items>",
                                 "<Menu Category: Food>",
@@ -76,54 +79,78 @@ fn parse_variable(
                                     return Some(string.to_string());
                                 }
                             }
-                        }
-
-                        if filename.starts_with("Classes") {
-                            return Some(variable.to_string());
-                        }
-
-                        if filename.starts_with("Armors") && !variable.starts_with("///") {
+                        } else if filename.starts_with("Cl")
+                            || (filename.starts_with("Ar") && !variable.starts_with("///"))
+                        {
                             return Some(variable.to_string());
                         }
 
                         return None;
                     }
                 }
-                _ => {}
             },
-            _ => unreachable!(),
         }
     }
 
     Some(variable.to_string())
 }
 
-/// Reads all Map .json files of input_path and parses them into .txt files in output_path.
+// ! In current implementation, function performs extremely inefficient inserting of owned string to both hashmap and a hashset
+/// Reads all Map .json files of map_path and parses them into .txt files in output_path.
 /// # Parameters
-/// * `input_path` - path to directory than contains .json files
+/// * `map_path` - path to directory than contains .json files
 /// * `output_path` - path to output directory
-pub fn read_map(maps_path: &Path, output_path: &Path, game_type: Option<&str>) {
+/// * `logging` - whether to log or not
+/// * `game_type` - game type for custom parsing
+/// * `processing_type` - whether to read in default mode, force rewrite or append new text to existing files
+pub fn read_map(
+    maps_path: &Path,
+    output_path: &Path,
+    logging: bool,
+    game_type: &Option<GameType>,
+    mut processing_type: &ProcessingType,
+) {
     let maps_output_path: &Path = &output_path.join("maps.txt");
     let maps_trans_output_path: &Path = &output_path.join("maps_trans.txt");
     let names_output_path: &Path = &output_path.join("names.txt");
     let names_trans_output_path: &Path = &output_path.join("names_trans.txt");
 
-    let select_maps_re: Regex = Regex::new(r"^Map[0-9].*json$").unwrap();
+    if processing_type == ProcessingType::Default && maps_trans_output_path.exists() {
+        println!("maps_trans.txt {}", unsafe { FILE_ALREADY_PARSED });
+        return;
+    }
 
     let maps_files: Vec<DirEntry> = read_dir(maps_path)
         .unwrap()
-        .flatten()
-        .filter(|entry: &DirEntry| {
-            let filename: String = entry.file_name().into_string().unwrap();
-            select_maps_re.is_match(&filename).unwrap()
+        .filter_map(|entry: Result<DirEntry, _>| match entry {
+            Ok(entry) => {
+                let filename_os_string = entry.file_name();
+                let filename: &str =
+                    unsafe { from_utf8_unchecked(filename_os_string.as_encoded_bytes()) };
+
+                let slice: char;
+                unsafe {
+                    slice = *filename.as_bytes().get_unchecked(4) as char;
+                }
+
+                if filename.starts_with("Map")
+                    && slice.is_ascii_digit()
+                    && filename.ends_with("json")
+                {
+                    Some(entry)
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
         })
         .collect();
 
-    let maps_obj_map: HashMap<String, Value, BuildHasherDefault<Xxh3>> = maps_files
+    let maps_obj_vec: Vec<(String, Object)> = maps_files
         .into_iter()
         .map(|entry: DirEntry| {
             (
-                entry.file_name().into_string().unwrap(),
+                unsafe { from_utf8_unchecked(entry.file_name().as_encoded_bytes()).to_string() },
                 from_str(&read_to_string(entry.path()).unwrap()).unwrap(),
             )
         })
@@ -132,10 +159,55 @@ pub fn read_map(maps_path: &Path, output_path: &Path, game_type: Option<&str>) {
     let mut maps_lines: IndexSet<String, BuildHasherDefault<Xxh3>> = IndexSet::default();
     let mut names_lines: IndexSet<String, BuildHasherDefault<Xxh3>> = IndexSet::default();
 
-    for obj in maps_obj_map.into_values() {
+    let mut maps_translation_map: IndexMap<String, String, BuildHasherDefault<Xxh3>> =
+        IndexMap::default();
+    let mut names_translation_map: IndexMap<String, String, BuildHasherDefault<Xxh3>> =
+        IndexMap::default();
+
+    if processing_type == ProcessingType::Append {
+        if maps_trans_output_path.exists() {
+            for (original, translated) in read_to_string(maps_output_path)
+                .unwrap()
+                .split('\n')
+                .zip(read_to_string(maps_trans_output_path).unwrap().split('\n'))
+            {
+                maps_translation_map.insert(original.to_string(), translated.to_string());
+            }
+
+            for (original, translated) in read_to_string(names_output_path)
+                .unwrap()
+                .split('\n')
+                .zip(read_to_string(names_trans_output_path).unwrap().split('\n'))
+            {
+                names_translation_map.insert(original.to_string(), translated.to_string());
+            }
+        } else {
+            println!("{}", unsafe { FILE_IS_NOT_PARSED });
+            processing_type = &ProcessingType::Default;
+        }
+    }
+
+    // 401 - dialogue lines
+    // 102 - dialogue choices array
+    // 356 - system lines (special texts)
+    // 324 - i don't know what is it but it's some used in-game lines
+    const ALLOWED_CODES: [u64; 4] = [401, 102, 356, 324];
+
+    for (filename, obj) in maps_obj_vec.into_iter() {
         if let Some(display_name) = obj["displayName"].as_str() {
             if !display_name.is_empty() {
                 let display_name_string: String = display_name.to_string();
+
+                if processing_type == ProcessingType::Append
+                    && !names_translation_map.contains_key(&display_name_string)
+                {
+                    names_translation_map.shift_insert(
+                        names_lines.len(),
+                        display_name_string.clone(),
+                        "".into(),
+                    );
+                }
+
                 names_lines.insert(display_name_string);
             }
         }
@@ -151,89 +223,112 @@ pub fn read_map(maps_path: &Path, output_path: &Path, game_type: Option<&str>) {
                 let mut line: Vec<String> = Vec::with_capacity(4);
 
                 for list in page["list"].as_array().unwrap() {
-                    //401 - dialogue lines
-                    //102 - dialogue choices
-                    //356 - system lines (special texts)
-                    let code: u16 = list["code"].as_u64().unwrap() as u16;
+                    let code: u64 = list["code"].as_u64().unwrap();
 
-                    for parameter_value in list["parameters"].as_array().unwrap() {
-                        if code == 401 {
-                            in_sequence = true;
+                    if !ALLOWED_CODES.contains(&code) {
+                        if in_sequence {
+                            let joined: String = line.join(r"\#").trim().to_string();
 
-                            if parameter_value.is_string() {
-                                let parameter_str: &str = parameter_value.as_str().unwrap();
+                            if processing_type == ProcessingType::Append
+                                && !maps_translation_map.contains_key(&joined)
+                            {
+                                maps_translation_map.shift_insert(
+                                    maps_lines.len(),
+                                    joined.clone(),
+                                    "".into(),
+                                );
+                            }
 
-                                if !parameter_str.is_empty() {
-                                    let parsed: Option<&str> =
-                                        parse_parameter(code, parameter_str, game_type);
+                            maps_lines.insert(joined);
+
+                            line.clear();
+                            in_sequence = false;
+                        }
+                        continue;
+                    }
+
+                    let parameters: &Array = list["parameters"].as_array().unwrap();
+
+                    if code == 401 {
+                        if let Some(parameter_str) = parameters[0].as_str() {
+                            if !parameter_str.is_empty() {
+                                let parsed: Option<String> =
+                                    parse_parameter(Code::Dialogue, parameter_str, game_type);
+
+                                if let Some(parsed) = parsed {
+                                    in_sequence = true;
+                                    line.push(parsed);
+                                }
+                            }
+                        }
+                    } else if parameters[0].is_array() {
+                        for i in 0..parameters[0].as_array().unwrap().len() {
+                            if let Some(subparameter_str) = parameters[0][i].as_str() {
+                                if !subparameter_str.is_empty() {
+                                    let parsed: Option<String> =
+                                        parse_parameter(Code::Choice, subparameter_str, game_type);
 
                                     if let Some(parsed) = parsed {
-                                        line.push(parsed.to_string());
-                                    }
-                                }
-                            }
-                        } else {
-                            if in_sequence {
-                                let joined: String = line.join(r"\#").trim().to_string();
-                                maps_lines.insert(joined);
-
-                                line.clear();
-                                in_sequence = false;
-                            }
-
-                            match code {
-                                102 => {
-                                    if parameter_value.is_array() {
-                                        for subparameter_value in
-                                            parameter_value.as_array().unwrap()
+                                        if processing_type == ProcessingType::Append
+                                            && !maps_translation_map.contains_key(&parsed)
                                         {
-                                            if subparameter_value.is_string() {
-                                                let subparameter_str: &str =
-                                                    subparameter_value.as_str().unwrap().trim();
-
-                                                if !subparameter_str.is_empty() {
-                                                    let parsed: Option<&str> = parse_parameter(
-                                                        code,
-                                                        subparameter_str,
-                                                        game_type,
-                                                    );
-
-                                                    if let Some(parsed) = parsed {
-                                                        let parsed_string: String =
-                                                            parsed.to_string();
-
-                                                        maps_lines.insert(parsed_string);
-                                                    }
-                                                }
-                                            }
+                                            maps_translation_map.shift_insert(
+                                                maps_lines.len(),
+                                                parsed.clone(),
+                                                "".into(),
+                                            );
                                         }
+
+                                        maps_lines.insert(parsed);
                                     }
                                 }
+                            }
+                        }
+                    } else if let Some(parameter_str) = parameters[0].as_str() {
+                        if !parameter_str.is_empty() {
+                            let parsed: Option<String> =
+                                parse_parameter(Code::System, parameter_str, game_type);
 
-                                356 => {
-                                    if parameter_value.is_string() {
-                                        let parameter_str: &str =
-                                            parameter_value.as_str().unwrap().trim();
-
-                                        if !parameter_str.is_empty() {
-                                            let parsed: Option<&str> =
-                                                parse_parameter(code, parameter_str, game_type);
-
-                                            if let Some(parsed) = parsed {
-                                                let parsed_string: String = parsed.to_string();
-
-                                                maps_lines.insert(parsed_string);
-                                            }
-                                        }
-                                    }
+                            if let Some(parsed) = parsed {
+                                if processing_type == ProcessingType::Append
+                                    && !maps_translation_map.contains_key(&parsed)
+                                {
+                                    maps_translation_map.shift_insert(
+                                        maps_lines.len(),
+                                        parsed.clone(),
+                                        "".into(),
+                                    );
                                 }
 
-                                _ => {}
+                                maps_lines.insert(parsed);
+                            }
+                        }
+                    } else if let Some(parameter_str) = parameters[1].as_str() {
+                        if !parameter_str.is_empty() {
+                            let parsed: Option<String> =
+                                parse_parameter(Code::Unknown, parameter_str, game_type);
+
+                            if let Some(parsed) = parsed {
+                                if processing_type == ProcessingType::Append
+                                    && !maps_translation_map.contains_key(&parsed)
+                                {
+                                    maps_translation_map.shift_insert(
+                                        maps_lines.len(),
+                                        parsed.clone(),
+                                        "".into(),
+                                    );
+                                }
+
+                                maps_lines.insert(parsed);
                             }
                         }
                     }
                 }
             }
+        }
+
+        if logging {
+            println!("{} {filename}.", unsafe { LOG_MSG });
         }
     }
 
@@ -242,7 +337,16 @@ pub fn read_map(maps_path: &Path, output_path: &Path, game_type: Option<&str>) {
         maps_translated_content,
         names_original_content,
         names_translated_content,
-    ) = {
+    ) = if processing_type == ProcessingType::Append {
+        let maps_collected: (Vec<String>, Vec<String>) = maps_translation_map.into_iter().unzip();
+        let names_collected: (Vec<String>, Vec<String>) = names_translation_map.into_iter().unzip();
+        (
+            maps_collected.0.join("\n"),
+            maps_collected.1.join("\n"),
+            names_collected.0.join("\n"),
+            names_collected.1.join("\n"),
+        )
+    } else {
         let maps_length: usize = maps_lines.len() - 1;
         let names_length: usize = names_lines.len() - 1;
         (
@@ -259,35 +363,63 @@ pub fn read_map(maps_path: &Path, output_path: &Path, game_type: Option<&str>) {
     write(names_trans_output_path, names_translated_content).unwrap();
 }
 
-/// Reads all Other .json files of input_path and parses them into .txt files in output_path.
+// ! In current implementation, function performs extremely inefficient inserting of owned string to both hashmap and a hashset
+/// Reads all Other .json files of other_path and parses them into .txt files in output_path.
 /// # Parameters
-/// * `input_path` - path to directory than contains .json files
+/// * `other_path` - path to directory than contains .json files
 /// * `output_path` - path to output directory
-pub fn read_other(other_path: &Path, output_path: &Path, game_type: Option<&str>) {
-    let select_other_re: Regex =
-        Regex::new(r"^(?!Map|Tilesets|Animations|States|System).*json$").unwrap();
-
+/// * `logging` - whether to log or not
+/// * `game_type` - game type for custom parsing
+/// * `processing_type` - whether to read in default mode, force rewrite or append new text to existing files
+pub fn read_other(
+    other_path: &Path,
+    output_path: &Path,
+    logging: bool,
+    game_type: &Option<GameType>,
+    processing_type: &ProcessingType,
+) {
     let other_files: Vec<DirEntry> = read_dir(other_path)
         .unwrap()
-        .flatten()
-        .filter(|entry: &DirEntry| {
-            select_other_re
-                .is_match(&entry.file_name().into_string().unwrap())
-                .unwrap()
+        .filter_map(|entry: Result<DirEntry, _>| match entry {
+            Ok(entry) => {
+                let filename_os_string: OsString = entry.file_name();
+                let filename: &str =
+                    unsafe { from_utf8_unchecked(filename_os_string.as_encoded_bytes()) };
+                let (real_name, extension) = filename.split_once('.').unwrap();
+
+                if !real_name.starts_with("Map")
+                    && !matches!(real_name, "Tilesets" | "Animations" | "States" | "System")
+                    && extension == "json"
+                {
+                    Some(entry)
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
         })
         .collect();
 
-    let other_obj_arr_map: HashMap<String, Vec<Value>, BuildHasherDefault<Xxh3>> = other_files
-        .par_iter()
-        .map(|entry: &DirEntry| {
+    let other_obj_arr_map: Vec<(String, Array)> = other_files
+        .into_par_iter()
+        .map(|entry: DirEntry| {
             (
-                entry.file_name().into_string().unwrap(),
+                unsafe { from_utf8_unchecked(entry.file_name().as_encoded_bytes()).to_string() },
                 from_str(&read_to_string(entry.path()).unwrap()).unwrap(),
             )
         })
         .collect();
 
-    for (filename, obj_arr) in other_obj_arr_map {
+    let mut inner_processing_type: &ProcessingType = processing_type;
+
+    // 401 - dialogue lines
+    // 405 - credits lines
+    // 102 - dialogue choices array
+    // 356 - system lines (special texts)
+    // 324 - i don't know what is it but it's some used in-game lines
+    const ALLOWED_CODES: [u64; 5] = [401, 405, 356, 102, 324];
+
+    for (filename, obj_arr) in other_obj_arr_map.into_iter() {
         let other_processed_filename: String =
             filename[0..filename.rfind('.').unwrap()].to_lowercase();
 
@@ -295,32 +427,73 @@ pub fn read_other(other_path: &Path, output_path: &Path, game_type: Option<&str>
         let other_trans_output_path: &Path =
             &output_path.join(other_processed_filename + "_trans.txt");
 
+        if processing_type == ProcessingType::Default && other_trans_output_path.exists() {
+            println!(
+                "{} {}",
+                unsafe {
+                    from_utf8_unchecked(
+                        other_trans_output_path
+                            .file_name()
+                            .unwrap()
+                            .as_encoded_bytes(),
+                    )
+                },
+                unsafe { FILE_ALREADY_PARSED }
+            );
+            continue;
+        }
+
         let mut other_lines: IndexSet<String, BuildHasherDefault<Xxh3>> = IndexSet::default();
+        let mut other_translation_map: IndexMap<String, String, BuildHasherDefault<Xxh3>> =
+            IndexMap::default();
+
+        if processing_type == ProcessingType::Append {
+            if other_trans_output_path.exists() {
+                for (original, translated) in read_to_string(other_output_path)
+                    .unwrap()
+                    .split('\n')
+                    .zip(read_to_string(other_trans_output_path).unwrap().split('\n'))
+                {
+                    other_translation_map.insert(original.to_string(), translated.to_string());
+                }
+            } else {
+                println!("{}", unsafe { FILE_IS_NOT_PARSED });
+                inner_processing_type = &ProcessingType::Default;
+            }
+        }
 
         // Other files except CommonEvents.json and Troops.json have the structure that consists
         // of name, nickname, description and note
-        if !filename.starts_with("Common") && !filename.starts_with("Troops") {
+        if !filename.starts_with("Co") && !filename.starts_with("Tr") {
             for obj in obj_arr {
                 for (variable, name) in [
-                    (obj["name"].as_str(), "name"),
-                    (obj["nickname"].as_str(), "nickname"),
-                    (obj["description"].as_str(), "description"),
-                    (obj["note"].as_str(), "note"),
+                    (obj["name"].as_str(), Variable::Name),
+                    (obj["nickname"].as_str(), Variable::Nickname),
+                    (obj["description"].as_str(), Variable::Description),
+                    (obj["note"].as_str(), Variable::Note),
                 ] {
-                    if variable.is_none() {
-                        continue;
-                    }
+                    if let Some(mut variable_str) = variable {
+                        variable_str = variable_str.trim();
 
-                    let variable_str: &str = variable.unwrap().trim();
+                        if !variable_str.is_empty() {
+                            let parsed: Option<String> =
+                                parse_variable(variable_str, name, &filename, game_type);
 
-                    if !variable_str.is_empty() {
-                        let parsed: Option<String> =
-                            parse_variable(variable_str, name, &filename, game_type);
+                            if let Some(parsed) = parsed {
+                                let replaced: String = parsed.replace('\n', r"\#");
 
-                        if let Some(parsed) = parsed {
-                            let replaced: String = parsed.replace('\n', r"\#");
+                                if inner_processing_type == ProcessingType::Append
+                                    && !other_translation_map.contains_key(&replaced)
+                                {
+                                    other_translation_map.shift_insert(
+                                        other_lines.len(),
+                                        replaced.clone(),
+                                        "".into(),
+                                    );
+                                }
 
-                            other_lines.insert(replaced);
+                                other_lines.insert(replaced);
+                            }
                         }
                     }
                 }
@@ -331,15 +504,15 @@ pub fn read_other(other_path: &Path, output_path: &Path, game_type: Option<&str>
             //Skipping first element in array as it is null
             for obj in obj_arr.into_iter().skip(1) {
                 //CommonEvents doesn't have pages, so we can just check if it's Troops
-                let pages_length: u32 = if filename.starts_with("Troops") {
-                    obj["pages"].as_array().unwrap().len() as u32
+                let pages_length: usize = if filename.starts_with("Troops") {
+                    obj["pages"].as_array().unwrap().len()
                 } else {
                     1
                 };
 
                 for i in 0..pages_length {
                     let list: &Value = if pages_length != 1 {
-                        &obj["pages"][i as usize]["list"]
+                        &obj["pages"][i]["list"]
                     } else {
                         &obj["list"]
                     };
@@ -349,89 +522,109 @@ pub fn read_other(other_path: &Path, output_path: &Path, game_type: Option<&str>
                     }
 
                     let mut in_sequence: bool = false;
-                    let mut line: Vec<String> = Vec::with_capacity(256);
+                    let mut line: Vec<String> = Vec::with_capacity(256); // well it's 256 because of credits and i won't change it
 
                     for list in list.as_array().unwrap() {
-                        //401 - dialogue lines
-                        //102 - dialogue choices
-                        //356 - system lines (special texts)
-                        //405 - credits lines
-                        let code: u16 = list["code"].as_u64().unwrap() as u16;
+                        let code: u64 = list["code"].as_u64().unwrap();
 
-                        for parameter_value in list["parameters"].as_array().unwrap() {
-                            if [401, 405].contains(&code) {
-                                in_sequence = true;
+                        if !ALLOWED_CODES.contains(&code) {
+                            if in_sequence {
+                                let joined: String = line.join(r"\#").trim().to_string();
 
-                                if parameter_value.is_string() {
-                                    let parameter_str: &str = parameter_value.as_str().unwrap();
+                                if processing_type == ProcessingType::Append
+                                    && !other_translation_map.contains_key(&joined)
+                                {
+                                    other_translation_map.shift_insert(
+                                        other_lines.len(),
+                                        joined.clone(),
+                                        "".into(),
+                                    );
+                                }
 
-                                    if !parameter_str.is_empty() {
-                                        let parsed: Option<&str> =
-                                            parse_parameter(code, parameter_str, game_type);
+                                other_lines.insert(joined);
+
+                                line.clear();
+                                in_sequence = false;
+                            }
+                            continue;
+                        }
+
+                        let parameters: &Array = list["parameters"].as_array().unwrap();
+
+                        if [401, 405].contains(&code) {
+                            if let Some(parameter_str) = parameters[0].as_str() {
+                                if !parameter_str.is_empty() {
+                                    let parsed: Option<String> =
+                                        parse_parameter(Code::Dialogue, parameter_str, game_type);
+
+                                    if let Some(parsed) = parsed {
+                                        in_sequence = true;
+                                        line.push(parsed);
+                                    }
+                                }
+                            }
+                        } else if parameters[0].is_array() {
+                            for i in 0..parameters[0].as_array().unwrap().len() {
+                                if let Some(subparameter_str) = parameters[0][i].as_str() {
+                                    if !subparameter_str.is_empty() {
+                                        let parsed: Option<String> = parse_parameter(
+                                            Code::Choice,
+                                            subparameter_str,
+                                            game_type,
+                                        );
 
                                         if let Some(parsed) = parsed {
-                                            line.push(parsed.to_string());
-                                        }
-                                    }
-                                }
-                            } else {
-                                if in_sequence {
-                                    let joined: String = line.join(r"\#").trim().to_string();
-
-                                    other_lines.insert(joined);
-
-                                    line.clear();
-                                    in_sequence = false;
-                                }
-
-                                match code {
-                                    102 => {
-                                        if parameter_value.is_array() {
-                                            for subparameter_value in
-                                                parameter_value.as_array().unwrap()
+                                            if processing_type == ProcessingType::Append
+                                                && !other_translation_map.contains_key(&parsed)
                                             {
-                                                if subparameter_value.is_string() {
-                                                    let subparameter_str: &str =
-                                                        subparameter_value.as_str().unwrap().trim();
-
-                                                    if !subparameter_str.is_empty() {
-                                                        let parsed: Option<&str> = parse_parameter(
-                                                            code,
-                                                            subparameter_str,
-                                                            game_type,
-                                                        );
-
-                                                        if let Some(parsed) = parsed {
-                                                            let parsed_string: String =
-                                                                parsed.to_string();
-
-                                                            other_lines.insert(parsed_string);
-                                                        }
-                                                    }
-                                                }
+                                                other_translation_map.shift_insert(
+                                                    other_lines.len(),
+                                                    parsed.clone(),
+                                                    "".into(),
+                                                );
                                             }
+
+                                            other_lines.insert(parsed);
                                         }
                                     }
+                                }
+                            }
+                        } else if let Some(parameter_str) = parameters[0].as_str() {
+                            if !parameter_str.is_empty() {
+                                let parsed: Option<String> =
+                                    parse_parameter(Code::System, parameter_str, game_type);
 
-                                    356 => {
-                                        if parameter_value.is_string() {
-                                            let parameter_str: &str =
-                                                parameter_value.as_str().unwrap().trim();
-
-                                            if !parameter_str.is_empty() {
-                                                let parsed: Option<&str> =
-                                                    parse_parameter(code, parameter_str, game_type);
-
-                                                if let Some(parsed) = parsed {
-                                                    let parsed_string: String = parsed.to_string();
-
-                                                    other_lines.insert(parsed_string);
-                                                }
-                                            }
-                                        }
+                                if let Some(parsed) = parsed {
+                                    if processing_type == ProcessingType::Append
+                                        && !other_translation_map.contains_key(&parsed)
+                                    {
+                                        other_translation_map.shift_insert(
+                                            other_lines.len(),
+                                            parsed.clone(),
+                                            "".into(),
+                                        );
                                     }
 
-                                    _ => {}
+                                    other_lines.insert(parsed);
+                                }
+                            }
+                        } else if let Some(parameter_str) = parameters[1].as_str() {
+                            if !parameter_str.is_empty() {
+                                let parsed: Option<String> =
+                                    parse_parameter(Code::Unknown, parameter_str, game_type);
+
+                                if let Some(parsed) = parsed {
+                                    if processing_type == ProcessingType::Append
+                                        && !other_translation_map.contains_key(&parsed)
+                                    {
+                                        other_translation_map.shift_insert(
+                                            other_lines.len(),
+                                            parsed.clone(),
+                                            "".into(),
+                                        );
+                                    }
+
+                                    other_lines.insert(parsed);
                                 }
                             }
                         }
@@ -440,7 +633,10 @@ pub fn read_other(other_path: &Path, output_path: &Path, game_type: Option<&str>
             }
         }
 
-        let (original_content, translation_content) = {
+        let (original_content, translation_content) = if processing_type == ProcessingType::Append {
+            let collected: (Vec<String>, Vec<String>) = other_translation_map.into_iter().unzip();
+            (collected.0.join("\n"), collected.1.join("\n"))
+        } else {
             let length: usize = other_lines.len() - 1;
             (
                 other_lines.into_iter().collect::<Vec<String>>().join("\n"),
@@ -450,64 +646,124 @@ pub fn read_other(other_path: &Path, output_path: &Path, game_type: Option<&str>
 
         write(other_output_path, original_content).unwrap();
         write(other_trans_output_path, translation_content).unwrap();
+
+        if logging {
+            println!("{} {filename}", unsafe { LOG_MSG });
+        }
     }
 }
 
-/// Reads System .json file of input_path and parses it into .txt file in output_path.
+// ! In current implementation, function performs extremely inefficient inserting of owned string to both hashmap and a hashset
+/// Reads System .json file of other_path and parses it into .txt file in output_path.
 /// # Parameters
-/// * `input_path` - path to directory than contains .json files
+/// * `other_path` - path to directory than contains .json files
 /// * `output_path` - path to output directory
-pub fn read_system(system_file_path: &Path, output_path: &Path) {
+/// * `logging` - whether to log or not
+/// * `processing_type` - whether to read in default mode, force rewrite or append new text to existing files
+pub fn read_system(
+    system_file_path: &Path,
+    output_path: &Path,
+    logging: bool,
+    mut processing_type: &ProcessingType,
+) {
     let system_output_path: &Path = &output_path.join("system.txt");
     let system_trans_output_path: &Path = &output_path.join("system_trans.txt");
 
-    let system_obj: Value = from_str(&read_to_string(system_file_path).unwrap()).unwrap();
+    if processing_type == ProcessingType::Default && system_trans_output_path.exists() {
+        println!("system_trans.txt {}", unsafe { FILE_ALREADY_PARSED });
+        return;
+    }
+
+    let system_obj: Object = from_str(&read_to_string(system_file_path).unwrap()).unwrap();
 
     let mut system_lines: IndexSet<String, BuildHasherDefault<Xxh3>> = IndexSet::default();
+    let mut system_translation_map: IndexMap<String, String, BuildHasherDefault<Xxh3>> =
+        IndexMap::default();
+
+    if processing_type == ProcessingType::Append {
+        if system_trans_output_path.exists() {
+            for (original, translated) in
+                read_to_string(system_output_path).unwrap().split('\n').zip(
+                    read_to_string(system_trans_output_path)
+                        .unwrap()
+                        .split('\n'),
+                )
+            {
+                system_translation_map.insert(original.to_string(), translated.to_string());
+            }
+        } else {
+            println!("{}", unsafe { FILE_IS_NOT_PARSED });
+            processing_type = &ProcessingType::Default;
+        }
+    }
 
     // Armor types names
     // Normally it's system strings, but might be needed for some purposes
     for string in system_obj["armorTypes"].as_array().unwrap() {
-        let str_slice: &str = string.as_str().unwrap();
+        let str: &str = string.as_str().unwrap();
 
-        if !str_slice.is_empty() {
-            let slice_string: String = str_slice.to_string();
+        if !str.is_empty() {
+            let string: String = str.to_string();
 
-            system_lines.insert(slice_string);
+            if processing_type == ProcessingType::Append
+                && !system_translation_map.contains_key(&string)
+            {
+                system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+            }
+
+            system_lines.insert(string);
         }
     }
 
     // Element types names
     // Normally it's system strings, but might be needed for some purposes
     for string in system_obj["elements"].as_array().unwrap() {
-        let str_slice: &str = string.as_str().unwrap();
+        let str: &str = string.as_str().unwrap();
 
-        if !str_slice.is_empty() {
-            let slice_string: String = str_slice.to_string();
+        if !str.is_empty() {
+            let string: String = str.to_string();
 
-            system_lines.insert(slice_string);
+            if processing_type == ProcessingType::Append
+                && !system_translation_map.contains_key(&string)
+            {
+                system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+            }
+
+            system_lines.insert(string);
         }
     }
 
     // Names of equipment slots
     for string in system_obj["equipTypes"].as_array().unwrap() {
-        let str_slice: &str = string.as_str().unwrap();
+        let str: &str = string.as_str().unwrap();
 
-        if !str_slice.is_empty() {
-            let slice_string: String = str_slice.to_string();
+        if !str.is_empty() {
+            let string: String = str.to_string();
 
-            system_lines.insert(slice_string);
+            if processing_type == ProcessingType::Append
+                && !system_translation_map.contains_key(&string)
+            {
+                system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+            }
+
+            system_lines.insert(string);
         }
     }
 
     // Names of battle options
     for string in system_obj["skillTypes"].as_array().unwrap() {
-        let str_slice: &str = string.as_str().unwrap();
+        let str: &str = string.as_str().unwrap();
 
-        if !str_slice.is_empty() {
-            let slice_string: String = str_slice.to_string();
+        if !str.is_empty() {
+            let string: String = str.to_string();
 
-            system_lines.insert(slice_string);
+            if processing_type == ProcessingType::Append
+                && !system_translation_map.contains_key(&string)
+            {
+                system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+            }
+
+            system_lines.insert(string);
         }
     }
 
@@ -515,13 +771,21 @@ pub fn read_system(system_file_path: &Path, output_path: &Path) {
     for (key, value) in system_obj["terms"].as_object().unwrap() {
         if key != "messages" {
             for string in value.as_array().unwrap() {
-                if string.is_string() {
-                    let str_slice: &str = string.as_str().unwrap();
+                if let Some(str) = string.as_str() {
+                    if !str.is_empty() {
+                        let string: String = str.to_string();
 
-                    if !str_slice.is_empty() {
-                        let slice_string: String = str_slice.to_string();
+                        if processing_type == ProcessingType::Append
+                            && !system_translation_map.contains_key(&string)
+                        {
+                            system_translation_map.shift_insert(
+                                system_lines.len(),
+                                string.clone(),
+                                "".into(),
+                            );
+                        }
 
-                        system_lines.insert(slice_string);
+                        system_lines.insert(string);
                     }
                 }
             }
@@ -530,13 +794,23 @@ pub fn read_system(system_file_path: &Path, output_path: &Path) {
                 continue;
             }
 
-            for message_string in value.as_object().unwrap().values() {
-                let str_slice: &str = message_string.as_str().unwrap();
+            for (_, message_string) in value.as_object().unwrap().iter() {
+                let str: &str = message_string.as_str().unwrap();
 
-                if !str_slice.is_empty() {
-                    let slice_string: String = str_slice.to_string();
+                if !str.is_empty() {
+                    let string: String = str.to_string();
 
-                    system_lines.insert(slice_string);
+                    if processing_type == ProcessingType::Append
+                        && !system_translation_map.contains_key(&string)
+                    {
+                        system_translation_map.shift_insert(
+                            system_lines.len(),
+                            string.clone(),
+                            "".into(),
+                        );
+                    }
+
+                    system_lines.insert(string);
                 }
             }
         }
@@ -545,12 +819,18 @@ pub fn read_system(system_file_path: &Path, output_path: &Path) {
     // Weapon types names
     // Normally it's system strings, but might be needed for some purposes
     for string in system_obj["weaponTypes"].as_array().unwrap() {
-        let str_slice: &str = string.as_str().unwrap();
+        let str: &str = string.as_str().unwrap();
 
-        if !str_slice.is_empty() {
-            let slice_string: String = str_slice.to_string();
+        if !str.is_empty() {
+            let string: String = str.to_string();
 
-            system_lines.insert(slice_string);
+            if processing_type == ProcessingType::Append
+                && !system_translation_map.contains_key(&string)
+            {
+                system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+            }
+
+            system_lines.insert(string);
         }
     }
 
@@ -558,10 +838,24 @@ pub fn read_system(system_file_path: &Path, output_path: &Path) {
     // Translators may add something like "ELFISH TRANSLATION v1.0.0" to the title
     {
         let game_title_string: String = system_obj["gameTitle"].as_str().unwrap().to_string();
+
+        if processing_type == ProcessingType::Append
+            && !system_translation_map.contains_key(&game_title_string)
+        {
+            system_translation_map.shift_insert(
+                system_lines.len(),
+                game_title_string.clone(),
+                "".into(),
+            );
+        }
+
         system_lines.insert(game_title_string);
     }
 
-    let (original_content, translated_content) = {
+    let (original_content, translated_content) = if processing_type == ProcessingType::Append {
+        let collected: (Vec<String>, Vec<String>) = system_translation_map.into_iter().unzip();
+        (collected.0.join("\n"), collected.1.join("\n"))
+    } else {
         let length: usize = system_lines.len() - 1;
         (
             system_lines.into_iter().collect::<Vec<String>>().join("\n"),
@@ -571,6 +865,10 @@ pub fn read_system(system_file_path: &Path, output_path: &Path) {
 
     write(system_output_path, original_content).unwrap();
     write(system_trans_output_path, translated_content).unwrap();
+
+    if logging {
+        println!("{} System.json.", unsafe { LOG_MSG });
+    }
 }
 
 // read_plugins is not implemented and will NEVER be, as plugins can differ from each other incredibly.

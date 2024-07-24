@@ -7,7 +7,7 @@
     },
     "package": {
         "productName": "rpgm-translation-gui",
-        "version": "3.7.1"
+        "version": "3.8.0"
     },
     "tauri": {
         "allowlist": {
@@ -23,6 +23,13 @@
                         "args": [
                             { "validator": "^(read|write)$" },
                             { "validator": "^--input-dir$" },
+                            { "validator": ".*" },
+                            { "validator": "^--output-dir$" },
+                            { "validator": ".*" },
+                            { "validator": "^--shuffle-level$" },
+                            { "validator": "^[0-9]$" },
+                            { "validator": "^--disable-custom-parsing$|^$" },
+                            { "validator": "^--disable-processing$" },
                             { "validator": ".*" }
                         ]
                     },
@@ -32,6 +39,13 @@
                         "args": [
                             { "validator": "^(read|write)$" },
                             { "validator": "^--input-dir$" },
+                            { "validator": ".*" },
+                            { "validator": "^--output-dir$" },
+                            { "validator": ".*" },
+                            { "validator": "^--shuffle-level$" },
+                            { "validator": "^[0-9]$" },
+                            { "validator": "^--disable-custom-parsing$|^$" },
+                            { "validator": "^--disable-processing$" },
                             { "validator": ".*" }
                         ]
                     }

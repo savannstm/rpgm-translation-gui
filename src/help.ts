@@ -1,6 +1,7 @@
 import { readTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory, join } from "@tauri-apps/api/path";
-import { HelpLocalization } from "./localization";
+import { HelpWindowLocalization } from "./extensions/localization";
+const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
     function getThemeStyleSheet(): CSSStyleSheet | undefined {
@@ -13,17 +14,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    const sheet: CSSStyleSheet = getThemeStyleSheet()!;
+    const sheet = getThemeStyleSheet() as CSSStyleSheet;
 
     const helpTitle = document.getElementById("help-title") as HTMLDivElement;
     const help = document.getElementById("help") as HTMLDivElement;
+    const hotkeysTitle = document.getElementById("hotkeys-title") as HTMLDivElement;
+    const hotkeys = document.getElementById("hotkeys") as HTMLDivElement;
 
     const { theme, language } = JSON.parse(
-        await readTextFile(await join("../res", "settings.json"), { dir: BaseDirectory.Resource })
+        await readTextFile(await join("res", "settings.json"), { dir: Resource }),
     ) as Settings;
 
-    const helpLocalization: HelpLocalization = new HelpLocalization(language);
-    const themeObj: Theme = JSON.parse(await readTextFile(await join("../res", "themes.json")))[theme];
+    const windowLocalization = new HelpWindowLocalization(language);
+    const themeObj: Theme = JSON.parse(await readTextFile(await join("res", "themes.json")))[theme];
 
     for (const [key, value] of Object.entries(themeObj)) {
         for (const rule of sheet.cssRules) {
@@ -45,6 +48,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    helpTitle.innerHTML = helpLocalization.helpTitle;
-    help.innerHTML = helpLocalization.help;
+    helpTitle.innerHTML = windowLocalization.helpTitle;
+    help.innerHTML = windowLocalization.help;
+    hotkeysTitle.innerHTML = windowLocalization.hotkeysTitle;
+    hotkeys.innerHTML = windowLocalization.hotkeys;
 });

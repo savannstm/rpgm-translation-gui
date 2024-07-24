@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="style.css" />
+        <link rel="stylesheet" href="theme-styles.css" />
+        <link rel="stylesheet" href="material.css" />
+        <script type="module" src="./compile.ts" defer></script>
+    </head>
+    <body class="p-0 m-0 overflow-x-hidden text-lg textPrimary backgroundDark">
+        <div class="p-8">
+            <div class="text-2xl" class="options"></div>
+            <div id="settings-container">
+                <div class="flex flex-col pt-4">
+                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
+                        <span id="logging-checkbox" class="text-xl checkbox borderSecond borderPrimary size-8"></span>
+                        <span class="enableLoggingOption"></span>
+                    </div>
+
+                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
+                        <span id="shuffle-checkbox" class="text-xl checkbox borderSecond borderPrimary size-8"></span>
+                        <span class="shuffleOption"></span>
+                    </div>
+
+                    <div id="shuffle-settings" class="z-40 flex-row gap-2 pt-2 pl-4 transition-transform duration-300">
+                        <span class="shuffleLevel"></span>
+                        <select id="shuffle-select">
+                            <option value="0" class="chooseOptionText"></option>
+                            <option value="1" class="shuffleLinesOption"></option>
+                            <option value="2" class="shuffleAllOption"></option>
+                        </select>
+                    </div>
+
+                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
+                        <span
+                            id="custom-parsing-checkbox"
+                            class="text-xl checkbox borderSecond borderPrimary size-8"
+                        ></span>
+                        <span class="disableCustomParsing"></span>
+                    </div>
+
+                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
+                        <span
+                            id="custom-output-path-checkbox"
+                            class="text-xl checkbox borderSecond borderPrimary size-8"
+                        ></span>
+                        <span class="customOutputPath"></span>
+                    </div>
+
+                    <div
+                        id="custom-output-path-settings"
+                        class="z-40 flex-row gap-2 pt-2 pl-4 transition-transform duration-300"
+                    >
+                        <button id="select-output-path" class="selectOutputPath"></button>
+                        <input type="text" id="output-path" class="w-9/12 h-8 input textSecond backgroundSecond" />
+                    </div>
+
+                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
+                        <span
+                            id="disable-processing-checkbox"
+                            class="text-xl checkbox borderSecond borderPrimary size-8"
+                        ></span>
+                        <span class="disableProcessing"></span>
+                    </div>
+
+                    <div id="disable-processing-settings" class="z-40 flex-col pl-4 transition-transform duration-300">
+                        <div class="flex flex-row gap-2 pt-2">
+                            <span
+                                id="disable-maps-processing-checkbox"
+                                class="text-xl checkbox borderSecond borderPrimary size-8"
+                            ></span>
+                            <span class="disableMapsProcessingOption"></span>
+                        </div>
+
+                        <div class="flex flex-row gap-2 pt-2">
+                            <span
+                                id="disable-other-processing-checkbox"
+                                class="text-xl checkbox borderSecond borderPrimary size-8"
+                            ></span>
+                            <span class="disableOtherProcessingOption"></span>
+                        </div>
+
+                        <div class="flex flex-row gap-2 pt-2">
+                            <span
+                                id="disable-system-processing-checkbox"
+                                class="text-xl checkbox borderSecond borderPrimary size-8"
+                            ></span>
+                            <span class="disableSystemProcessingOption"></span>
+                        </div>
+
+                        <div class="flex flex-row gap-2 pt-2">
+                            <span
+                                id="disable-plugins-processing-checkbox"
+                                class="text-xl checkbox borderSecond borderPrimary size-8"
+                            ></span>
+                            <span class="disablePluginsProcessingOption"></span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-row gap-2 pt-2">
+                        <span
+                            id="dont-ask-again-checkbox"
+                            class="text-xl checkbox borderSecond borderPrimary size-8"
+                        ></span>
+                        <span class="dontAskAgain"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center justify-center pt-4">
+                <button
+                    id="compile-button"
+                    class="flex items-center justify-center w-48 h-8 text-xl border-2 rounded-md button backgroundPrimaryHovered borderPrimary textThird compileButtonText"
+                ></button>
+            </div>
+        </div>
+    </body>
+</html>

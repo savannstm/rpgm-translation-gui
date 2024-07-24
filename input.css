@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 .button {
-    @apply p-4 text-3xl cursor-pointer select-none font-material;
+    @apply p-4 select-none;
 }
 
 .input {
@@ -11,7 +11,7 @@
 }
 
 .menu-button {
-    @apply flex flex-col items-center justify-center w-16 h-full p-2 cursor-pointer;
+    @apply flex flex-col items-center justify-center w-16 h-full p-2;
 }
 
 .search-result {
@@ -55,9 +55,13 @@
 }
 
 .dropdown-menu-button {
-    @apply p-2 text-base cursor-pointer;
+    @apply p-2 text-base;
 }
 
 .menu-bar-button {
-    @apply flex items-center justify-center cursor-pointer;
+    @apply flex items-center justify-center;
+}
+
+.checkbox {
+    @apply flex items-center justify-center text-xl border-2 rounded-md cursor-pointer select-none font-material min-h-8 min-w-8;
 }

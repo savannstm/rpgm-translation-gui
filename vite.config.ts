@@ -15,10 +15,10 @@ export default defineConfig(async () => ({
         rollupOptions: {
             input: {
                 main: "./src/main.html",
-                options: "./src/options.html",
+                options: "./src/settings.html",
                 about: "./src/about.html",
-                hotkeys: "./src/hotkeys.html",
                 help: "./src/help.html",
+                compile: "./src/compile.html",
             },
         },
     },

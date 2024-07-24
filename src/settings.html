@@ -6,22 +6,17 @@
         <link rel="stylesheet" href="style.css" />
         <link rel="stylesheet" href="material.css" />
         <link rel="stylesheet" href="theme-styles.css" />
-        <script type="module" src="options.ts" defer></script>
+        <script type="module" src="settings.ts" defer></script>
     </head>
     <body class="text-lg backgroundDark textPrimary">
         <div id="options-menu" class="flex flex-col p-8">
-            <div class="flex z-50 flex-row items-center py-4 backgroundDark">
-                <span
-                    id="backup-check"
-                    class="flex justify-center items-center mr-2 text-xl rounded-md border-2 cursor-pointer select-none borderSecond borderPrimary size-8 font-material"
-                >
-                    check
-                </span>
+            <div class="z-50 flex flex-row items-center gap-2 py-4 backgroundDark">
+                <span id="backup-check" class="text-xl checkbox borderSecond borderPrimary size-8">check</span>
                 <span id="backup"></span>
             </div>
 
             <div class="overflow-hidden">
-                <div id="backup-settings" class="z-30 flex-col transition-all duration-500">
+                <div id="backup-settings" class="z-30 flex-col transition-all duration-300">
                     <div id="backup-period" class="flex flex-row items-center py-4">
                         <span id="backup-period-label" class="mr-2"></span>
                         <input

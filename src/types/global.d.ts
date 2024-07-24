@@ -1,5 +1,5 @@
 interface String {
-    replaceAllMultiple(replacementObj: { [key: string]: string }): string;
+    replaceAllMultiple(replacementObj: Record<string, string>): string;
     count(char: string): number;
 }
 
@@ -26,9 +26,31 @@ interface Settings {
     project: string | null;
 }
 
-interface ThemeObject {
-    [name: string]: Theme;
+interface CompileSettings {
+    initialized: boolean;
+    logging: boolean;
+    shuffle: {
+        enabled: boolean;
+        level: number;
+    };
+    disableCustomParsing: boolean;
+    customOutputPath: {
+        enabled: boolean;
+        path: string;
+    };
+    disableProcessing: {
+        enabled: boolean;
+        of: {
+            maps: boolean;
+            other: boolean;
+            system: boolean;
+            plugins: boolean;
+        };
+    };
+    doNotAskAgain: boolean;
 }
+
+type ThemeObject = Record<string, Theme>;
 
 interface Theme {
     [key: string]: string;

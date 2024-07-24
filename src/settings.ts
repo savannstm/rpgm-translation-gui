@@ -1,7 +1,8 @@
 import { readTextFile, writeTextFile } from "@tauri-apps/api/fs";
-import { BaseDirectory, join } from "@tauri-apps/api/path";
+import { BaseDirectory } from "@tauri-apps/api/path";
 import { appWindow } from "@tauri-apps/api/window";
-import { OptionsLocalization } from "./localization";
+import { SettingsWindowLocalization } from "./extensions/localization";
+const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
     function getThemeStyleSheet(): CSSStyleSheet | undefined {
@@ -14,7 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    const sheet: CSSStyleSheet = getThemeStyleSheet()!;
+    const sheet = getThemeStyleSheet() as CSSStyleSheet;
 
     const backupPeriodLabel = document.getElementById("backup-period-label") as HTMLSpanElement;
     const backupPeriodNote = document.getElementById("backup-period-note") as HTMLSpanElement;
@@ -26,15 +27,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const backupMaxInput = document.getElementById("backup-max-input") as HTMLInputElement;
     const backupPeriodInput = document.getElementById("backup-period-input") as HTMLInputElement;
 
-    const settings: Settings = JSON.parse(
-        await readTextFile(await join("../res", "settings.json"), { dir: BaseDirectory.Resource })
-    );
+    const settings: Settings = JSON.parse(await readTextFile("res/settings.json", { dir: Resource }));
 
     const language = settings.language;
     const theme = settings.theme;
 
-    const optionsLocalization: OptionsLocalization = new OptionsLocalization(language);
-    const themeObj: Theme = JSON.parse(await readTextFile(await join("../res", "themes.json")))[theme];
+    const windowLocalization = new SettingsWindowLocalization(language);
+    const themeObj: Theme = JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme];
 
     for (const [key, value] of Object.entries(themeObj)) {
         for (const rule of sheet.cssRules) {
@@ -48,6 +47,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     for (let i = 0; i < styleLength; i++) {
                         rule.style.setProperty(rule.style[i], value);
                     }
+
                     continue;
                 }
 
@@ -56,11 +56,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    backupPeriodLabel.innerHTML = optionsLocalization.backupPeriodLabel;
-    backupPeriodNote.innerHTML = optionsLocalization.backupPeriodNote;
-    backupMaxLabel.innerHTML = optionsLocalization.backupMaxLabel;
-    backupMaxNote.innerHTML = optionsLocalization.backupMaxNote;
-    backup.innerHTML = optionsLocalization.backup;
+    backupPeriodLabel.innerHTML = windowLocalization.backupPeriodLabel;
+    backupPeriodNote.innerHTML = windowLocalization.backupPeriodNote;
+    backupMaxLabel.innerHTML = windowLocalization.backupMaxLabel;
+    backupMaxNote.innerHTML = windowLocalization.backupMaxNote;
+    backup.innerHTML = windowLocalization.backup;
 
     backupMaxInput.value = settings.backup.max.toString();
     backupPeriodInput.value = settings.backup.period.toString();
@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     appWindow.onCloseRequested(async (): Promise<void> => {
         await writeTextFile(
-            await join("../res", "settings.json"),
+            "res/settings.json",
             JSON.stringify({
                 ...settings,
                 backup: {
@@ -114,7 +114,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     period: backupPeriodInput.value,
                 },
             }),
-            { dir: BaseDirectory.Resource }
+            { dir: Resource },
         );
     });
 });

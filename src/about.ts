@@ -1,8 +1,9 @@
 import { open as openLink } from "@tauri-apps/api/shell";
 import { readTextFile } from "@tauri-apps/api/fs";
-import { BaseDirectory, join } from "@tauri-apps/api/path";
+import { BaseDirectory } from "@tauri-apps/api/path";
 import { getVersion } from "@tauri-apps/api/app";
-import { AboutLocalization } from "./localization";
+import { AboutWindowLocalization } from "./extensions/localization";
+const { Resource } = BaseDirectory;
 
 window.addEventListener("DOMContentLoaded", async () => {
     function getThemeStyleSheet(): CSSStyleSheet | undefined {
@@ -15,7 +16,7 @@ window.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    const sheet: CSSStyleSheet = getThemeStyleSheet()!;
+    const sheet = getThemeStyleSheet() as CSSStyleSheet;
 
     const version = document.getElementById("version") as HTMLSpanElement;
     const versionNumber = document.getElementById("version-number") as HTMLSpanElement;
@@ -28,12 +29,10 @@ window.addEventListener("DOMContentLoaded", async () => {
     const licenseLink = document.getElementById("license-link") as HTMLAnchorElement;
     const wtpflLink = document.getElementById("wtfpl-link") as HTMLAnchorElement;
 
-    const { theme, language } = JSON.parse(
-        await readTextFile(await join("../res", "settings.json"), { dir: BaseDirectory.Resource })
-    ) as Settings;
+    const { theme, language } = JSON.parse(await readTextFile("res/settings.json", { dir: Resource })) as Settings;
 
-    const aboutLocalization: AboutLocalization = new AboutLocalization(language);
-    const themeObj: Theme = JSON.parse(await readTextFile(await join("../res", "themes.json")))[theme];
+    const windowLocalization = new AboutWindowLocalization(language);
+    const themeObj: Theme = JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme];
 
     for (const [key, value] of Object.entries(themeObj)) {
         for (const rule of sheet.cssRules) {
@@ -55,19 +54,19 @@ window.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    version.innerHTML = aboutLocalization.version;
+    version.innerHTML = windowLocalization.version;
     versionNumber.innerHTML = await getVersion();
-    about.innerHTML = aboutLocalization.about;
-    socials.innerHTML = aboutLocalization.socials;
-    vkLink.innerHTML = aboutLocalization.vkLink;
-    tgLink.innerHTML = aboutLocalization.tgLink;
-    githubLink.innerHTML = aboutLocalization.githubLink;
-    license.innerHTML = aboutLocalization.license;
+    about.innerHTML = windowLocalization.about;
+    socials.innerHTML = windowLocalization.socials;
+    vkLink.innerHTML = windowLocalization.vkLink;
+    tgLink.innerHTML = windowLocalization.tgLink;
+    githubLink.innerHTML = windowLocalization.githubLink;
+    license.innerHTML = windowLocalization.license;
 
     const links = new Map([
         [vkLink, "https://vk.com/stivhuis228"],
         [tgLink, "https://t.me/Arsen1337Curduke"],
-        [githubLink, "https://github.com/savannstm/fh-termina-json-writer"],
+        [githubLink, "https://github.com/savannstm/rpgm-translation-gui"],
         [licenseLink, "http://www.wtfpl.net/about"],
         [wtpflLink, "http://www.wtfpl.net"],
     ]);

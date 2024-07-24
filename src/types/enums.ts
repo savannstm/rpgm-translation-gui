@@ -26,3 +26,9 @@ export const enum State {
     Plugins = "plugins",
     Scripts = "scripts",
 }
+
+export const enum ProcessingType {
+    Default = 0,
+    Append = 1,
+    Force = 2,
+}
