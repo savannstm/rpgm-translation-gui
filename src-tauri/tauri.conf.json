@@ -7,7 +7,7 @@
     },
     "package": {
         "productName": "rpgm-translation-gui",
-        "version": "3.8.0"
+        "version": "3.9.0"
     },
     "tauri": {
         "allowlist": {
@@ -18,36 +18,24 @@
                 "execute": true,
                 "scope": [
                     {
-                        "name": "rvpacker-txt-win",
+                        "name": "rvpacker-txt-win-read",
                         "cmd": "rvpacker-txt.bat",
-                        "args": [
-                            { "validator": "^(read|write)$" },
-                            { "validator": "^--input-dir$" },
-                            { "validator": ".*" },
-                            { "validator": "^--output-dir$" },
-                            { "validator": ".*" },
-                            { "validator": "^--shuffle-level$" },
-                            { "validator": "^[0-9]$" },
-                            { "validator": "^--disable-custom-parsing$|^$" },
-                            { "validator": "^--disable-processing$" },
-                            { "validator": ".*" }
-                        ]
+                        "args": true
                     },
                     {
-                        "name": "rvpacker-txt-linux",
+                        "name": "rvpacker-txt-win-write",
+                        "cmd": "rvpacker-txt.bat",
+                        "args": true
+                    },
+                    {
+                        "name": "rvpacker-txt-linux-read",
                         "cmd": "rvpacker-txt",
-                        "args": [
-                            { "validator": "^(read|write)$" },
-                            { "validator": "^--input-dir$" },
-                            { "validator": ".*" },
-                            { "validator": "^--output-dir$" },
-                            { "validator": ".*" },
-                            { "validator": "^--shuffle-level$" },
-                            { "validator": "^[0-9]$" },
-                            { "validator": "^--disable-custom-parsing$|^$" },
-                            { "validator": "^--disable-processing$" },
-                            { "validator": ".*" }
-                        ]
+                        "args": true
+                    },
+                    {
+                        "name": "rvpacker-txt-win-write",
+                        "cmd": "rvpacker-txt.bat",
+                        "args": true
                     }
                 ]
             },

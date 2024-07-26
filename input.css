@@ -47,7 +47,7 @@
 }
 
 .row {
-    @apply h-auto p-1 outline-none w-36;
+    @apply flex flex-row h-auto p-1 outline-none w-36;
 }
 
 .dropdown-menu {
@@ -64,4 +64,12 @@
 
 .checkbox {
     @apply flex items-center justify-center text-xl border-2 rounded-md cursor-pointer select-none font-material min-h-8 min-w-8;
+}
+
+.bookmarkButton {
+    @apply flex items-center justify-center w-6 h-6 text-xl border-2 rounded-md font-material;
+}
+
+.bookmark {
+    @apply flex flex-row items-center justify-center p-2;
 }

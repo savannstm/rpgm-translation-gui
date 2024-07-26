@@ -3,6 +3,7 @@ import { join } from "@tauri-apps/api/path";
 import { appWindow } from "@tauri-apps/api/window";
 import { emit } from "@tauri-apps/api/event";
 import { CompileWindowLocalization } from "./extensions/localization";
+import { open as openPath } from "@tauri-apps/api/dialog";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -16,11 +17,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    const sheet: CSSStyleSheet = getThemeStyleSheet() as CSSStyleSheet;
+    const sheet = getThemeStyleSheet() as CSSStyleSheet;
 
     const settings = JSON.parse(await readTextFile("res/settings.json", { dir: Resource })) as Settings;
 
-    const projectPath = settings.project as string;
+    const projectPath = settings.projectPath as string;
     const theme = settings.theme;
     const language = settings.language;
 
@@ -66,6 +67,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const settingsContainer = document.getElementById("settings-container") as HTMLDivElement;
     const loggingCheckbox = document.getElementById("logging-checkbox") as HTMLSpanElement;
+    const romanizeCheckbox = document.getElementById("romanize-checkbox") as HTMLSpanElement;
     const shuffleCheckbox = document.getElementById("shuffle-checkbox") as HTMLSpanElement;
     const shuffleSettings = document.getElementById("shuffle-settings") as HTMLDivElement;
     const customParsingCheckbox = document.getElementById("custom-parsing-checkbox") as HTMLSpanElement;
@@ -91,10 +93,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const compileButton = document.getElementById("compile-button") as HTMLButtonElement;
 
     const compileSettings: CompileSettings = JSON.parse(
-        await readTextFile(await join(projectPath, "compile-settings.json")),
+        await readTextFile(await join(projectPath, ".rpgm-translation-gui", "compile-settings.json")),
     );
 
     loggingCheckbox.innerHTML = compileSettings.logging ? "check" : "";
+    romanizeCheckbox.innerHTML = compileSettings.romanize ? "check" : "";
 
     if (compileSettings.shuffle.enabled) {
         shuffleCheckbox.innerHTML = "check";
@@ -142,7 +145,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const target = event.target as HTMLElement;
 
         switch (target.id) {
-            case "logging-checkbox":
+            case loggingCheckbox.id:
                 if (!loggingCheckbox.textContent) {
                     loggingCheckbox.innerHTML = "check";
                     compileSettings.logging = true;
@@ -150,9 +153,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                     loggingCheckbox.innerHTML = "";
                     compileSettings.logging = false;
                 }
-
                 break;
-            case "shuffle-checkbox":
+            case romanizeCheckbox.id:
+                if (!loggingCheckbox.textContent) {
+                    loggingCheckbox.innerHTML = "check";
+                    compileSettings.logging = true;
+                } else {
+                    loggingCheckbox.innerHTML = "";
+                    compileSettings.logging = false;
+                }
+                break;
+            case shuffleCheckbox.id:
                 if (!shuffleCheckbox.textContent) {
                     shuffleSettings.classList.replace("hidden", "flex");
 
@@ -177,7 +188,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     compileSettings.shuffle.enabled = false;
                 }
                 break;
-            case "custom-parsing-checkbox":
+            case customParsingCheckbox.id:
                 if (!customParsingCheckbox.textContent) {
                     customParsingCheckbox.innerHTML = "check";
                     compileSettings.disableCustomParsing = true;
@@ -186,7 +197,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     compileSettings.disableCustomParsing = false;
                 }
                 break;
-            case "custom-output-path-checkbox":
+            case customOutputPathCheckbox.id:
                 if (!customOutputPathCheckbox.textContent) {
                     customOutputPathSettings.classList.replace("hidden", "flex");
 
@@ -211,7 +222,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     compileSettings.customOutputPath.enabled = false;
                 }
                 break;
-            case "disable-processing-checkbox":
+            case disableProcessingCheckbox.id:
                 if (!disableProcessingCheckbox.textContent) {
                     disableProcessingSettings.classList.replace("hidden", "flex");
 
@@ -236,7 +247,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     compileSettings.disableProcessing.enabled = false;
                 }
                 break;
-            case "disable-maps-processing-checkbox":
+            case disableMapsProcessingCheckbox.id:
                 if (!disableMapsProcessingCheckbox.textContent) {
                     disableMapsProcessingCheckbox.innerHTML = "check";
                     compileSettings.disableProcessing.of.maps = true;
@@ -245,7 +256,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     compileSettings.disableProcessing.of.maps = false;
                 }
                 break;
-            case "disable-other-processing-checkbox":
+            case disableOtherProcessingCheckbox.id:
                 if (!disableOtherProcessingCheckbox.textContent) {
                     disableOtherProcessingCheckbox.innerHTML = "check";
                     compileSettings.disableProcessing.of.other = true;
@@ -254,8 +265,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     compileSettings.disableProcessing.of.other = false;
                 }
                 break;
-
-            case "disable-system-processing-checkbox":
+            case disableSystemProcessingCheckbox.id:
                 if (!disableSystemProcessingCheckbox.textContent) {
                     disableSystemProcessingCheckbox.innerHTML = "check";
                     compileSettings.disableProcessing.of.system = true;
@@ -264,7 +274,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     compileSettings.disableProcessing.of.system = false;
                 }
                 break;
-            case "disable-plugins-processing-checkbox":
+            case disablePluginsProcessingCheckbox.id:
                 if (!disablePluginsProcessingCheckbox.textContent) {
                     disablePluginsProcessingCheckbox.innerHTML = "check";
                     compileSettings.disableProcessing.of.plugins = true;
@@ -273,7 +283,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     compileSettings.disableProcessing.of.plugins = false;
                 }
                 break;
-            case "dont-ask-again-checkbox":
+            case doNotAskAgainCheckbox.id:
                 if (!doNotAskAgainCheckbox.textContent) {
                     doNotAskAgainCheckbox.innerHTML = "check";
                     compileSettings.doNotAskAgain = true;
@@ -282,6 +292,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                     compileSettings.doNotAskAgain = false;
                 }
                 break;
+            case "select-output-path": {
+                const directory = (await openPath({ directory: true, multiple: false })) as string;
+
+                if (directory) {
+                    outputPath.value = directory;
+                }
+                break;
+            }
         }
     });
 
@@ -289,7 +307,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function closeWindow() {
         compileSettings.initialized = true;
-        await writeTextFile(await join(projectPath, "compile-settings.json"), JSON.stringify(compileSettings));
+        await writeTextFile(
+            await join(projectPath, ".rpgm-translation-gui", "compile-settings.json"),
+            JSON.stringify(compileSettings),
+        );
 
         if (compile) await emit("compile");
         appWindow.close();

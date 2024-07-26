@@ -65,8 +65,10 @@ export class MainWindowLocalization {
     readonly cannotDetermineEngine: string;
     readonly selectedFolderMissing: string;
     readonly compileWindowTitle: string;
+    readonly readWindowTitle: string;
     readonly bookmarksButtonTitle: string;
     readonly readButtonTitle: string;
+    readonly directoryAlreadyOpened: string;
 
     constructor(language: Language) {
         switch (language) {
@@ -89,7 +91,7 @@ export class MainWindowLocalization {
                 this.languageMenu = "Язык";
                 this.menuButtonTitle = "Вкладки (Tab)";
                 this.saveButtonTitle = "Сохранить файлы перевода (Ctrl + S)";
-                this.compileButtonTitle = "Скомпилировать в JSON файлы (Alt + C)";
+                this.compileButtonTitle = "Скомпилировать (Alt + C)";
                 this.optionsButtonTitle = "Настройки";
                 this.searchButtonTitle = "Поиск (Ctrl + F)";
                 this.searchInputTitle = "Поиск";
@@ -140,8 +142,10 @@ export class MainWindowLocalization {
                     "Текст выбранного файла отсутствует. Скорее всего, этот файл и/или его _trans версия отсутствуют.";
                 this.cannotDetermineEngine = "Не удалось определить тип движка игры.";
                 this.compileWindowTitle = "Настройки компиляции";
-                this.bookmarksButtonTitle = "Закладки (в разработке)";
-                this.readButtonTitle = "Перечитать файлы (Alt + R) ((в разработке))";
+                this.readWindowTitle = "Настройки чтения";
+                this.bookmarksButtonTitle = "Закладки (Ctrl + B)";
+                this.readButtonTitle = "Перечитать файлы (Alt + R)";
+                this.directoryAlreadyOpened = "Выбранная директория уже открыта в программе.";
                 break;
             default:
                 this.cannotGetSettings = "Cannot find program's settings.";
@@ -162,7 +166,7 @@ export class MainWindowLocalization {
                 this.languageMenu = "Language";
                 this.menuButtonTitle = "Tabs (Tab)";
                 this.saveButtonTitle = "Save the translation files (Ctrl + S)";
-                this.compileButtonTitle = "Compile to JSON (Alt + C)";
+                this.compileButtonTitle = "Compile (Alt + C)";
                 this.optionsButtonTitle = "Options";
                 this.searchButtonTitle = "Search (Ctrl + F)";
                 this.searchInputTitle = "Search";
@@ -212,8 +216,10 @@ export class MainWindowLocalization {
                     "Text of the selected file missing. Probably, it and it's _trans version don't exist for some reason.";
                 this.cannotDetermineEngine = "Cannot determine the type of the game's engine.";
                 this.compileWindowTitle = "Compilation settings";
-                this.bookmarksButtonTitle = "Bookmarks (wip)";
-                this.readButtonTitle = "Re-read files (Alt + R) ((wip))";
+                this.readWindowTitle = "Read settings";
+                this.bookmarksButtonTitle = "Bookmarks";
+                this.readButtonTitle = "Re-read files (Alt + R)";
+                this.directoryAlreadyOpened = "Selected directory is already opened in the program.";
                 break;
         }
     }
@@ -293,15 +299,15 @@ export class HelpWindowLocalization {
                     'Чтобы запустить проект и начать перевод, используйте кнопку "Открыть папку" в левом верхнем углу. Открываемая папка ДОЛЖНА содержать в себе папку data или original с оригинальными файлами игры. Если папка не содержит в себе распарсенный текст игры в папке translation, программа автоматически распарсит их. По умолчанию, программа поддерживает чтение и запись файлов движков RPG Maker MV/MZ, т. е. файлы в формате .json. Чтобы программа могла читать и записывать файлы движков RPG Maker XP/VX/VXAce (.rxdata, .rvdata и .rvdata2), вам необходимо установить Ruby, а затем установить rvpacker-txt используя gem install rvpacker-txt. Программа регулярно создает резервные копии файлов переводов по пути "папка_проекта/backups", период резервного копирования и максимальное количество резервных копий можно регулировать в настройках. По умолчанию программа создает резервные копии каждые 60 секунд.<br>При сохранении перевода в программе, все файлы перевода будут сохранятся по пути "папка_проекта/translation".<br>Чтобы сохранить изменения в проекте, просто нажмите кнопку сохранить или используйте сочетание клавиш Ctrl + S. Программа автоматически сохранит ваш проект, и когда вы снова запустите программу, вы сможете продолжить с того места, на котором остановились.<br>Чтобы скомпилировать ваш перевод в изначальные файлы (.json по умолчанию и .rxdata, .rvdata и .rvdata2 если у вас установлен Ruby и rvpacker-txt) игры, просто нажмите кнопку компиляции или используйте сочетание клавиш Alt + C. Обязательно сохраните перевод перед компиляцией. Программа создаст полностью функциональные файлы в папке "папка_проекта/output".<br>Вы можете еще раз прочитать это руководство или получить справку о горячих клавишах программы, выбрав пункты верхнего меню "О программе" и "Горячие клавиши" соответственно.';
                 this.hotkeysTitle = "Горячие клавиши";
                 this.hotkeys =
-                    "Цифры от 1 до + - Редактирование разных файлов<br>Tab - Открыть панель выбора файлов<br>Ctrl + S - Сохранить файлы перевода<br>Ctrl + F - Навестись на строку поиска<br>R - Открыть панель поиска<br>Alt + Enter - Перепрыгнуть на нижнее текстовое поле<br>Ctrl + Enter - Перепрыгнуть на верхнее текстовое поле<br>Esc - Если курсор сфокусирован на текстовом поле, убрать фокусировку на текстовом поле; иначе, выйти из состояния редактирования файлов<br>Alt + C, пока вы НЕ наведены на поле ввода текста - Скомпилировать в JSON файлы<br>Alt + C, Alt + W, Alt + R, Alt + L, Alt + T, пока вы наведены на поле ввода текста для поиска - переключить поиск по регистру, по словам целиком, по регулярным выражением, по текущему файлу, и только по переводу соответственно<br>ЛКМ на результате поиска - перейти к найденному элементу<br>ПКМ на результате поиска - заменить текст этого элемента на тот, что в данный момент введён в поле<br>ЛКМ на результате журнала - перейти к изменённому ранее элементу<br>ПКМ на результате журнала - вернуть изменённый элемент в предыдущее состояние<br>Ctrl + G - открыть поле для ввода числа линии, на которую вы хотите перейти";
+                    "Цифры от 1 до + - Редактирование разных файлов<br>Tab - Открыть панель выбора файлов<br>Ctrl + S - Сохранить файлы перевода<br>Ctrl + F - Навестись на строку поиска<br>R - Открыть панель поиска<br>Alt + Enter - Перепрыгнуть на нижнее текстовое поле<br>Ctrl + Enter - Перепрыгнуть на верхнее текстовое поле<br>Esc - Если курсор сфокусирован на текстовом поле, убрать фокусировку на текстовом поле; иначе, выйти из состояния редактирования файлов<br>Alt + C, пока вы НЕ наведены на поле ввода текста - Скомпилировать<br>Alt + C, Alt + W, Alt + R, Alt + L, Alt + T, пока вы наведены на поле ввода текста для поиска - переключить поиск по регистру, по словам целиком, по регулярным выражением, по текущему файлу, и только по переводу соответственно<br>ЛКМ на результате поиска - перейти к найденному элементу<br>ПКМ на результате поиска - заменить текст этого элемента на тот, что в данный момент введён в поле<br>ЛКМ на результате журнала - перейти к изменённому ранее элементу<br>ПКМ на результате журнала - вернуть изменённый элемент в предыдущее состояние<br>Ctrl + G - открыть поле для ввода числа линии, на которую вы хотите перейти";
                 break;
             default:
                 this.helpTitle = "How to use; what to do; where to click?";
                 this.help =
-                    'To start the project and start the translation, use the "Open Folder" button in the upper left corner. The folder to open MUST contain the data or original folder with the original game files. If the folder does not contain the parsed text of the game in the translation folder, the program will automatically parse it. By default, the program supports reading and writing RPG Maker MV/MZ engine files, i.e. files in the format .json. In order for the program to read and write RPG Maker XP/VX/VXAce engine files (.rxdata, .rvdata and .rvdata2), you need to install Ruby, and then install rvpacker-txt using gem install rvpacker-txt. The program regularly creates backups of translation files along the path "project_folder/backups", the backup period and the maximum number of backups can be adjusted in the settings. By default, the program creates backups every 60 seconds.<br>When saving a translation in the program, all translation files will be saved in the path "project_folder/translation".To save the changes in the project, just click save or use the keyboard shortcut Ctrl +S. The program will automatically save your project, and when you run the program again, you can pick up where you left off.<br>To compile your translation into the original files (by default .json and .rxdata, .rvdata and .rvdata2 if you have Ruby and rvpacker-txt installed) games, just click the compile button or use the Alt+C keyboard shortcut. Be sure to save the translation before compiling. The program will create fully functional files in the folder "project_folder/output".<br>You can read this manual again or get help about the program\'s hotkeys by selecting the "About" and "Hotkeys" items in the top menu, respectively.';
+                    'To start the project and start the translation, use the "Open Folder" button in the upper left corner. The folder to open MUST contain the data or original folder with the original game files. If the folder does not contain the parsed text of the game in the translation folder, the program will automatically parse it. By default, the program supports reading and writing RPG Maker MV/MZ engine files, i.e. files in the format .json. In order for the program to read and write RPG Maker XP/VX/VXAce engine files (.rxdata, .rvdata and .rvdata2), you need to install Ruby, and then install rvpacker-txt using gem install rvpacker-txt. The program regularly creates backups of translation files along the path "project_folder/backups", the backup period and the maximum number of backups can be adjusted in the settings. By default, the program creates backups every 60 seconds.<br>When saving a translation in the program, all translation files will be saved in the path "project_folder/translation".To save the changes in the project, just click save or use the keyboard shortcut Ctrl + S. The program will automatically save your project, and when you run the program again, you can pick up where you left off.<br>To compile your translation into the original files (by default .json and .rxdata, .rvdata and .rvdata2 if you have Ruby and rvpacker-txt installed) games, just click the compile button or use the Alt+C keyboard shortcut. Be sure to save the translation before compiling. The program will create fully functional files in the folder "project_folder/output".<br>You can read this manual again or get help about the program\'s hotkeys by selecting the "About" and "Hotkeys" items in the top menu, respectively.';
                 this.hotkeysTitle = "Hotkeys";
                 this.hotkeys =
-                    'Digits from "1" to "+" - Open different files to edit<br>Tab - Open the panel for selecting files<br>Ctrl + S - Save the translation files<br>Ctrl + F - Focus on the search field<br>R - Open the search panel<br>Alt + Enter - Jump to the textarea below the focused<br>Ctrl + Enter - Jump to the textarea above the focused<br>Esc - If focused element is the textarea, remove the focus, else exit from editing mode<br>Alt + C, if you are NOT focused on the textarea - Compile translation to JSON files<br>Alt + C, Alt + W, Alt + R, Alt + L, Alt + T, while you are focused on the search field - toggle case, whole text, regular expressions, only current file, and only translation text search respectively<br>LMB on the search result - scroll into the view of the result element<br>RMB on the search result - replace matching text of this element with the one that\'s currently entered into the replace field<br>LMB on the log result - scroll into the view of the earlier changed element<br>RMB on the log result - revert changed element to the original state<br>Ctrl + G - open the input field for jumping to specific row';
+                    'Digits from "1" to "+" - Open different files to edit<br>Tab - Open the panel for selecting files<br>Ctrl + S - Save the translation files<br>Ctrl + F - Focus on the search field<br>R - Open the search panel<br>Alt + Enter - Jump to the textarea below the focused<br>Ctrl + Enter - Jump to the textarea above the focused<br>Esc - If focused element is the textarea, remove the focus, else exit from editing mode<br>Alt + C, if you are NOT focused on the textarea - Compile translation<br>Alt + C, Alt + W, Alt + R, Alt + L, Alt + T, while you are focused on the search field - toggle case, whole text, regular expressions, only current file, and only translation text search respectively<br>LMB on the search result - scroll into the view of the result element<br>RMB on the search result - replace matching text of this element with the one that\'s currently entered into the replace field<br>LMB on the log result - scroll into the view of the earlier changed element<br>RMB on the log result - revert changed element to the original state<br>Ctrl + G - open the input field for jumping to specific row';
                 break;
         }
     }
@@ -310,6 +316,7 @@ export class HelpWindowLocalization {
 export class CompileWindowLocalization {
     readonly options: string;
     readonly enableLoggingOption: string;
+    readonly romanizeOption: string;
     readonly shuffleOption: string;
     readonly shuffleLevel: string;
     readonly chooseOptionText: string;
@@ -331,6 +338,8 @@ export class CompileWindowLocalization {
             case Language.Russian:
                 this.options = "Опции:";
                 this.enableLoggingOption = "Включить логирование (в текущий момент не имеет функционала)";
+                this.romanizeOption =
+                    "Романизация игрового текста. Используйте эту опцию, лишь если вы прочитали текст с её использованием, чтобы корректно записать все файлы.";
                 this.shuffleOption = "Перемешивание";
                 this.shuffleLevel = "Уровень перемешивания";
                 this.chooseOptionText = "Выберите опцию";
@@ -352,6 +361,8 @@ export class CompileWindowLocalization {
             default:
                 this.options = "Options:";
                 this.enableLoggingOption = "Enable logging (currently does nothing)";
+                this.romanizeOption =
+                    "Whether to romanize text. Only use this option if you've read text with it, to correctly write all files.";
                 this.shuffleOption = "Shuffle";
                 this.shuffleLevel = "Shuffle level";
                 this.chooseOptionText = "Choose an option";
@@ -369,6 +380,85 @@ export class CompileWindowLocalization {
                 this.dontAskAgain =
                     "Don't ask again (you can open this window again by double-clicking compile button)";
                 this.compileButtonText = "Compile";
+                break;
+        }
+    }
+}
+
+export class ReadWindowLocalization {
+    readonly mode: string;
+    readonly chooseReadingMode: string;
+    readonly appendReadMode: string;
+    readonly forceReadMode: string;
+    readonly appendModeDescription: string;
+    readonly forceModeDescription: string;
+    readonly options: string;
+    readonly enableLoggingOption: string;
+    readonly romanizeOption: string;
+    readonly disableCustomParsing: string;
+    readonly disableProcessing: string;
+    readonly disableMapsProcessingOption: string;
+    readonly disableOtherProcessingOption: string;
+    readonly disableSystemProcessingOption: string;
+    readonly disablePluginsProcessingOption: string;
+    readonly dontAskAgain: string;
+    readonly readButtonText: string;
+    readonly readingInAppendMode: string;
+    readonly readingInForceMode: string;
+
+    constructor(language: Language) {
+        switch (language) {
+            case Language.Russian:
+                this.mode = "Режим чтения:";
+                this.chooseReadingMode = "Выберите режим чтения";
+                this.appendReadMode = "Добавление";
+                this.forceReadMode = "Перезапись";
+                this.appendModeDescription =
+                    "В случае обновления игры, текст которой вы запарсили, либо же графического интерфейса, имеет смысл перечитать файлы в этом режиме, чтобы добавить новый текст к имеющемуся без потери прогресса.";
+                this.forceModeDescription =
+                    "Принудительно перезаписывает файлы перевода. Используйте, если вам нужно полностью перечитать файлы с определёнными настройками.";
+                this.options = "Опции:";
+                this.enableLoggingOption = "Включить логирование (в текущий момент не имеет функционала)";
+                this.romanizeOption =
+                    'Романизация текста. Если вы парсите текст из японской игры, содержащей символы вроде 「」,являющимися обычными японскими кавычками, они будут автоматически заменены на их европейские эквиваленты. (в данном случае, "")';
+                this.disableCustomParsing =
+                    "Выключить индивидуальную обработку (используйте лишь если вы прочитали файлы без индивидуальной обработки)";
+                this.disableProcessing = "Выключить обработку...";
+                this.disableMapsProcessingOption = "Выключить обработку файлов maps";
+                this.disableOtherProcessingOption = "Выключить обработку файлов other";
+                this.disableSystemProcessingOption = "Выключить обработку файлов system";
+                this.disablePluginsProcessingOption = "Выключить обработку файлов plugins";
+                this.dontAskAgain =
+                    "Больше не спрашивать (вы можете вновь открыть это окно двойным нажатием по кнопке компиляции)";
+                this.readButtonText = "Прочитать";
+                this.readingInAppendMode = "Читаем в режиме добавления";
+                this.readingInForceMode = "Читаем в режиме принудительной перезаписи";
+                break;
+            default:
+                this.mode = "Reading mode:";
+                this.chooseReadingMode = "Choose reading mode";
+                this.appendReadMode = "Append";
+                this.forceReadMode = "Force rewrite";
+                this.appendModeDescription =
+                    "In case, when the game text you've parsed updates, or the GUI update, it makes sense to re-read files in this mode, to append new text to existing translation without overwriting the progress.";
+                this.forceModeDescription =
+                    "Forcefully rewrites translation files. Use, only if you need to completely re-read files using certain settings.";
+                this.options = "Options:";
+                this.enableLoggingOption = "Enable logging (currently does nothing)";
+                this.romanizeOption =
+                    'Whether to romanize text. If you parsing text from a Japanese game, that contains symbols like 「」, which are just the Japanese quotation marks, it automatically replaces these symbols by their roman equivalents. (in this case, "")';
+                this.disableCustomParsing =
+                    "Disable custom parsing (use only if you've read files without custom parsing)";
+                this.disableProcessing = "Disable processing of...";
+                this.disableMapsProcessingOption = "Disable maps processing";
+                this.disableOtherProcessingOption = "Disable other processing";
+                this.disableSystemProcessingOption = "Disable system processing";
+                this.disablePluginsProcessingOption = "Disable plugins processing";
+                this.dontAskAgain =
+                    "Don't ask again (you can open this window again by double-clicking compile button)";
+                this.readButtonText = "Read";
+                this.readingInAppendMode = "Reading in append mode";
+                this.readingInForceMode = "Reading in force rewrite mode";
                 break;
         }
     }

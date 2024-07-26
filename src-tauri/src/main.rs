@@ -2,9 +2,8 @@
 
 use fastrand::seed;
 use regex::escape;
-use sonic_rs::{from_str, Array, JsonContainerTrait, JsonValueTrait};
-use std::{fs::create_dir_all, path::PathBuf};
-use tauri::{command, generate_context, generate_handler, App, Builder, Event, Manager, Window};
+use std::{fs::create_dir_all, path::PathBuf, time::Instant};
+use tauri::{command, generate_context, generate_handler, App, Builder, Manager, Window};
 
 mod read;
 mod write;
@@ -18,20 +17,20 @@ enum GameType {
 }
 
 #[derive(PartialEq)]
-enum ProcessingType {
+enum ProcessingMode {
     Force,
     Append,
     Default,
 }
 
-impl AsRef<ProcessingType> for ProcessingType {
-    fn as_ref(&self) -> &ProcessingType {
+impl AsRef<ProcessingMode> for ProcessingMode {
+    fn as_ref(&self) -> &ProcessingMode {
         self
     }
 }
 
-impl PartialEq<ProcessingType> for &ProcessingType {
-    fn eq(&self, other: &ProcessingType) -> bool {
+impl PartialEq<ProcessingMode> for &ProcessingMode {
+    fn eq(&self, other: &ProcessingMode) -> bool {
         *self == other
     }
 }
@@ -66,6 +65,55 @@ impl IntoRSplit for String {
     }
 }
 
+pub fn romanize_string<T>(string: T) -> String
+where
+    T: AsRef<str>,
+    std::string::String: std::convert::From<T>,
+{
+    let mut i: usize = 0;
+    let mut actual_string: String = String::from(string);
+
+    while i < actual_string.len() {
+        let replacement: &str = match &actual_string[i..].chars().next() {
+            Some('。') => ".",
+            Some('、') => ",",
+            Some('・') => "·",
+            Some('゠') => "–",
+            Some('＝') => "—",
+            Some('…') | Some('‥') => {
+                if i + 3 <= actual_string.len() {
+                    i += 2;
+                    "..."
+                } else {
+                    i += 1;
+                    continue;
+                }
+            }
+            Some('「') | Some('」') | Some('〈') | Some('〉') => "'",
+            Some('『') | Some('』') | Some('《') | Some('》') => "\"",
+            Some('（') | Some('〔') | Some('｟') | Some('〘') => "(",
+            Some('）') | Some('〕') | Some('｠') | Some('〙') => ")",
+            Some('｛') => "{",
+            Some('｝') => "}",
+            Some('［') | Some('【') | Some('〖') | Some('〚') => "[",
+            Some('］') | Some('】') | Some('〗') | Some('〛') => "]",
+            Some('〜') => "~",
+            Some('？') => "?",
+            Some('！') => "!",
+            Some('：') => ":",
+            _ => {
+                i += 1;
+                continue;
+            }
+        };
+
+        actual_string.replace_range(i..i + replacement.len(), replacement);
+        i += 1;
+    }
+
+    actual_string
+}
+
 fn get_game_type(game_title: &str) -> Option<GameType> {
     if game_title.contains("termina") {
         return Some(GameType::Termina);
@@ -79,18 +127,106 @@ fn escape_text(text: &str) -> String {
     escape(text)
 }
 
-#[command]
-fn read(
-    project_dir: PathBuf,
+#[command(async)]
+fn compile(
+    project_path: PathBuf,
+    original_path: PathBuf,
+    output_path: PathBuf,
     game_title: &str,
+    romanize: bool,
+    shuffle_level: u64,
+    disable_processing: [bool; 4],
     logging: bool,
+) -> f64 {
+    let start_time: Instant = Instant::now();
+
+    let maps_path: PathBuf = project_path.join("translation/maps");
+    let other_path: PathBuf = project_path.join("translation/other");
+    let plugins_path: PathBuf = project_path.join("translation/plugins");
+    let output_path: PathBuf = output_path.join("output/data");
+    let plugins_output_path: PathBuf = output_path.join("output/js");
+
+    let disable_custom_parsing: bool = false;
+    let game_type: Option<GameType> = if disable_custom_parsing {
+        None
+    } else {
+        get_game_type(game_title)
+    };
+
+    create_dir_all(&output_path).unwrap();
+    create_dir_all(&plugins_output_path).unwrap();
+
+    if !disable_processing[0] {
+        write_maps(
+            &maps_path,
+            &original_path,
+            &output_path,
+            romanize,
+            shuffle_level,
+            logging,
+            "",
+            &game_type,
+        );
+    }
+
+    if !disable_processing[1] {
+        write_other(
+            &other_path,
+            &original_path,
+            &output_path,
+            romanize,
+            shuffle_level,
+            logging,
+            "",
+            &game_type,
+        );
+    }
+
+    if !disable_processing[2] {
+        write_system(
+            &original_path.join("System.json"),
+            &other_path,
+            &output_path,
+            romanize,
+            shuffle_level,
+            logging,
+            "",
+        );
+    }
+
+    if !disable_processing[3]
+        && game_type.is_some()
+        && game_type.unwrap() == GameType::Termina
+        && plugins_path.join("Plugins.json").exists()
+    {
+        write_plugins(
+            &plugins_path.join("Plugins.json"),
+            &plugins_path,
+            &plugins_output_path,
+            shuffle_level,
+            logging,
+            "",
+        );
+    }
+
+    start_time.elapsed().as_secs_f64()
+}
+
+#[command(async)]
+fn read(
+    project_path: PathBuf,
+    original_path: PathBuf,
+    game_title: &str,
+    romanize: bool,
     disable_custom_parsing: bool,
-    processing_type: u8,
+    disable_processing: [bool; 3],
+    logging: bool,
+    processing_mode: u8,
 ) {
-    let processing_type_member: ProcessingType = match processing_type {
-        0 => ProcessingType::Default,
-        1 => ProcessingType::Append,
-        2 => ProcessingType::Force,
+    let processing_type_member: ProcessingMode = match processing_mode {
+        0 => ProcessingMode::Default,
+        1 => ProcessingMode::Append,
+        2 => ProcessingMode::Force,
         _ => unreachable!(),
     };
 
@@ -100,124 +236,67 @@ fn read(
         get_game_type(game_title)
     };
 
-    let original_path: PathBuf = project_dir.join("original");
-    let maps_path: PathBuf = project_dir.join("translation/maps");
-    let other_path: PathBuf = project_dir.join("translation/other");
+    let maps_path: PathBuf = project_path.join("translation/maps");
+    let other_path: PathBuf = project_path.join("translation/other");
 
     create_dir_all(&maps_path).unwrap();
     create_dir_all(&other_path).unwrap();
 
-    read_map(
-        &original_path,
-        &maps_path,
-        logging,
-        &game_type,
-        &processing_type_member,
-    );
+    if !disable_processing[0] {
+        read_map(
+            &original_path,
+            &maps_path,
+            romanize,
+            logging,
+            "",
+            "",
+            "",
+            &game_type,
+            &processing_type_member,
+        );
+    }
 
-    read_other(
-        &original_path,
-        &other_path,
-        logging,
-        &game_type,
-        &processing_type_member,
-    );
+    if !disable_processing[1] {
+        read_other(
+            &original_path,
+            &other_path,
+            romanize,
+            logging,
+            "",
+            "",
+            "",
+            &game_type,
+            &processing_type_member,
+        );
+    }
 
-    read_system(
-        &original_path.join("System.json"),
-        &other_path,
-        logging,
-        &processing_type_member,
-    );
+    if !disable_processing[2] {
+        read_system(
+            &original_path.join("System.json"),
+            &other_path,
+            romanize,
+            logging,
+            "",
+            "",
+            "",
+            &processing_type_member,
+        );
+    }
 }
 
 fn main() {
     seed(69);
 
     Builder::default()
-        .invoke_handler(generate_handler![escape_text, read])
+        .invoke_handler(generate_handler![escape_text, read, compile])
         .setup(|app: &mut App| {
             let main_window: Window = app.get_window("main").unwrap();
+
             #[cfg(debug_assertions)]
             {
                 main_window.open_devtools();
             }
 
-            app.get_window("main")
-                .unwrap()
-                .listen("compile", move |event: Event| {
-                    let options_arr: Array = from_str(event.payload().unwrap()).unwrap();
-
-                    let path: PathBuf = PathBuf::from(options_arr[0].as_str().unwrap());
-                    let output_path: PathBuf = PathBuf::from(options_arr[1].as_str().unwrap());
-                    let game_title: &str = options_arr[2].as_str().unwrap();
-                    let logging: bool = options_arr[3].as_bool().unwrap();
-                    let shuffle_level: u64 = options_arr[4].as_u64().unwrap();
-                    let disable_processing: &Array = options_arr[5].as_array().unwrap();
-
-                    let original_path: PathBuf = path.join("original");
-                    let maps_path: PathBuf = path.join("translation/maps");
-                    let other_path: PathBuf = path.join("translation/other");
-                    let plugins_path: PathBuf = path.join("translation/plugins");
-                    let output_path: PathBuf = output_path.join("output/data");
-                    let plugins_output_path: PathBuf = output_path.join("output/js");
-
-                    let system_file_path: PathBuf = other_path.join("System.json");
-
-                    let disable_custom_parsing: bool = false;
-                    let game_type: Option<GameType> = if disable_custom_parsing {
-                        None
-                    } else {
-                        get_game_type(game_title)
-                    };
-
-                    create_dir_all(&output_path).unwrap();
-                    create_dir_all(&plugins_output_path).unwrap();
-
-                    if !disable_processing[0].as_bool().unwrap() {
-                        write_maps(
-                            &maps_path,
-                            &original_path,
-                            &output_path,
-                            shuffle_level,
-                            logging,
-                            &game_type,
-                        );
-                    }
-
-                    if !disable_processing[1].as_bool().unwrap() {
-                        write_other(
-                            &other_path,
-                            &original_path,
-                            &output_path,
-                            shuffle_level,
-                            logging,
-                            &game_type,
-                        );
-                    }
-
-                    if !disable_processing[2].as_bool().unwrap() {
-                        write_system(
-                            &system_file_path,
-                            &other_path,
-                            &output_path,
-                            shuffle_level,
-                            logging,
-                        );
-                    }
-
-                    if !disable_processing[3].as_bool().unwrap() {
-                        write_plugins(
-                            &plugins_path.join("Plugins.json"),
-                            &plugins_path,
-                            &plugins_output_path,
-                            shuffle_level,
-                            logging,
-                        );
-                    }
-
-                    main_window.emit("compile-finished", "").unwrap();
-                });
             Ok(())
         })
         .run(generate_context!())

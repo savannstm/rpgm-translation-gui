@@ -27,7 +27,7 @@ export const enum State {
     Scripts = "scripts",
 }
 
-export const enum ProcessingType {
+export const enum ProcessingMode {
     Default = 0,
     Append = 1,
     Force = 2,

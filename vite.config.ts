@@ -19,6 +19,7 @@ export default defineConfig(async () => ({
                 about: "./src/about.html",
                 help: "./src/help.html",
                 compile: "./src/compile.html",
+                read: "./src/read.html",
             },
         },
     },

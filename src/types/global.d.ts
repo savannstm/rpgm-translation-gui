@@ -23,12 +23,13 @@ interface Settings {
     backup: BackupSetting;
     theme: ThemeName;
     firstLaunch: boolean;
-    project: string | null;
+    projectPath: string;
 }
 
 interface CompileSettings {
     initialized: boolean;
     logging: boolean;
+    romanize: boolean;
     shuffle: {
         enabled: boolean;
         level: number;

@@ -6,10 +6,17 @@
         <link rel="stylesheet" href="style.css" />
         <link rel="stylesheet" href="theme-styles.css" />
         <link rel="stylesheet" href="material.css" />
-        <script type="module" src="./compile.ts" defer></script>
+        <script type="module" src="./read.ts" defer></script>
     </head>
     <body class="p-0 m-0 overflow-x-hidden text-lg textPrimary backgroundDark">
         <div class="p-8">
+            <div class="text-2xl mode"></div>
+            <select id="reading-mode-select" class="rounded-sm outline-none backgroundSecond">
+                <option value="" class="chooseReadingMode"></option>
+                <option value="append" class="appendReadMode"></option>
+                <option value="force" class="forceReadMode"></option>
+            </select>
+            <div id="mode-description"></div>
             <div class="text-2xl options"></div>
             <div id="settings-container">
                 <div class="flex flex-col">
@@ -24,38 +31,8 @@
                     </div>
 
                     <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
-                        <span id="shuffle-checkbox" class="text-xl checkbox borderPrimary size-8"></span>
-                        <span class="shuffleOption"></span>
-                    </div>
-
-                    <div id="shuffle-settings" class="z-40 flex-row gap-2 pt-2 pl-4 transition-transform duration-300">
-                        <span class="shuffleLevel"></span>
-                        <select id="shuffle-select" class="rounded-sm outline-none backgroundSecond">
-                            <option value="0" class="chooseOptionText"></option>
-                            <option value="1" class="shuffleLinesOption"></option>
-                            <option value="2" class="shuffleAllOption"></option>
-                        </select>
-                    </div>
-
-                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
                         <span id="custom-parsing-checkbox" class="text-xl checkbox borderPrimary size-8"></span>
                         <span class="disableCustomParsing"></span>
-                    </div>
-
-                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
-                        <span id="custom-output-path-checkbox" class="text-xl checkbox borderPrimary size-8"></span>
-                        <span class="customOutputPath"></span>
-                    </div>
-
-                    <div
-                        id="custom-output-path-settings"
-                        class="z-40 flex-row gap-2 pt-2 pl-4 transition-transform duration-300"
-                    >
-                        <button
-                            id="select-output-path"
-                            class="h-12 p-1 rounded-sm selectOutputPath backgroundPrimary backgroundSecondHovered"
-                        ></button>
-                        <input type="text" id="output-path" class="w-9/12 h-12 input textSecond backgroundSecond" />
                     </div>
 
                     <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
@@ -63,7 +40,10 @@
                         <span class="disableProcessing"></span>
                     </div>
 
-                    <div id="disable-processing-settings" class="z-40 flex-col pl-4 transition-transform duration-300">
+                    <div
+                        id="disable-processing-settings"
+                        class="z-40 flex-col hidden pl-4 transition-transform duration-300 -translate-y-full"
+                    >
                         <div class="flex flex-row gap-2 pt-2">
                             <span
                                 id="disable-maps-processing-checkbox"
@@ -105,10 +85,15 @@
             </div>
             <div class="flex items-center justify-center pt-4">
                 <button
-                    id="compile-button"
-                    class="flex items-center justify-center w-48 h-8 text-xl border-2 rounded-md button backgroundPrimaryHovered borderPrimary textThird compileButtonText"
+                    id="read-button"
+                    class="flex items-center justify-center w-48 h-8 text-xl border-2 rounded-md button backgroundPrimaryHovered borderPrimary textThird readButtonText"
                 ></button>
             </div>
+        </div>
+
+        <div id="progress-window" class="fixed top-0 left-0 z-50 hidden w-full h-full bg-black bg-opacity-75">
+            <div id="logging-console" class="w-full h-5/6 min-h-[83.333333%]"></div>
+            <div id="progress-text" class="flex items-center justify-center w-full"></div>
         </div>
     </body>
 </html>

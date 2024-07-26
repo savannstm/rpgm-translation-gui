@@ -1,6 +1,6 @@
 [package]
 name = "rpgm-translation-gui"
-version = "3.8.0"
+version = "3.9.0"
 description = "A graphical interface that allows you to open RPG Maker games' text and edit it, then writing it back to the initial form."
 authors = ["savannstm"]
 edition = "2021"
