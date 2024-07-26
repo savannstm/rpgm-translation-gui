@@ -18,23 +18,13 @@
                 "execute": true,
                 "scope": [
                     {
-                        "name": "rvpacker-txt-win-read",
+                        "name": "rvpacker-txt-win",
                         "cmd": "rvpacker-txt.bat",
                         "args": true
                     },
                     {
-                        "name": "rvpacker-txt-win-write",
-                        "cmd": "rvpacker-txt.bat",
-                        "args": true
-                    },
-                    {
-                        "name": "rvpacker-txt-linux-read",
+                        "name": "rvpacker-txt-linux",
                         "cmd": "rvpacker-txt",
-                        "args": true
-                    },
-                    {
-                        "name": "rvpacker-txt-win-write",
-                        "cmd": "rvpacker-txt.bat",
                         "args": true
                     }
                 ]

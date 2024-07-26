@@ -463,3 +463,11 @@ export class ReadWindowLocalization {
         }
     }
 }
+
+export type Localization =
+    | MainWindowLocalization
+    | HelpWindowLocalization
+    | AboutWindowLocalization
+    | ReadWindowLocalization
+    | CompileWindowLocalization
+    | SettingsWindowLocalization;

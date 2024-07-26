@@ -1,3 +1,5 @@
+import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
+
 import { exists, readTextFile } from "@tauri-apps/api/fs";
 import { ReadWindowLocalization } from "./extensions/localization";
 import { BaseDirectory } from "@tauri-apps/api/fs";
@@ -11,63 +13,17 @@ import { join } from "@tauri-apps/api/path";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
-    function getThemeStyleSheet(): CSSStyleSheet | undefined {
-        for (const styleSheet of document.styleSheets) {
-            for (const rule of styleSheet.cssRules) {
-                if (rule.selectorText === ".backgroundDark") {
-                    return styleSheet;
-                }
-            }
-        }
-    }
+    const { projectPath, theme, language } = JSON.parse(
+        await readTextFile("res/settings.json", { dir: Resource }),
+    ) as Settings;
 
-    const sheet = getThemeStyleSheet() as CSSStyleSheet;
-
-    const settings = JSON.parse(await readTextFile("res/settings.json", { dir: Resource })) as Settings;
-
-    const projectPath = settings.projectPath as string;
-    const theme = settings.theme;
-    const language = settings.language;
+    applyTheme(
+        getThemeStyleSheet() as CSSStyleSheet,
+        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
+    );
 
     const windowLocalization = new ReadWindowLocalization(language);
-    const themeObj: Theme = JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme];
-
-    for (const [key, value] of Object.entries(themeObj)) {
-        for (const rule of sheet.cssRules) {
-            if (key.endsWith("Focused") && rule.selectorText === `.${key}:focus`) {
-                rule.style.setProperty(rule.style[0], value);
-            } else if (key.endsWith("Hovered") && rule.selectorText === `.${key}:hover`) {
-                rule.style.setProperty(rule.style[0], value);
-            } else if (rule.selectorText === `.${key}`) {
-                const styleLength = rule.style.length;
-                if (styleLength > 1) {
-                    for (let i = 0; i < styleLength; i++) {
-                        rule.style.setProperty(rule.style[i], value);
-                    }
-                    continue;
-                }
-
-                rule.style.setProperty(rule.style[0], value);
-            }
-        }
-    }
-
-    for (const [key, value] of Object.entries(windowLocalization)) {
-        const element = document.querySelectorAll(`.${key}`) as NodeListOf<HTMLElement> | null;
-        if (!element) {
-            continue;
-        }
-
-        if (key.endsWith("Title")) {
-            for (const elem of element) {
-                elem.title = value;
-            }
-        } else {
-            for (const elem of element) {
-                elem.innerHTML = value;
-            }
-        }
-    }
+    applyLocalization(windowLocalization);
 
     const settingsContainer = document.getElementById("settings-container") as HTMLDivElement;
     const readingModeSelect = document.getElementById("reading-mode-select") as HTMLSelectElement;
@@ -188,6 +144,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
+    let reading = false;
+
     readButton.addEventListener("click", async () => {
         if (!readingModeSelect.value) {
             alert("Select reading mode");
@@ -239,6 +197,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             animateProgressText();
 
+            reading = true;
+
             if (engine === "new") {
                 await invoke<string>("read", {
                     projectPath: projectPath,
@@ -253,7 +213,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else {
                 const platform = await getPlatform();
 
-                await new Command(platform === "win32" ? "rvpacker-txt-win-read" : "rvpacker-txt-linux-read", [
+                await new Command(platform === "win32" ? "rvpacker-txt-win" : "rvpacker-txt-linux", [
                     "read",
                     "--input-dir",
                     projectPath,
@@ -273,5 +233,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         await emit("fetch");
+    });
+
+    await appWindow.onCloseRequested((event) => {
+        if (reading) {
+            event.preventDefault();
+        }
     });
 });

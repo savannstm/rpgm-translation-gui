@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 .button {
-    @apply p-4 select-none;
+    @apply flex items-center justify-center p-4 select-none;
 }
 
 .input {
@@ -11,7 +11,7 @@
 }
 
 .menu-button {
-    @apply flex flex-col items-center justify-center w-16 h-full p-2;
+    @apply flex flex-col items-center justify-center h-full p-2;
 }
 
 .search-result {

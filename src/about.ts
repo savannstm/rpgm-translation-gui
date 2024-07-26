@@ -1,3 +1,5 @@
+import { applyTheme, getThemeStyleSheet } from "./extensions/functions";
+
 import { open as openLink } from "@tauri-apps/api/shell";
 import { readTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory } from "@tauri-apps/api/path";
@@ -6,16 +8,6 @@ import { AboutWindowLocalization } from "./extensions/localization";
 const { Resource } = BaseDirectory;
 
 window.addEventListener("DOMContentLoaded", async () => {
-    function getThemeStyleSheet(): CSSStyleSheet | undefined {
-        for (const styleSheet of document.styleSheets) {
-            for (const rule of styleSheet.cssRules) {
-                if (rule.selectorText === ".backgroundDark") {
-                    return styleSheet;
-                }
-            }
-        }
-    }
-
     const sheet = getThemeStyleSheet() as CSSStyleSheet;
 
     const version = document.getElementById("version") as HTMLSpanElement;
@@ -34,25 +26,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     const windowLocalization = new AboutWindowLocalization(language);
     const themeObj: Theme = JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme];
 
-    for (const [key, value] of Object.entries(themeObj)) {
-        for (const rule of sheet.cssRules) {
-            if (key.endsWith("Focused") && rule.selectorText === `.${key}:focus`) {
-                rule.style.setProperty(rule.style[0], value);
-            } else if (key.endsWith("Hovered") && rule.selectorText === `.${key}:hover`) {
-                rule.style.setProperty(rule.style[0], value);
-            } else if (rule.selectorText === `.${key}`) {
-                const styleLength = rule.style.length;
-                if (styleLength > 1) {
-                    for (let i = 0; i < styleLength; i++) {
-                        rule.style.setProperty(rule.style[i], value);
-                    }
-                    continue;
-                }
-
-                rule.style.setProperty(rule.style[0], value);
-            }
-        }
-    }
+    applyTheme(sheet, themeObj);
 
     version.innerHTML = windowLocalization.version;
     versionNumber.innerHTML = await getVersion();
