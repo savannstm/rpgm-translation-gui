@@ -1,10 +1,10 @@
 import { applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import { AboutWindowLocalization } from "./extensions/localization";
 
 import { open as openLink } from "@tauri-apps/api/shell";
 import { readTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory } from "@tauri-apps/api/path";
 import { getVersion } from "@tauri-apps/api/app";
-import { AboutWindowLocalization } from "./extensions/localization";
 const { Resource } = BaseDirectory;
 
 window.addEventListener("DOMContentLoaded", async () => {

@@ -1,9 +1,9 @@
 import { applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import { SettingsWindowLocalization } from "./extensions/localization";
 
 import { readTextFile, writeTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory } from "@tauri-apps/api/path";
 import { appWindow } from "@tauri-apps/api/window";
-import { SettingsWindowLocalization } from "./extensions/localization";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     period: backupPeriodInput.value,
                 },
             }),
-            { dir: Resource },
+            { dir: Resource }
         );
     });
 });

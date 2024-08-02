@@ -1,10 +1,10 @@
 import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import { CompileWindowLocalization } from "./extensions/localization";
 
 import { BaseDirectory, readTextFile, writeTextFile } from "@tauri-apps/api/fs";
 import { join } from "@tauri-apps/api/path";
 import { appWindow } from "@tauri-apps/api/window";
 import { emit } from "@tauri-apps/api/event";
-import { CompileWindowLocalization } from "./extensions/localization";
 import { open as openPath } from "@tauri-apps/api/dialog";
 const { Resource } = BaseDirectory;
 
@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sheet = getThemeStyleSheet() as CSSStyleSheet;
 
     const { projectPath, theme, language } = JSON.parse(
-        await readTextFile("res/settings.json", { dir: Resource }),
+        await readTextFile("res/settings.json", { dir: Resource })
     ) as Settings;
 
     const windowLocalization = new CompileWindowLocalization(language);
@@ -35,21 +35,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     const shuffleSelect = document.getElementById("shuffle-select") as HTMLSelectElement;
     const outputPath = document.getElementById("output-path") as HTMLInputElement;
     const disableMapsProcessingCheckbox = document.getElementById(
-        "disable-maps-processing-checkbox",
+        "disable-maps-processing-checkbox"
     ) as HTMLSpanElement;
     const disableOtherProcessingCheckbox = document.getElementById(
-        "disable-other-processing-checkbox",
+        "disable-other-processing-checkbox"
     ) as HTMLSpanElement;
     const disableSystemProcessingCheckbox = document.getElementById(
-        "disable-system-processing-checkbox",
+        "disable-system-processing-checkbox"
     ) as HTMLSpanElement;
     const disablePluginsProcessingCheckbox = document.getElementById(
-        "disable-plugins-processing-checkbox",
+        "disable-plugins-processing-checkbox"
     ) as HTMLSpanElement;
     const compileButton = document.getElementById("compile-button") as HTMLButtonElement;
 
     const compileSettings: CompileSettings = JSON.parse(
-        await readTextFile(await join(projectPath, ".rpgm-translation-gui", "compile-settings.json")),
+        await readTextFile(await join(projectPath, ".rpgm-translation-gui", "compile-settings.json"))
     );
 
     loggingCheckbox.innerHTML = compileSettings.logging ? "check" : "";
@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         shuffleSettings.classList.add("hidden", "-translate-y-full");
     }
 
-    customParsingCheckbox.innerHTML = compileSettings.disableCustomParsing ? "check" : "";
+    customParsingCheckbox.innerHTML = compileSettings.disableCustomProcessing ? "check" : "";
 
     if (compileSettings.customOutputPath.enabled) {
         customOutputPathCheckbox.innerHTML = "check";
@@ -111,12 +111,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
                 break;
             case romanizeCheckbox.id:
-                if (!loggingCheckbox.textContent) {
-                    loggingCheckbox.innerHTML = "check";
-                    compileSettings.logging = true;
+                if (!romanizeCheckbox.textContent) {
+                    romanizeCheckbox.innerHTML = "check";
+                    compileSettings.romanize = true;
                 } else {
-                    loggingCheckbox.innerHTML = "";
-                    compileSettings.logging = false;
+                    romanizeCheckbox.innerHTML = "";
+                    compileSettings.romanize = false;
                 }
                 break;
             case shuffleCheckbox.id:
@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     shuffleSettings.classList.replace("hidden", "flex");
 
                     requestAnimationFrame(() =>
-                        shuffleSettings.classList.replace("-translate-y-full", "translate-y-0"),
+                        shuffleSettings.classList.replace("-translate-y-full", "translate-y-0")
                     );
 
                     shuffleCheckbox.innerHTML = "check";
@@ -137,7 +137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         () => shuffleSettings.classList.replace("flex", "hidden"),
                         {
                             once: true,
-                        },
+                        }
                     );
 
                     shuffleCheckbox.innerHTML = "";
@@ -147,10 +147,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             case customParsingCheckbox.id:
                 if (!customParsingCheckbox.textContent) {
                     customParsingCheckbox.innerHTML = "check";
-                    compileSettings.disableCustomParsing = true;
+                    compileSettings.disableCustomProcessing = true;
                 } else {
                     customParsingCheckbox.innerHTML = "";
-                    compileSettings.disableCustomParsing = false;
+                    compileSettings.disableCustomProcessing = false;
                 }
                 break;
             case customOutputPathCheckbox.id:
@@ -158,7 +158,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     customOutputPathSettings.classList.replace("hidden", "flex");
 
                     requestAnimationFrame(() =>
-                        customOutputPathSettings.classList.replace("-translate-y-full", "translate-y-0"),
+                        customOutputPathSettings.classList.replace("-translate-y-full", "translate-y-0")
                     );
 
                     customOutputPathCheckbox.innerHTML = "check";
@@ -171,7 +171,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         () => customOutputPathSettings.classList.replace("flex", "hidden"),
                         {
                             once: true,
-                        },
+                        }
                     );
 
                     customOutputPathCheckbox.innerHTML = "";
@@ -183,7 +183,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     disableProcessingSettings.classList.replace("hidden", "flex");
 
                     requestAnimationFrame(() =>
-                        disableProcessingSettings.classList.replace("-translate-y-full", "translate-y-0"),
+                        disableProcessingSettings.classList.replace("-translate-y-full", "translate-y-0")
                     );
 
                     disableProcessingCheckbox.innerHTML = "check";
@@ -196,7 +196,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         () => disableProcessingSettings.classList.replace("flex", "hidden"),
                         {
                             once: true,
-                        },
+                        }
                     );
 
                     disableProcessingCheckbox.innerHTML = "";
@@ -263,12 +263,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function closeWindow() {
         compileSettings.initialized = true;
+
         await writeTextFile(
             await join(projectPath, ".rpgm-translation-gui", "compile-settings.json"),
-            JSON.stringify(compileSettings),
+            JSON.stringify(compileSettings)
         );
 
-        if (compile) await emit("compile");
+        if (compile) {
+            await emit("compile");
+        }
+
         appWindow.close();
     }
 

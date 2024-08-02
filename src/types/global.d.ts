@@ -34,7 +34,7 @@ interface CompileSettings {
         enabled: boolean;
         level: number;
     };
-    disableCustomParsing: boolean;
+    disableCustomProcessing: boolean;
     customOutputPath: {
         enabled: boolean;
         path: string;
@@ -77,4 +77,29 @@ interface Theme {
 interface CSSRule {
     style: CSSStyleDeclaration;
     selectorText: string;
+}
+
+interface ReadCommandOptions extends Record<string, T> {
+    projectPath: string;
+    originalPath: string;
+    gameTitle: string;
+    romanize: boolean;
+    disableCustomProcessing: boolean;
+    disableProcessing: boolean[];
+    logging: boolean;
+    processingMode: ProcessingMode;
+    engineType: EngineType;
+}
+
+interface CompileCommandOptions extends Record<string, T> {
+    projectPath: string;
+    originalPath: string;
+    outputPath: string;
+    gameTitle: string;
+    romanize: boolean;
+    shuffleLevel: number;
+    disableCustomProcessing: boolean;
+    disableProcessing: boolean[];
+    logging: boolean;
+    engineType: EngineType;
 }

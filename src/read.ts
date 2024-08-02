@@ -1,25 +1,29 @@
-import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import {
+    applyLocalization,
+    applyTheme,
+    getThemeStyleSheet,
+    readScripts,
+    animateProgressText,
+} from "./extensions/functions";
+import { ReadWindowLocalization } from "./extensions/localization";
+import { invokeRead } from "./extensions/invokes";
+import { EngineType, ProcessingMode } from "./types/enums";
 
 import { exists, readTextFile } from "@tauri-apps/api/fs";
-import { ReadWindowLocalization } from "./extensions/localization";
 import { BaseDirectory } from "@tauri-apps/api/fs";
-import { Command } from "@tauri-apps/api/shell";
-import { platform as getPlatform } from "@tauri-apps/api/os";
 import { appWindow } from "@tauri-apps/api/window";
 import { emit, once } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/tauri";
-import { ProcessingMode } from "./types/enums";
 import { join } from "@tauri-apps/api/path";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
     const { projectPath, theme, language } = JSON.parse(
-        await readTextFile("res/settings.json", { dir: Resource }),
+        await readTextFile("res/settings.json", { dir: Resource })
     ) as Settings;
 
     applyTheme(
         getThemeStyleSheet() as CSSStyleSheet,
-        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
+        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme]
     );
 
     const windowLocalization = new ReadWindowLocalization(language);
@@ -35,16 +39,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const disableProcessingSettings = document.getElementById("disable-processing-settings") as HTMLDivElement;
     const doNotAskAgainCheckbox = document.getElementById("dont-ask-again-checkbox") as HTMLSpanElement;
     const disableMapsProcessingCheckbox = document.getElementById(
-        "disable-maps-processing-checkbox",
+        "disable-maps-processing-checkbox"
     ) as HTMLSpanElement;
     const disableOtherProcessingCheckbox = document.getElementById(
-        "disable-other-processing-checkbox",
+        "disable-other-processing-checkbox"
     ) as HTMLSpanElement;
     const disableSystemProcessingCheckbox = document.getElementById(
-        "disable-system-processing-checkbox",
+        "disable-system-processing-checkbox"
     ) as HTMLSpanElement;
     const disablePluginsProcessingCheckbox = document.getElementById(
-        "disable-plugins-processing-checkbox",
+        "disable-plugins-processing-checkbox"
     ) as HTMLSpanElement;
     const readButton = document.getElementById("read-button") as HTMLButtonElement;
 
@@ -88,7 +92,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     disableProcessingSettings.classList.replace("hidden", "flex");
 
                     requestAnimationFrame(() =>
-                        disableProcessingSettings.classList.replace("-translate-y-full", "translate-y-0"),
+                        disableProcessingSettings.classList.replace("-translate-y-full", "translate-y-0")
                     );
 
                     disableProcessingCheckbox.innerHTML = "check";
@@ -100,7 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         () => disableProcessingSettings.classList.replace("flex", "hidden"),
                         {
                             once: true,
-                        },
+                        }
                     );
 
                     disableProcessingCheckbox.innerHTML = "";
@@ -160,32 +164,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
 
         await once<string[]>("metadata", async (data) => {
-            const title = data.payload[0];
-            const engine = data.payload[1];
+            const gameTitle = data.payload[0];
+            const engineType = Number.parseInt(data.payload[1]) as EngineType;
 
-            let originalDir = await join(projectPath, "Data");
+            let originalDir!: string;
 
-            if (!(await exists(originalDir))) {
-                originalDir = await join(projectPath, "data");
-
-                if (!(await exists(originalDir))) {
-                    originalDir = await join(projectPath, "original");
-                }
+            if (await exists(await join(projectPath, "json-data"))) {
+                originalDir = "json-data";
+            } else if (await exists(await join(projectPath, "Data"))) {
+                originalDir = "Data";
+            } else if (await exists(await join(projectPath, "data"))) {
+                originalDir = "data";
             }
 
             const progressText = document.getElementById("progress-text") as HTMLDivElement;
-
-            function animateProgressText() {
-                if (!progressText.innerHTML.endsWith("...")) {
-                    setTimeout(() => {
-                        progressText.innerHTML += ".";
-                        animateProgressText();
-                    }, 500);
-                } else {
-                    progressText.innerHTML = progressText.innerHTML.slice(0, -3);
-                    animateProgressText();
-                }
-            }
 
             progressText.innerHTML =
                 readingModeSelect.value === "append"
@@ -195,37 +187,28 @@ document.addEventListener("DOMContentLoaded", async () => {
             const progressWindow = document.getElementById("progress-window") as HTMLDivElement;
             progressWindow.classList.remove("hidden");
 
-            animateProgressText();
+            animateProgressText(progressText);
 
             reading = true;
 
-            if (engine === "new") {
-                await invoke<string>("read", {
-                    projectPath: projectPath,
-                    originalPath: originalDir,
-                    gameTitle: title,
-                    romanize: romanizeCheckbox.textContent ? true : false,
-                    disableCustomParsing: customParsingCheckbox.textContent ? true : false,
-                    disableProcessing: Object.values(disableProcessings).slice(0, -1),
-                    logging: false,
-                    processingMode: readingModeSelect.value === "append" ? ProcessingMode.Append : ProcessingMode.Force,
-                });
-            } else {
-                const platform = await getPlatform();
+            await invokeRead({
+                projectPath,
+                originalPath: await join(projectPath, originalDir),
+                gameTitle,
+                romanize: romanizeCheckbox.textContent ? true : false,
+                disableCustomProcessing: customParsingCheckbox.textContent ? true : false,
+                disableProcessing: Object.values(disableProcessings).slice(0, -1),
+                logging: false,
+                processingMode: readingModeSelect.value === "append" ? ProcessingMode.Append : ProcessingMode.Force,
+                engineType: engineType,
+            });
 
-                await new Command(platform === "win32" ? "rvpacker-txt-win" : "rvpacker-txt-linux", [
-                    "read",
-                    "--input-dir",
-                    projectPath,
-                    romanizeCheckbox.textContent ? "--romanize" : "",
-                    customParsingCheckbox.textContent ? "--disable-custom-parsing" : "",
-                    "--disable-processing",
-                    Object.keys(disableProcessings)
-                        .filter((key) => disableProcessings[key])
-                        .join(","),
-                    `--${readingModeSelect.value}`,
-                    "--silent",
-                ]).execute();
+            if (engineType !== EngineType.New) {
+                await readScripts(
+                    await readTextFile(await join(projectPath, originalDir, "Scripts.txt")),
+                    await join(projectPath, "translation", "other"),
+                    false
+                );
             }
 
             await emit("restart");

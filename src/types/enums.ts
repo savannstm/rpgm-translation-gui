@@ -5,6 +5,12 @@ export const enum EngineType {
     New,
 }
 
+export const enum ProcessingMode {
+    Default,
+    Append,
+    Force,
+}
+
 export const enum Language {
     English,
     Russian,
@@ -25,10 +31,4 @@ export const enum State {
     Weapons = "weapons",
     Plugins = "plugins",
     Scripts = "scripts",
-}
-
-export const enum ProcessingMode {
-    Default = 0,
-    Append = 1,
-    Force = 2,
 }

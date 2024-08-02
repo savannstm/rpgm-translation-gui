@@ -1,21 +1,41 @@
 /* eslint-disable @typescript-eslint/no-dynamic-delete */
-import "./extensions/string-extensions";
+import {
+    applyLocalization,
+    applyTheme,
+    getThemeStyleSheet,
+    extractStrings,
+    romanizeString,
+    readScripts,
+    animateProgressText,
+} from "./extensions/functions";
 import "./extensions/htmlelement-extensions";
-import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
-import { EngineType, Language, ProcessingMode, State } from "./types/enums";
 import { MainWindowLocalization } from "./extensions/localization";
+import "./extensions/string-extensions";
+import { invokeRead, invokeCompile } from "./extensions/invokes";
+import { EngineType, ProcessingMode, State, Language } from "./types/enums";
 
-import { FileEntry, createDir, exists, readDir, readTextFile, removeFile, writeTextFile } from "@tauri-apps/api/fs";
-import { BaseDirectory, join } from "@tauri-apps/api/path";
 import { ask, message, open as openPath } from "@tauri-apps/api/dialog";
-import { WebviewWindow, appWindow } from "@tauri-apps/api/window";
-import { locale as getLocale, platform as getPlatform } from "@tauri-apps/api/os";
-import { invoke } from "@tauri-apps/api/tauri";
-import { exit } from "@tauri-apps/api/process";
-import { Command } from "@tauri-apps/api/shell";
 import { emit } from "@tauri-apps/api/event";
+import {
+    FileEntry,
+    createDir,
+    exists,
+    readBinaryFile,
+    readDir,
+    readTextFile,
+    removeFile,
+    writeBinaryFile,
+    writeTextFile,
+} from "@tauri-apps/api/fs";
+import { locale as getLocale } from "@tauri-apps/api/os";
+import { BaseDirectory, join } from "@tauri-apps/api/path";
+import { exit } from "@tauri-apps/api/process";
+import { invoke } from "@tauri-apps/api/tauri";
+import { WebviewWindow, appWindow } from "@tauri-apps/api/window";
 const { Resource } = BaseDirectory;
 
+import { dump, load } from "@savannstm/marshal";
+import { deflate, inflate } from "pako";
 import XRegExp from "xregexp";
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -23,6 +43,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sheet = getThemeStyleSheet() as CSSStyleSheet;
 
     const resDir = "res";
+    const jsonDataDir = "json-data";
     const translationDir = "translation";
     const backupDir = "backups";
 
@@ -48,7 +69,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const searchCurrentPage = document.getElementById("search-current-page") as HTMLSpanElement;
     const searchTotalPages = document.getElementById("search-total-pages") as HTMLSpanElement;
     const topPanel = document.getElementById("top-panel") as HTMLDivElement;
-    const topPanelButtonsDiv = document.getElementById("top-panel-buttons") as HTMLDivElement;
+    const topPanelButtonsContainer = document.getElementById("top-panel-buttons") as HTMLDivElement;
     const saveButton = document.getElementById("save-button") as HTMLButtonElement;
     const compileButton = document.getElementById("compile-button") as HTMLButtonElement;
     const themeButton = document.getElementById("theme-button") as HTMLButtonElement;
@@ -81,6 +102,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // #region Program initialization
     let clickTimer: number | null = null;
     let projectPath = "";
+    let originalDir = "";
     let gameEngineType: EngineType;
 
     const settings: Settings = (await exists(settingsPath, { dir: Resource }))
@@ -156,7 +178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             root: document,
             rootMargin: "384px",
             threshold: 0,
-        },
+        }
     );
 
     const observerFound = new IntersectionObserver(
@@ -165,7 +187,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 entry.target.firstElementChild?.classList.toggle("hidden", !entry.isIntersecting);
             }
         },
-        { root: searchPanelFound, threshold: 0 },
+        { root: searchPanelFound, threshold: 0 }
     );
 
     const observerReplaced = new IntersectionObserver(
@@ -174,7 +196,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 entry.target.firstElementChild?.classList.toggle("hidden", !entry.isIntersecting);
             }
         },
-        { root: searchPanelReplaced, threshold: 0 },
+        { root: searchPanelReplaced, threshold: 0 }
     );
 
     function addBookmark(bookmarkTitle: string) {
@@ -200,7 +222,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 continue;
             }
 
-            const parts = bookmarkTitle.split("-");
+            const parts = bookmarkTitle.split("-", 2);
             const rowElement = document.getElementById(`${parts[0]}-row-${parts[1]}`);
             rowElement?.lastElementChild?.firstElementChild?.classList.toggle("backgroundThird");
 
@@ -240,7 +262,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (target.classList.contains("bookmarkButton")) {
             const row = target.closest("[id]") as HTMLDivElement;
-            const parts = row.id.split("-") as string[];
+            const parts = row.id.split("-", 3) as string[];
             const bookmarkText = `${parts[0]}-${parts.at(-1) as string}`;
 
             if (bookmarks.has(bookmarkText)) {
@@ -284,7 +306,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             const line = focusedElementRow + i;
 
                             const nextElement = document.getElementById(
-                                `${targetId.join("-")}-${line}`,
+                                `${targetId.join("-")}-${line}`
                             ) as HTMLTextAreaElement;
 
                             nextElement.style.outlineColor = theme.outlineFocused;
@@ -295,7 +317,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             const line = focusedElementRow - i;
 
                             const nextElement = document.getElementById(
-                                `${targetId.join("-")}-${line}`,
+                                `${targetId.join("-")}-${line}`
                             ) as HTMLTextAreaElement;
 
                             nextElement.style.outlineColor = theme.outlineFocused;
@@ -340,7 +362,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (!/^[a-zA-Z0-9_-]+$/.test(themeName)) {
                 await message(
-                    `${windowLocalization.invalidThemeName} ${windowLocalization.allowedThemeNameCharacters}`,
+                    `${windowLocalization.invalidThemeName} ${windowLocalization.allowedThemeNameCharacters}`
                 );
                 return;
             }
@@ -390,93 +412,149 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    async function ensureProjectIsValid(projectPath: string): Promise<boolean> {
-        async function ensureTranslationSubdirsExist(): Promise<boolean> {
-            for (const dir of [mapsDir, otherDir]) {
-                if (!(await exists(await join(translationPath, dir)))) {
-                    await message(windowLocalization.missingTranslationSubdirs);
-                    return false;
-                }
+    async function ensureTranslationSubdirsExist(translationPath: string): Promise<boolean> {
+        for (const dir of [mapsDir, otherDir]) {
+            if (!(await exists(await join(translationPath, dir)))) {
+                await message(windowLocalization.missingTranslationSubdirs);
+                return false;
             }
-
-            return true;
         }
 
+        return true;
+    }
+
+    async function ensureProjectIsValid(projectPath: string): Promise<boolean> {
         if (!(await exists(projectPath))) {
             await message(windowLocalization.selectedFolderMissing);
             return false;
         }
 
         noProjectSelected.innerHTML = windowLocalization.loadingProject;
+        const interval = animateProgressText(noProjectSelected);
 
         const translationPath = await join(projectPath, translationDir);
         const parsed = (await exists(translationPath)) ? true : false;
+        const JSONDataPath = await join(projectPath, jsonDataDir);
 
-        let originalDir = await join(projectPath, "Data");
-
-        if (!(await exists(originalDir))) {
-            originalDir = await join(projectPath, "data");
-
-            if (!(await exists(originalDir))) {
-                originalDir = await join(projectPath, "original");
-
-                if (!(await exists(originalDir))) {
-                    await message(windowLocalization.missingOriginalDir);
-                    return false;
-                }
-            }
+        if (await exists(await join(projectPath, "Data"))) {
+            originalDir = "Data";
+        } else if (await exists(await join(projectPath, "data"))) {
+            originalDir = "data";
+        } else {
+            await message(windowLocalization.missingOriginalDir);
+            return false;
         }
 
-        if (await exists(await join(originalDir, "System.rxdata"))) {
+        if (await exists(await join(projectPath, originalDir, "System.rxdata"))) {
             gameEngineType = EngineType.XP;
             currentGameEngine.innerHTML = "XP";
-        } else if (await exists(await join(originalDir, "System.rvdata"))) {
+        } else if (await exists(await join(projectPath, originalDir, "System.rvdata"))) {
             gameEngineType = EngineType.VX;
             currentGameEngine.innerHTML = "VX";
-        } else if (await exists(await join(originalDir, "System.rvdata2"))) {
+        } else if (await exists(await join(projectPath, originalDir, "System.rvdata2"))) {
             gameEngineType = EngineType.VXAce;
             currentGameEngine.innerHTML = "VX Ace";
-        } else if (await exists(await join(originalDir, "System.json"))) {
+        } else if (await exists(await join(projectPath, originalDir, "System.json"))) {
             gameEngineType = EngineType.New;
             currentGameEngine.innerHTML = "MV / MZ";
         } else {
             await message(windowLocalization.cannotDetermineEngine);
+
+            changeState(null);
+            contentContainer.innerHTML = "";
+            currentGameEngine.innerHTML = "";
+            currentGameTitle.value = "";
             return false;
         }
 
         if (!parsed) {
+            let gameTitle!: string;
+            const codes: string[] = [];
+
             if (gameEngineType === EngineType.New) {
-                const gameTitle = JSON.parse(await readTextFile(await join(originalDir, "System.json")))
+                gameTitle = JSON.parse(await readTextFile(await join(projectPath, originalDir, "System.json")))
                     .gameTitle as string;
-
-                await invoke<string>("read", {
-                    projectPath: projectPath,
-                    originalPath: originalDir,
-                    gameTitle: gameTitle,
-                    romanize: false,
-                    disableCustomParsing: false,
-                    disableProcessing: [false, false, false],
-                    logging: false,
-                    processingMode: ProcessingMode.Default,
-                });
             } else {
-                const platform = await getPlatform();
+                const iniFileContent = (await readTextFile(await join(projectPath, "Game.ini"))).split("\n");
 
-                await new Command(platform === "win32" ? "rvpacker-txt-win" : "rvpacker-txt-linux", [
-                    "read",
-                    "--input-dir",
-                    projectPath,
-                ]).execute();
+                for (const line of iniFileContent) {
+                    if (line.startsWith("title")) {
+                        gameTitle = line.split("=", 2)[1].trim();
+                    }
+                }
+
+                if (!(await exists(JSONDataPath))) {
+                    const decoder = new TextDecoder();
+
+                    await createDir(await join(projectPath, jsonDataDir));
+
+                    const entries = (await readDir(await join(projectPath, originalDir))).filter(
+                        (entry) =>
+                            !["Animations", "MapInfos", "Tilesets"].includes(
+                                (entry.name as string).slice(0, entry.name?.lastIndexOf("."))
+                            ) && /data2?$/.test(entry.name as string)
+                    );
+
+                    for (const entry of entries) {
+                        const name = entry.name as string;
+
+                        const loaded = load(await readBinaryFile(entry.path), {
+                            convertHashKeysToString: true,
+                            convertInstanceVarsToString: "",
+                            string: name.startsWith("Scripts") ? "binary" : undefined,
+                        });
+
+                        if (name.startsWith("Scripts")) {
+                            for (const arr of loaded as Uint8Array[][]) {
+                                const code = decoder.decode(inflate(arr[2]));
+                                codes.push(code);
+                            }
+                            continue;
+                        }
+
+                        await writeTextFile(
+                            await join(projectPath, jsonDataDir, `${name.slice(0, name.lastIndexOf("."))}.json`),
+                            JSON.stringify(loaded, (_, value) => {
+                                if (value instanceof Uint8Array) {
+                                    return {
+                                        __type: "Uint8Array",
+                                        data: Array.from(value),
+                                    };
+                                }
+
+                                return value;
+                            })
+                        );
+                    }
+                }
+
+                originalDir = jsonDataDir;
+            }
+
+            await invokeRead({
+                projectPath,
+                originalPath: await join(projectPath, originalDir),
+                gameTitle,
+                romanize: false,
+                disableCustomProcessing: false,
+                disableProcessing: [false, false, false],
+                logging: false,
+                processingMode: ProcessingMode.Default,
+                engineType: gameEngineType,
+            });
+
+            if (gameEngineType !== EngineType.New) {
+                await readScripts(codes.join(""), await join(projectPath, translationDir, otherDir), false);
             }
         }
 
         if (gameEngineType === EngineType.New) {
             const systemOriginalText = await readTextFile(
-                await join(projectPath, translationDir, otherDir, "system.txt"),
+                await join(projectPath, translationDir, otherDir, "system.txt")
             );
             const originalGameTitle = systemOriginalText.slice(systemOriginalText.lastIndexOf("\n"));
             const systemTranslatedText = await readTextFile(
-                await join(projectPath, translationDir, otherDir, "system_trans.txt"),
+                await join(projectPath, translationDir, otherDir, "system_trans.txt")
             );
             const translatedGameTitle = systemTranslatedText.slice(systemTranslatedText.lastIndexOf("\n"));
 
@@ -485,12 +563,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             } else {
                 currentGameTitle.value = translatedGameTitle;
             }
+        } else {
+            originalDir = jsonDataDir;
         }
 
+        clearInterval(interval);
         if (!parsed) {
             return true;
         } else {
-            return await ensureTranslationSubdirsExist();
+            return await ensureTranslationSubdirsExist(translationPath);
         }
     }
 
@@ -514,6 +595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             changeState(null);
             contentContainer.innerHTML = "";
+            currentGameTitle.value = "";
 
             settings.projectPath = projectPath;
 
@@ -547,7 +629,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }),
                 {
                     dir: Resource,
-                },
+                }
             );
 
             alert(windowLocalization.createdSettings);
@@ -677,7 +759,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function searchText(
         text: string,
-        replace: boolean,
+        replace: boolean
     ): Promise<null | undefined | Map<HTMLTextAreaElement, string>> {
         const regexp: RegExp | undefined = await createRegExp(text);
         if (!regexp) {
@@ -748,7 +830,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (count % 1000 === 0) {
                 await writeTextFile(
                     await join(projectPath, dataDir, `matches-${file}.json`),
-                    JSON.stringify(objectToWrite),
+                    JSON.stringify(objectToWrite)
                 );
 
                 objectToWrite = {};
@@ -764,7 +846,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         searchCurrentPage.textContent = "0";
 
         for (const [id, result] of Object.entries(
-            JSON.parse(await readTextFile(await join(projectPath, dataDir, "matches-0.json"))),
+            JSON.parse(await readTextFile(await join(projectPath, dataDir, "matches-0.json")))
         )) {
             appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
         }
@@ -782,7 +864,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const clicked = document.getElementById(
-            element.firstElementChild?.textContent as string,
+            element.firstElementChild?.textContent as string
         ) as HTMLTextAreaElement;
         const secondParent = element.parentElement?.parentElement as HTMLElement;
 
@@ -796,13 +878,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else if (event.button === 2) {
             clicked.value = element.children[1].textContent as string;
 
-            element.innerHTML = `<span class="text-base"><code>${element.firstElementChild?.textContent}</code>\n${
-                windowLocalization.textReverted
-            }\n<code>${element.children[1].textContent}</code></span>`;
+            element.innerHTML = `<span class="text-base"><code>${element.firstElementChild?.textContent}</code>\n${windowLocalization.textReverted}\n<code>${element.children[1].textContent}</code></span>`;
             element.setAttribute("reverted", "");
 
             const replacementLogContent: Record<string, { original: string; translation: string }> = JSON.parse(
-                await readTextFile(await join(projectPath, dataDir, logFile)),
+                await readTextFile(await join(projectPath, dataDir, logFile))
             );
 
             delete replacementLogContent[clicked.id];
@@ -813,9 +893,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function showSearchPanel(hide = true): void {
         if (searchPanel.getAttribute("moving") === "false") {
-            hide
-                ? searchPanel.toggleMultiple("translate-x-0", "translate-x-full")
-                : searchPanel.classList.replace("translate-x-full", "translate-x-0");
+            if (hide) {
+                searchPanel.toggleMultiple("translate-x-0", "translate-x-full");
+            } else {
+                searchPanel.classList.replace("translate-x-full", "translate-x-0");
+            }
 
             searchPanel.setAttribute("moving", "true");
         }
@@ -843,7 +925,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     searchPanel.setAttribute("shown", "true");
                     searchPanel.setAttribute("moving", "false");
                 },
-                { once: true },
+                { once: true }
             );
         } else {
             if (searchPanel.classList.contains("translate-x-full")) {
@@ -873,7 +955,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     function extractInfo(element: HTMLElement): [string, string] {
-        const parts = element.id.split("-");
+        const parts = element.id.split("-", 3);
         const source = parts[1];
         const row = parts[2];
         return [source, row];
@@ -884,7 +966,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentState: HTMLElement,
         element: HTMLElement,
         resultElement: HTMLDivElement,
-        counterpartIndex: number,
+        counterpartIndex: number
     ): Promise<void> {
         if (button === 0) {
             changeState(currentState.id as State);
@@ -918,22 +1000,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             target.parentElement?.hasAttribute("data")
                 ? target.parentElement
                 : target.parentElement?.parentElement?.hasAttribute("data")
-                  ? target.parentElement?.parentElement
-                  : target.parentElement?.parentElement?.parentElement
+                ? target.parentElement?.parentElement
+                : target.parentElement?.parentElement?.parentElement
         ) as HTMLDivElement;
 
         if (!searchPanelFound.contains(resultElement)) {
             return;
         }
 
-        const [thirdParent, element, counterpartIndex] = (resultElement.getAttribute("data") as string).split(",");
+        const [thirdParent, element, counterpartIndex] = (resultElement.getAttribute("data") as string).split(",", 3);
 
         await handleResultClick(
             event.button,
             document.getElementById(thirdParent) as HTMLElement,
             document.getElementById(element) as HTMLElement,
             resultElement,
-            Number.parseInt(counterpartIndex),
+            Number.parseInt(counterpartIndex)
         );
     }
 
@@ -999,7 +1081,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             replaced.set(text.id, { original: text.value, translation: newValue });
             const prevFile: Record<string, Record<string, string>> = JSON.parse(
-                await readTextFile(await join(projectPath, dataDir, logFile)),
+                await readTextFile(await join(projectPath, dataDir, logFile))
             );
 
             const newObject: Record<string, Record<string, string>> = {
@@ -1043,7 +1125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const prevFile: Record<string, Record<string, string>> = JSON.parse(
-            await readTextFile(await join(projectPath, dataDir, logFile)),
+            await readTextFile(await join(projectPath, dataDir, logFile))
         );
 
         const newObject: Record<string, Record<string, string>> = {
@@ -1082,7 +1164,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 projectPath,
                 dataDir,
                 backupDir,
-                `${formattedDate}_${nextBackupNumber.toString().padStart(2, "0")}`,
+                `${formattedDate}_${nextBackupNumber.toString().padStart(2, "0")}`
             );
 
             for (const subDir of [mapsDir, otherDir, pluginsDir]) {
@@ -1108,13 +1190,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ? i < 2
                         ? mapsDir
                         : i < 12
-                          ? otherDir
-                          : pluginsDir
+                        ? otherDir
+                        : pluginsDir
                     : i < 2
-                      ? mapsDir
-                      : otherDir;
-
-            console.log(dirPath);
+                    ? mapsDir
+                    : otherDir;
 
             const filePath = `${dirPath}/${contentElement.id}_trans.txt`;
             await writeTextFile(await join(dirName, filePath), outputArray.join("\n"));
@@ -1199,7 +1279,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         goToRowInput.focus();
 
         const element = document.getElementById(state as string) as HTMLDivElement;
-        const lastRow = element.lastElementChild?.id.split("-").at(-1) as string;
+        const lastRow = element.lastElementChild?.id.split("-", 3).at(-1) as string;
 
         goToRowInput.placeholder = `${windowLocalization.goToRow} ${lastRow}`;
     }
@@ -1210,7 +1290,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const idParts = focusedElement.id.split("-");
+        const idParts = focusedElement.id.split("-", 3);
         const index = Number.parseInt(idParts.pop() as string);
         const baseId = idParts.join("-");
 
@@ -1276,6 +1356,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                         break;
                     case "KeyF":
                         event.preventDefault();
+
+                        searchMenu.classList.replace("flex", "hidden");
                         searchInput.focus();
                         break;
                     case "KeyB":
@@ -1283,7 +1365,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                         requestAnimationFrame(() => {
                             bookmarksMenu.style.left = `${bookmarksButton.offsetLeft}px`;
-                            bookmarksMenu.style.top = `${bookmarksButton.clientHeight + 16}px`;
+                            bookmarksMenu.style.top = `${menuBar.clientHeight + topPanel.clientHeight}px`;
                         });
                         break;
                 }
@@ -1444,6 +1526,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         })) {
             const folder = entry.name as string;
 
+            if (folder.startsWith(".")) {
+                continue;
+            }
+
             for (const file of entry.children as FileEntry[]) {
                 const name = file.name as string;
 
@@ -1467,13 +1553,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             contentDiv.classList.add("hidden", "flex-col", "h-auto");
 
             if (contentName === "system") {
-                const originalGameTitle = content[i].pop() as string;
-                const translatedGameTitle = content[i + 1].pop() as string;
+                if (gameEngineType === EngineType.New) {
+                    const originalGameTitle = content[i].pop() as string;
+                    const translatedGameTitle = content[i + 1].pop() as string;
 
-                if (translatedGameTitle === "") {
-                    currentGameTitle.value = originalGameTitle;
+                    if (translatedGameTitle === "") {
+                        currentGameTitle.value = originalGameTitle;
+                    } else {
+                        currentGameTitle.value = translatedGameTitle;
+                    }
                 } else {
-                    currentGameTitle.value = translatedGameTitle;
+                    const iniFilePath = await readTextFile(await join(projectPath, "Game.ini"));
+                    for (const line of iniFilePath.split("\n")) {
+                        if (line.includes("title")) {
+                            currentGameTitle.value = line.split("=", 2)[1].trim();
+                        }
+                    }
                 }
             }
 
@@ -1502,12 +1597,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                     "translation-text-input",
                     "outlinePrimary",
                     "backgroundPrimary",
-                    "outlineFocused",
+                    "outlineFocused"
                 );
 
                 const rowElement = document.createElement("div");
                 rowElement.id = `${contentName}-row-${j + 1}`;
-                rowElement.innerHTML = `<span>${(j + 1).toString()}</span><div class="flex w-full h-7 justify-end items-center"><button class="bookmarkButton borderPrimary backgroundPrimaryHovered textThird">bookmark</button></div>`;
+                rowElement.innerHTML = `<span>${(
+                    j + 1
+                ).toString()}</span><div class="flex w-full h-7 justify-end items-center"><button class="bookmarkButton borderPrimary backgroundPrimaryHovered textThird">bookmark</button></div>`;
                 rowElement.classList.add("row", "backgroundPrimary");
 
                 textContainer.appendChild(rowElement);
@@ -1529,7 +1626,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             for (const node of child.children as HTMLCollectionOf<HTMLDivElement>) {
                 heights.set(
                     [((node.firstElementChild as HTMLElement).children[1].innerHTML.count("\n") + 1) * 28 + 8],
-                    i,
+                    i
                 );
                 i++;
             }
@@ -1557,13 +1654,81 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    async function writeScripts(scriptsFilePath: string, otherPath: string, outputPath: string, romanize: boolean) {
+        const scriptEntries = load(await readBinaryFile(scriptsFilePath), { string: "binary" }) as Uint8Array[][];
+        const originalScriptsText = (await readTextFile(await join(otherPath, "scripts.txt"))).split("\n");
+        const translatedScriptsText = (await readTextFile(await join(otherPath, "scripts_trans.txt"))).split("\n");
+
+        const scriptsTranslationMap = new Map(originalScriptsText.map((value, i) => [value, translatedScriptsText[i]]));
+
+        const decoder = new TextDecoder("utf-8", { fatal: true });
+
+        for (const [i, script] of scriptEntries.entries()) {
+            let code: string;
+
+            {
+                const inflated = inflate(script[2]);
+
+                try {
+                    code = decoder.decode(inflated);
+                } catch {
+                    try {
+                        code = new TextDecoder("windows-1252", { fatal: true }).decode(inflated);
+                    } catch {
+                        try {
+                            code = new TextDecoder("shift-jis", { fatal: true }).decode(inflated);
+                        } catch {
+                            code = new TextDecoder("gbk", { fatal: true }).decode(inflated);
+                        }
+                    }
+                }
+            }
+
+            const [stringArray, indexArray] = extractStrings(code, true) as [string[], number[]];
+
+            for (let i = stringArray.length - 1; i >= 0; i--) {
+                let string = stringArray[i].replaceAll("　", "").trim();
+                if (string.length === 0 || !scriptsTranslationMap.has(string)) {
+                    continue;
+                }
+
+                if (romanize) {
+                    string = romanizeString(string);
+                }
+
+                const translated = scriptsTranslationMap.get(string) as string;
+                const before = code.slice(0, indexArray[i]);
+                const after = code.slice(indexArray[i]);
+
+                after.replace(string, translated);
+                code = before + after;
+            }
+
+            scriptEntries[i][2] = deflate(code, { level: 6 });
+        }
+
+        await writeBinaryFile(
+            await join(
+                outputPath,
+                `Scripts.${
+                    gameEngineType === EngineType.VXAce
+                        ? ".rvdata2"
+                        : gameEngineType === EngineType.VX
+                        ? ".rvdata"
+                        : ".rxdata"
+                }`
+            ),
+            dump(scriptEntries)
+        );
+    }
+
     async function compile(silent: boolean): Promise<void> {
         if (!projectPath) {
             return;
         }
 
         const compileSettings: CompileSettings = JSON.parse(
-            await readTextFile(await join(projectPath, dataDir, compileSettingsFile)),
+            await readTextFile(await join(projectPath, dataDir, compileSettingsFile))
         );
 
         if (!compileSettings.initialized || !compileSettings.doNotAskAgain || !silent) {
@@ -1583,53 +1748,77 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             compileButton.firstElementChild?.classList.add("animate-spin");
 
-            let originalDir = await join(projectPath, "Data");
+            const startTime = performance.now();
 
-            if (!(await exists(originalDir))) {
-                originalDir = await join(projectPath, "data");
+            const executionTime = await invokeCompile({
+                projectPath,
+                originalPath: await join(projectPath, originalDir),
+                outputPath: compileSettings.customOutputPath.path,
+                gameTitle: currentGameTitle.value,
+                romanize: compileSettings.romanize,
+                shuffleLevel: compileSettings.shuffle.level,
+                disableCustomProcessing: compileSettings.disableCustomProcessing,
+                disableProcessing: Object.values(compileSettings.disableProcessing.of),
+                logging: compileSettings.logging,
+                engineType: gameEngineType,
+            });
 
-                if (!(await exists(originalDir))) {
-                    originalDir = await join(projectPath, "original");
+            if (gameEngineType === EngineType.New) {
+                alert(`${windowLocalization.compileSuccess} ${executionTime})}`);
+            } else {
+                await createDir(await join(projectPath, "output"), { recursive: true });
+
+                for (const entry of await readDir(await join(projectPath, jsonDataDir))) {
+                    if ((entry.name as string).includes("Scripts")) {
+                        continue;
+                    }
+
+                    const jsonContent = JSON.parse(await readTextFile(entry.path), (_, value) => {
+                        if (value && value.__type === "Uint8Array") {
+                            return new Uint8Array(value.data);
+                        }
+
+                        return value;
+                    });
+
+                    const dumped = dump(jsonContent, { convertStringsToInstanceVar: "" });
+
+                    await writeBinaryFile(
+                        await join(
+                            projectPath,
+                            "output",
+                            `${(entry.name as string).slice(0, -5)}.${
+                                gameEngineType === EngineType.VXAce
+                                    ? "rvdata2"
+                                    : gameEngineType === EngineType.VX
+                                    ? "rvdata"
+                                    : "rxdata"
+                            }`
+                        ),
+                        dumped
+                    );
+                }
+
+                if (!compileSettings.disableProcessing.of.plugins) {
+                    await writeScripts(
+                        await join(
+                            await join(projectPath, originalDir === jsonDataDir ? "Data" : originalDir),
+                            `Scripts.${
+                                gameEngineType === EngineType.VXAce
+                                    ? "rvdata2"
+                                    : gameEngineType === EngineType.VX
+                                    ? "rvdata"
+                                    : "rxdata"
+                            }`
+                        ),
+                        await join(projectPath, translationDir, otherDir),
+                        await join(projectPath, "output"),
+                        compileSettings.romanize
+                    );
                 }
             }
 
-            if (gameEngineType === EngineType.New) {
-                alert(
-                    `${windowLocalization.compileSuccess} ${await invoke<string>("compile", {
-                        projectPath: projectPath,
-                        originalPath: originalDir,
-                        outputPath: compileSettings.customOutputPath.path,
-                        gameTitle: currentGameTitle.value,
-                        romanize: compileSettings.romanize,
-                        shuffleLevel: compileSettings.shuffle.level,
-                        disableProcessing: Object.values(compileSettings.disableProcessing.of),
-                        logging: compileSettings.logging,
-                    })}`,
-                );
-            } else {
-                const startTime = performance.now();
-                const platform = await getPlatform();
-
-                await new Command(platform === "win32" ? "rvpacker-txt-win" : "rvpacker-txt-linux", [
-                    "write",
-                    "--input-dir",
-                    projectPath,
-                    "--output-dir",
-                    compileSettings.customOutputPath.path,
-                    compileSettings.romanize ? "--romanize" : "",
-                    "--shuffle-level",
-                    compileSettings.shuffle.level.toString(),
-                    compileSettings.disableCustomParsing ? "--disable-custom-parsing" : "",
-                    "--disable-processing",
-                    Object.keys(compileSettings.disableProcessing.of)
-                        // @ts-expect-error object can be indexed by string fuck off
-                        .filter((key) => compileSettings.disableProcessing.of[key])
-                        .join(","),
-                ]).execute();
-
-                alert(`${windowLocalization.compileSuccess} ${(performance.now() - startTime) / 1000}`);
-            }
-
+            alert(`${windowLocalization.compileSuccess} ${(performance.now() - startTime) / 1000}`);
             compileButton.firstElementChild?.classList.remove("animate-spin");
         }
     }
@@ -1880,7 +2069,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     async (event) => await languageMenuClick(event.target as HTMLElement),
                     {
                         once: true,
-                    },
+                    }
                 );
                 break;
         }
@@ -1906,6 +2095,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     shuffle: { enabled: false, level: 0 },
                     customParsing: false,
                     customOutputPath: { enabled: false, path: "" },
+                    disableCustomProcessing: false,
                     disableProcessing: {
                         enabled: false,
                         of: {
@@ -1916,7 +2106,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         },
                     },
                     doNotAskAgain: true,
-                }),
+                })
             );
         }
     }
@@ -1999,10 +2189,26 @@ document.addEventListener("DOMContentLoaded", async () => {
             location.reload();
         });
 
+        let engineTypeValue: number;
+
+        switch (gameEngineType) {
+            case EngineType.New:
+                engineTypeValue = 3;
+                break;
+            case EngineType.VXAce:
+                engineTypeValue = 2;
+                break;
+            case EngineType.VX:
+                engineTypeValue = 1;
+                break;
+            case EngineType.XP:
+                engineTypeValue = 0;
+                break;
+        }
         const unlistenFetch = await readWindow.once("fetch", async () => {
             await emit("metadata", [
                 (document.getElementById("current-game-title") as HTMLInputElement).value,
-                gameEngineType === EngineType.New ? "new" : "old",
+                engineTypeValue,
             ]);
         });
 
@@ -2017,12 +2223,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         changeState(newState, true);
     });
 
-    topPanelButtonsDiv.addEventListener("click", async (event) => {
-        if (event.target === topPanelButtonsDiv) {
+    topPanelButtonsContainer.addEventListener("click", async (event) => {
+        if (event.target === topPanelButtonsContainer) {
             return;
         }
 
-        const target: HTMLElement = topPanelButtonsDiv.secondHighestParent(event.target as HTMLElement);
+        const target: HTMLElement = topPanelButtonsContainer.secondHighestParent(event.target as HTMLElement);
 
         switch (target.id) {
             case "menu-button":
@@ -2058,7 +2264,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 requestAnimationFrame(() => {
                     themeMenu.style.left = `${themeButton.offsetLeft}px`;
-                    themeMenu.style.top = `${themeButton.clientHeight + 16}px`;
+                    themeMenu.style.top = `${menuBar.clientHeight + topPanel.clientHeight}px`;
 
                     themeMenu.addEventListener("click", async (event: MouseEvent) => {
                         const target = event.target as HTMLButtonElement;
@@ -2081,7 +2287,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 requestAnimationFrame(() => {
                     bookmarksMenu.style.left = `${bookmarksButton.offsetLeft}px`;
-                    bookmarksMenu.style.top = `${bookmarksButton.clientHeight + 16}px`;
+                    bookmarksMenu.style.top = `${menuBar.clientHeight + topPanel.clientHeight}px`;
                 });
                 break;
             case "read-button": {
@@ -2097,7 +2303,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     searchMenu.classList.remove("hidden");
                     requestAnimationFrame(() => {
                         searchMenu.style.left = `${searchButton.offsetLeft}px`;
-                        searchMenu.style.top = `${searchButton.offsetHeight + 20}px`;
+                        searchMenu.style.top = `${menuBar.clientHeight + topPanel.clientHeight}px`;
                     });
                 } else {
                     searchMenu.classList.add("hidden");
@@ -2131,7 +2337,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 "replaced-element",
                                 "textSecond",
                                 "borderPrimary",
-                                "backgroundSecond",
+                                "backgroundSecond"
                             );
 
                             replacedElement.innerHTML = `<div class="text-base textThird">${key}</div><div class=text-base>${value.original}</div><div class="flex justify-center items-center text-xl textPrimary font-material">arrow_downward</div><div class="text-base">${value.translation}</div>`;
@@ -2153,7 +2359,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                         searchPanelReplaced.addEventListener(
                             "mousedown",
-                            async (event) => await handleReplacedClick(event),
+                            async (event) => await handleReplacedClick(event)
                         );
                     } else {
                         searchSwitch.innerHTML = "search";
@@ -2161,7 +2367,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                         searchPanelReplaced.removeEventListener(
                             "mousedown",
-                            async (event) => await handleReplacedClick(event),
+                            async (event) => await handleReplacedClick(event)
                         );
                     }
                 }
@@ -2179,10 +2385,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                             await readTextFile(
                                 await join(
                                     projectPath,
-                                    `matches-${Number.parseInt(searchCurrentPage.textContent) - 1}.json`,
-                                ),
-                            ),
-                        ),
+                                    `matches-${Number.parseInt(searchCurrentPage.textContent) - 1}.json`
+                                )
+                            )
+                        )
                     )) {
                         appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
                     }
@@ -2201,10 +2407,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                             await readTextFile(
                                 await join(
                                     projectPath,
-                                    `matches-${Number.parseInt(searchCurrentPage.textContent) + 1}.json`,
-                                ),
-                            ),
-                        ),
+                                    `matches-${Number.parseInt(searchCurrentPage.textContent) + 1}.json`
+                                )
+                            )
+                        )
                     )) {
                         appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
                     }
@@ -2229,7 +2435,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     searchInput.calculateHeight();
                 });
             },
-            { once: true },
+            { once: true }
         );
     });
 
@@ -2248,7 +2454,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     replaceInput.calculateHeight();
                 });
             },
-            { once: true },
+            { once: true }
         );
     });
 
@@ -2266,7 +2472,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (event.code === "Enter") {
             const rowNumber: string = goToRowInput.value;
             const targetRow: HTMLTextAreaElement = document.getElementById(
-                `${state}-${rowNumber}`,
+                `${state}-${rowNumber}`
             ) as HTMLTextAreaElement;
 
             if (targetRow) {
@@ -2324,7 +2530,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         searchMenu.setAttribute("selected", "true");
         searchMenu.setAttribute(
             "offset",
-            `${event.clientX - searchMenu.offsetLeft},${event.clientY - searchMenu.offsetTop}`,
+            `${event.clientX - searchMenu.offsetLeft},${event.clientY - searchMenu.offsetTop}`
         );
 
         searchMenu.addEventListener(
@@ -2332,7 +2538,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             () => {
                 searchMenu.setAttribute("selected", "false");
             },
-            { once: true },
+            { once: true }
         );
     });
 
@@ -2341,7 +2547,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (searchMenu.getAttribute("selected") === "true") {
             const offsets: [number, number] = (searchMenu.getAttribute("offset") as string)
-                .split(",")
+                .split(",", 2)
                 .map((element) => Number.parseInt(element)) as [number, number];
 
             const screenWidth = window.innerWidth;
@@ -2380,7 +2586,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 for (let i = 0; i < textRows; i++) {
                     const elementToReplace = document.getElementById(
-                        `${focusedElementId.join("-")}-${focusedElementNumber + i}`,
+                        `${focusedElementId.join("-")}-${focusedElementNumber + i}`
                     ) as HTMLTextAreaElement;
 
                     replacedTextareas.set(elementToReplace.id, elementToReplace.value.replaceAll(text, ""));
@@ -2412,7 +2618,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const parts = (target.textContent as string).split("-");
+        const parts = (target.textContent as string).split("-", 2);
         const rowId = `${parts[0]}-row-${parts[1]}`;
 
         changeState(parts[0] as State);

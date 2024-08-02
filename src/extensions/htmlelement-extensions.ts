@@ -21,23 +21,11 @@ HTMLElement.prototype.secondHighestParent = function (childElement) {
 };
 
 HTMLTextAreaElement.prototype.calculateHeight = function () {
-    const lineBreaks: number = this.value.count("\n") + 1;
+    const lineBreaks = this.value.count("\n") + 1;
 
-    const {
-        lineHeight,
-        paddingTop,
-        paddingBottom,
-        borderTopWidth,
-        borderBottomWidth,
-    }: {
-        lineHeight: string;
-        paddingTop: string;
-        paddingBottom: string;
-        borderTopWidth: string;
-        borderBottomWidth: string;
-    } = window.getComputedStyle(this);
+    const { lineHeight, paddingTop, paddingBottom, borderTopWidth, borderBottomWidth } = window.getComputedStyle(this);
 
-    const newHeight: number =
+    const newHeight =
         lineBreaks * Number.parseFloat(lineHeight) +
         Number.parseFloat(paddingTop) +
         Number.parseFloat(paddingBottom) +
