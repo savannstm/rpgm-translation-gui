@@ -20,6 +20,7 @@ use write::*;
 #[derive(PartialEq)]
 enum GameType {
     Termina,
+    LisaRPG,
 }
 
 #[derive(PartialEq)]
@@ -76,7 +77,14 @@ enum Variable {
     Note,
 }
 
-lazy_static! {pub static ref STRING_IS_ONLY_SYMBOLS_RE: Regex = Regex::new(r#"^[.()+\-:;\[\]^~%&!№$@`*\/→×？?ｘ％▼|♥♪！：〜『』「」〽。…‥＝゠、，【】［］｛｝（）〔〕｟｠〘〙〈〉《》・\\#'"<>=_ー※▶ⅠⅰⅡⅱⅢⅲⅣⅳⅤⅴⅥⅵⅦⅶⅧⅷⅨⅸⅩⅹⅪⅺⅫⅻⅬⅼⅭⅽⅮⅾⅯⅿ\s0-9]+$"#).unwrap();}
+lazy_static! {
+    pub static ref STRING_IS_ONLY_SYMBOLS_RE: Regex = Regex::new(r#"^[.()+\-:;\[\]^~%&!№$@`*\/→×？?ｘ％▼|♥♪！：〜『』「」〽。…‥＝゠、，【】［］｛｝（）〔〕｟｠〘〙〈〉《》・\\#'"<>=_ー※▶ⅠⅰⅡⅱⅢⅲⅣⅳⅤⅴⅥⅵⅦⅶⅧⅷⅨⅸⅩⅹⅪⅺⅫⅻⅬⅼⅭⅽⅮⅾⅯⅿ\s0-9]+$"#).unwrap();
+    pub static ref ENDS_WITH_IF_RE: Regex = Regex::new(r" if\(.*\)$").unwrap();
+    pub static ref LISA_PREFIX_RE: Regex = Regex::new(r"^(\\et\[[0-9]+\]|\\nbt)").unwrap();
+    pub static ref INVALID_MULTILINE_VARIABLE_RE: Regex = Regex::new(r"^#? ?<.*>.?$|^[a-z][0-9]$").unwrap();
+    pub static ref INVALID_VAIRIABLE_RE: Regex = Regex::new(r"^[+-]?[0-9]+$|^///|---|restrict eval").unwrap();
+    pub static ref SELECT_WORDS_RE: Regex = Regex::new(r"\S+").unwrap();
+}
 
 pub fn romanize_string<T>(string: T) -> String
 where
@@ -153,11 +161,15 @@ where
 }
 
 fn get_game_type(game_title: &str) -> Option<GameType> {
-    if game_title.contains("termina") {
-        return Some(GameType::Termina);
-    }
+    let lowercased: String = game_title.to_lowercase();
 
-    None
+    if Regex::new(r"\btermina\b").unwrap().is_match(&lowercased) {
+        Some(GameType::Termina)
+    } else if Regex::new(r"\blisa\b").unwrap().is_match(&lowercased) {
+        Some(GameType::LisaRPG)
+    } else {
+        None
+    }
 }
 
 #[command]
@@ -168,7 +180,7 @@ fn escape_text(text: &str) -> String {
 #[command(async)]
 fn compile(
     project_path: PathBuf,
-    original_path: PathBuf,
+    original_dir: PathBuf,
     output_path: PathBuf,
     game_title: &str,
     romanize: bool,
@@ -188,13 +200,15 @@ fn compile(
         _ => unreachable!(),
     };
 
-    let maps_path: &Path = &project_path.join("translation/maps");
-    let other_path: &Path = &project_path.join("translation/other");
-    let plugins_path: &Path = &project_path.join("translation/plugins");
-    let output_path: &Path = &output_path.join("output/data");
-    let plugins_output_path: &Path = &output_path.join("output/js");
+    let data_dir: &Path = &PathBuf::from(".rpgm-translation-gui");
+    let original_path: &Path = &project_path.join(original_dir);
+    let maps_path: &Path = &project_path.join(data_dir).join("translation/maps");
+    let other_path: &Path = &project_path.join(data_dir).join("translation/other");
+    let plugins_path: &Path = &project_path.join(data_dir).join("translation/plugins");
+    let output_path: &Path = &output_path.join(data_dir).join("output/data");
+    let plugins_output_path: &Path = &output_path.join(data_dir).join("output/js");
 
-    let game_type: Option<GameType> = if disable_custom_processing {
+    let game_type: &Option<GameType> = &if disable_custom_processing {
         None
     } else {
         get_game_type(game_title)
@@ -208,13 +222,13 @@ fn compile(
     if !disable_processing[0] {
         write_maps(
             maps_path,
-            &original_path,
+            original_path,
             output_path,
             romanize,
             shuffle_level,
             logging,
             "",
-            &game_type,
+            game_type,
             engine_type,
         );
     }
@@ -222,13 +236,13 @@ fn compile(
     if !disable_processing[1] {
         write_other(
             other_path,
-            &original_path,
+            original_path,
             output_path,
             romanize,
             shuffle_level,
             logging,
             "",
-            &game_type,
+            game_type,
             engine_type,
         );
     }
@@ -248,7 +262,10 @@ fn compile(
 
     let plugins_path: &Path = &plugins_path.join("Plugins.json");
 
-    if !disable_processing[3] && game_type.is_some() && game_type.unwrap() == GameType::Termina && plugins_path.exists()
+    if !disable_processing[3]
+        && game_type.is_some()
+        && *game_type.as_ref().unwrap() == GameType::Termina
+        && plugins_path.exists()
     {
         write_plugins(
             plugins_path,
@@ -266,7 +283,7 @@ fn compile(
 #[command(async)]
 fn read(
     project_path: PathBuf,
-    original_path: PathBuf,
+    original_dir: PathBuf,
     game_title: &str,
     romanize: bool,
     disable_custom_processing: bool,
@@ -275,14 +292,14 @@ fn read(
     processing_mode: u8,
     engine_type: u8,
 ) {
-    let processing_mode: ProcessingMode = match processing_mode {
+    let processing_mode: &ProcessingMode = &match processing_mode {
         0 => ProcessingMode::Default,
         1 => ProcessingMode::Append,
         2 => ProcessingMode::Force,
         _ => unreachable!(),
     };
 
-    let engine_type: EngineType = match engine_type {
+    let engine_type: &EngineType = &match engine_type {
         0 => EngineType::XP,
         1 => EngineType::VX,
         2 => EngineType::VXAce,
@@ -290,44 +307,47 @@ fn read(
         _ => unreachable!(),
     };
 
-    let game_type: Option<GameType> = if disable_custom_processing {
+    let game_type: &Option<GameType> = &if disable_custom_processing {
         None
     } else {
         get_game_type(game_title)
     };
 
-    let maps_path: &Path = &project_path.join("translation/maps");
-    let other_path: &Path = &project_path.join("translation/other");
+    let data_dir: &Path = &PathBuf::from(".rpgm-translation-gui");
+    let original_path: &Path = &project_path.join(original_dir);
+    let maps_path: &Path = &project_path.join(data_dir).join("translation/maps");
+    let other_path: &Path = &project_path.join(data_dir).join("translation/other");
 
     create_dir_all(maps_path).unwrap();
     create_dir_all(other_path).unwrap();
 
     if !disable_processing[0] {
         read_map(
-            &original_path,
+            original_path,
             maps_path,
             romanize,
             logging,
             "",
             "",
             "",
-            &game_type,
-            &processing_mode,
-            &engine_type,
+            game_type,
+            processing_mode,
+            engine_type,
         );
     }
 
     if !disable_processing[1] {
         read_other(
-            &original_path,
+            original_path,
             other_path,
             romanize,
             logging,
             "",
             "",
             "",
-            &game_type,
-            &processing_mode,
+            game_type,
+            processing_mode,
+            engine_type,
         );
     }
 
@@ -340,8 +360,8 @@ fn read(
             "",
             "",
             "",
-            &processing_mode,
-            &engine_type,
+            processing_mode,
+            engine_type,
         );
     }
 }

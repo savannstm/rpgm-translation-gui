@@ -1,29 +1,28 @@
 import {
+    animateProgressText,
     applyLocalization,
     applyTheme,
     getThemeStyleSheet,
     readScripts,
-    animateProgressText,
 } from "./extensions/functions";
-import { ReadWindowLocalization } from "./extensions/localization";
 import { invokeRead } from "./extensions/invokes";
+import { ReadWindowLocalization } from "./extensions/localization";
 import { EngineType, ProcessingMode } from "./types/enums";
 
-import { exists, readTextFile } from "@tauri-apps/api/fs";
-import { BaseDirectory } from "@tauri-apps/api/fs";
-import { appWindow } from "@tauri-apps/api/window";
 import { emit, once } from "@tauri-apps/api/event";
+import { BaseDirectory, exists, readTextFile } from "@tauri-apps/api/fs";
 import { join } from "@tauri-apps/api/path";
+import { appWindow } from "@tauri-apps/api/window";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
     const { projectPath, theme, language } = JSON.parse(
-        await readTextFile("res/settings.json", { dir: Resource })
+        await readTextFile("res/settings.json", { dir: Resource }),
     ) as Settings;
 
     applyTheme(
         getThemeStyleSheet() as CSSStyleSheet,
-        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme]
+        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
     );
 
     const windowLocalization = new ReadWindowLocalization(language);
@@ -39,16 +38,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const disableProcessingSettings = document.getElementById("disable-processing-settings") as HTMLDivElement;
     const doNotAskAgainCheckbox = document.getElementById("dont-ask-again-checkbox") as HTMLSpanElement;
     const disableMapsProcessingCheckbox = document.getElementById(
-        "disable-maps-processing-checkbox"
+        "disable-maps-processing-checkbox",
     ) as HTMLSpanElement;
     const disableOtherProcessingCheckbox = document.getElementById(
-        "disable-other-processing-checkbox"
+        "disable-other-processing-checkbox",
     ) as HTMLSpanElement;
     const disableSystemProcessingCheckbox = document.getElementById(
-        "disable-system-processing-checkbox"
+        "disable-system-processing-checkbox",
     ) as HTMLSpanElement;
     const disablePluginsProcessingCheckbox = document.getElementById(
-        "disable-plugins-processing-checkbox"
+        "disable-plugins-processing-checkbox",
     ) as HTMLSpanElement;
     const readButton = document.getElementById("read-button") as HTMLButtonElement;
 
@@ -92,7 +91,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     disableProcessingSettings.classList.replace("hidden", "flex");
 
                     requestAnimationFrame(() =>
-                        disableProcessingSettings.classList.replace("-translate-y-full", "translate-y-0")
+                        disableProcessingSettings.classList.replace("-translate-y-full", "translate-y-0"),
                     );
 
                     disableProcessingCheckbox.innerHTML = "check";
@@ -104,7 +103,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         () => disableProcessingSettings.classList.replace("flex", "hidden"),
                         {
                             once: true,
-                        }
+                        },
                     );
 
                     disableProcessingCheckbox.innerHTML = "";
@@ -169,8 +168,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             let originalDir!: string;
 
-            if (await exists(await join(projectPath, "json-data"))) {
-                originalDir = "json-data";
+            if (await exists(await join(projectPath, ".rpgm-translation-gui/json-data"))) {
+                originalDir = ".rpgm-translation-gui/json-data";
+            } else if (await exists(await join(projectPath, "original"))) {
+                originalDir = "original";
             } else if (await exists(await join(projectPath, "Data"))) {
                 originalDir = "Data";
             } else if (await exists(await join(projectPath, "data"))) {
@@ -193,7 +194,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             await invokeRead({
                 projectPath,
-                originalPath: await join(projectPath, originalDir),
+                originalDir: originalDir,
                 gameTitle,
                 romanize: romanizeCheckbox.textContent ? true : false,
                 disableCustomProcessing: customParsingCheckbox.textContent ? true : false,
@@ -204,11 +205,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             if (engineType !== EngineType.New) {
-                await readScripts(
-                    await readTextFile(await join(projectPath, originalDir, "Scripts.txt")),
-                    await join(projectPath, "translation", "other"),
-                    false
-                );
+                if (!disableProcessings.plugins) {
+                    await readScripts(
+                        await readTextFile(await join(projectPath, originalDir, "Scripts.txt")),
+                        await join(projectPath, ".rpgm-translation-gui/translation/other"),
+                        false,
+                    );
+                }
             }
 
             await emit("restart");

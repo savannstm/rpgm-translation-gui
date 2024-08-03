@@ -1,18 +1,18 @@
 /* eslint-disable @typescript-eslint/no-dynamic-delete */
 import {
+    animateProgressText,
     applyLocalization,
     applyTheme,
-    getThemeStyleSheet,
     extractStrings,
-    romanizeString,
+    getThemeStyleSheet,
     readScripts,
-    animateProgressText,
+    romanizeString,
 } from "./extensions/functions";
 import "./extensions/htmlelement-extensions";
+import { invokeCompile, invokeRead } from "./extensions/invokes";
 import { MainWindowLocalization } from "./extensions/localization";
 import "./extensions/string-extensions";
-import { invokeRead, invokeCompile } from "./extensions/invokes";
-import { EngineType, ProcessingMode, State, Language } from "./types/enums";
+import { EngineType, Language, ProcessingMode, State } from "./types/enums";
 
 import { ask, message, open as openPath } from "@tauri-apps/api/dialog";
 import { emit } from "@tauri-apps/api/event";
@@ -178,7 +178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             root: document,
             rootMargin: "384px",
             threshold: 0,
-        }
+        },
     );
 
     const observerFound = new IntersectionObserver(
@@ -187,7 +187,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 entry.target.firstElementChild?.classList.toggle("hidden", !entry.isIntersecting);
             }
         },
-        { root: searchPanelFound, threshold: 0 }
+        { root: searchPanelFound, threshold: 0 },
     );
 
     const observerReplaced = new IntersectionObserver(
@@ -196,7 +196,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 entry.target.firstElementChild?.classList.toggle("hidden", !entry.isIntersecting);
             }
         },
-        { root: searchPanelReplaced, threshold: 0 }
+        { root: searchPanelReplaced, threshold: 0 },
     );
 
     function addBookmark(bookmarkTitle: string) {
@@ -306,7 +306,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             const line = focusedElementRow + i;
 
                             const nextElement = document.getElementById(
-                                `${targetId.join("-")}-${line}`
+                                `${targetId.join("-")}-${line}`,
                             ) as HTMLTextAreaElement;
 
                             nextElement.style.outlineColor = theme.outlineFocused;
@@ -317,7 +317,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             const line = focusedElementRow - i;
 
                             const nextElement = document.getElementById(
-                                `${targetId.join("-")}-${line}`
+                                `${targetId.join("-")}-${line}`,
                             ) as HTMLTextAreaElement;
 
                             nextElement.style.outlineColor = theme.outlineFocused;
@@ -362,7 +362,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (!/^[a-zA-Z0-9_-]+$/.test(themeName)) {
                 await message(
-                    `${windowLocalization.invalidThemeName} ${windowLocalization.allowedThemeNameCharacters}`
+                    `${windowLocalization.invalidThemeName} ${windowLocalization.allowedThemeNameCharacters}`,
                 );
                 return;
             }
@@ -432,11 +432,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         noProjectSelected.innerHTML = windowLocalization.loadingProject;
         const interval = animateProgressText(noProjectSelected);
 
-        const translationPath = await join(projectPath, translationDir);
+        const translationPath = await join(projectPath, dataDir, translationDir);
         const parsed = (await exists(translationPath)) ? true : false;
-        const JSONDataPath = await join(projectPath, jsonDataDir);
+        const JSONDataPath = await join(projectPath, dataDir, jsonDataDir);
 
-        if (await exists(await join(projectPath, "Data"))) {
+        if (await exists(await join(projectPath, "original"))) {
+            originalDir = "original";
+        } else if (await exists(await join(projectPath, "Data"))) {
             originalDir = "Data";
         } else if (await exists(await join(projectPath, "data"))) {
             originalDir = "data";
@@ -469,7 +471,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (!parsed) {
             let gameTitle!: string;
-            const codes: string[] = [];
 
             if (gameEngineType === EngineType.New) {
                 gameTitle = JSON.parse(await readTextFile(await join(projectPath, originalDir, "System.json")))
@@ -486,35 +487,52 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (!(await exists(JSONDataPath))) {
                     const decoder = new TextDecoder();
 
-                    await createDir(await join(projectPath, jsonDataDir));
+                    await createDir(await join(projectPath, dataDir, jsonDataDir));
 
                     const entries = (await readDir(await join(projectPath, originalDir))).filter(
                         (entry) =>
                             !["Animations", "MapInfos", "Tilesets"].includes(
-                                (entry.name as string).slice(0, entry.name?.lastIndexOf("."))
-                            ) && /data2?$/.test(entry.name as string)
+                                (entry.name as string).slice(0, entry.name?.lastIndexOf(".")),
+                            ) && /data2?$/.test(entry.name as string),
                     );
 
                     for (const entry of entries) {
                         const name = entry.name as string;
 
-                        const loaded = load(await readBinaryFile(entry.path), {
+                        const serializedMarshalData = load(await readBinaryFile(entry.path), {
                             convertHashKeysToString: true,
                             convertInstanceVarsToString: "",
                             string: name.startsWith("Scripts") ? "binary" : undefined,
                         });
 
                         if (name.startsWith("Scripts")) {
-                            for (const arr of loaded as Uint8Array[][]) {
+                            const codes: string[] = [];
+
+                            for (const arr of serializedMarshalData as Uint8Array[][]) {
                                 const code = decoder.decode(inflate(arr[2]));
                                 codes.push(code);
                             }
+
+                            const otherPath = await join(projectPath, dataDir, translationDir, otherDir);
+                            await createDir(otherPath, { recursive: true });
+
+                            const joinedCodes = codes.join("");
+                            await writeTextFile(
+                                await join(projectPath, dataDir, jsonDataDir, "Scripts.txt"),
+                                joinedCodes,
+                            );
+                            await readScripts(joinedCodes, otherPath, false);
                             continue;
                         }
 
                         await writeTextFile(
-                            await join(projectPath, jsonDataDir, `${name.slice(0, name.lastIndexOf("."))}.json`),
-                            JSON.stringify(loaded, (_, value) => {
+                            await join(
+                                projectPath,
+                                dataDir,
+                                jsonDataDir,
+                                `${name.slice(0, name.lastIndexOf("."))}.json`,
+                            ),
+                            JSON.stringify(serializedMarshalData, (_, value) => {
                                 if (value instanceof Uint8Array) {
                                     return {
                                         __type: "Uint8Array",
@@ -523,17 +541,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 }
 
                                 return value;
-                            })
+                            }),
                         );
                     }
                 }
 
-                originalDir = jsonDataDir;
+                originalDir = await join(dataDir, jsonDataDir);
             }
 
             await invokeRead({
                 projectPath,
-                originalPath: await join(projectPath, originalDir),
+                originalDir,
                 gameTitle,
                 romanize: false,
                 disableCustomProcessing: false,
@@ -542,19 +560,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 processingMode: ProcessingMode.Default,
                 engineType: gameEngineType,
             });
-
-            if (gameEngineType !== EngineType.New) {
-                await readScripts(codes.join(""), await join(projectPath, translationDir, otherDir), false);
-            }
         }
 
         if (gameEngineType === EngineType.New) {
             const systemOriginalText = await readTextFile(
-                await join(projectPath, translationDir, otherDir, "system.txt")
+                await join(projectPath, dataDir, translationDir, otherDir, "system.txt"),
             );
             const originalGameTitle = systemOriginalText.slice(systemOriginalText.lastIndexOf("\n"));
             const systemTranslatedText = await readTextFile(
-                await join(projectPath, translationDir, otherDir, "system_trans.txt")
+                await join(projectPath, dataDir, translationDir, otherDir, "system_trans.txt"),
             );
             const translatedGameTitle = systemTranslatedText.slice(systemTranslatedText.lastIndexOf("\n"));
 
@@ -564,7 +578,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 currentGameTitle.value = translatedGameTitle;
             }
         } else {
-            originalDir = jsonDataDir;
+            originalDir = await join(dataDir, jsonDataDir);
         }
 
         clearInterval(interval);
@@ -595,7 +609,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             changeState(null);
             contentContainer.innerHTML = "";
-            currentGameTitle.value = "";
+            currentGameTitle.innerHTML = "";
 
             settings.projectPath = projectPath;
 
@@ -629,7 +643,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }),
                 {
                     dir: Resource,
-                }
+                },
             );
 
             alert(windowLocalization.createdSettings);
@@ -691,8 +705,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const thirdParent = element.parentElement?.parentElement?.parentElement as HTMLDivElement;
 
-        const [counterpartElement, sourceIndex]: [HTMLElement, number] = findCounterpart(element.id);
-        const [source, row]: [string, string] = extractInfo(element);
+        const [counterpartElement, sourceIndex] = findCounterpart(element.id);
+        const [source, row] = extractInfo(element);
 
         const mainDiv = document.createElement("div");
         mainDiv.classList.add("text-base");
@@ -705,7 +719,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         originalInfo.classList.add("text-xs", "textThird");
 
         const secondParent = element.parentElement?.parentElement as HTMLElement;
-        const currentFile: string = secondParent.id.slice(0, secondParent.id.lastIndexOf("-")) as string;
+        const currentFile = secondParent.id.slice(0, secondParent.id.lastIndexOf("-"));
         originalInfo.innerHTML = `${currentFile} - ${source} - ${row}`;
         mainDiv.appendChild(originalInfo);
 
@@ -759,7 +773,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function searchText(
         text: string,
-        replace: boolean
+        replace: boolean,
     ): Promise<null | undefined | Map<HTMLTextAreaElement, string>> {
         const regexp: RegExp | undefined = await createRegExp(text);
         if (!regexp) {
@@ -830,7 +844,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (count % 1000 === 0) {
                 await writeTextFile(
                     await join(projectPath, dataDir, `matches-${file}.json`),
-                    JSON.stringify(objectToWrite)
+                    JSON.stringify(objectToWrite),
                 );
 
                 objectToWrite = {};
@@ -846,7 +860,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         searchCurrentPage.textContent = "0";
 
         for (const [id, result] of Object.entries(
-            JSON.parse(await readTextFile(await join(projectPath, dataDir, "matches-0.json")))
+            JSON.parse(await readTextFile(await join(projectPath, dataDir, "matches-0.json"))),
         )) {
             appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
         }
@@ -864,7 +878,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const clicked = document.getElementById(
-            element.firstElementChild?.textContent as string
+            element.firstElementChild?.textContent as string,
         ) as HTMLTextAreaElement;
         const secondParent = element.parentElement?.parentElement as HTMLElement;
 
@@ -882,7 +896,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             element.setAttribute("reverted", "");
 
             const replacementLogContent: Record<string, { original: string; translation: string }> = JSON.parse(
-                await readTextFile(await join(projectPath, dataDir, logFile))
+                await readTextFile(await join(projectPath, dataDir, logFile)),
             );
 
             delete replacementLogContent[clicked.id];
@@ -925,7 +939,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     searchPanel.setAttribute("shown", "true");
                     searchPanel.setAttribute("moving", "false");
                 },
-                { once: true }
+                { once: true },
             );
         } else {
             if (searchPanel.classList.contains("translate-x-full")) {
@@ -966,7 +980,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentState: HTMLElement,
         element: HTMLElement,
         resultElement: HTMLDivElement,
-        counterpartIndex: number
+        counterpartIndex: number,
     ): Promise<void> {
         if (button === 0) {
             changeState(currentState.id as State);
@@ -1015,7 +1029,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.getElementById(thirdParent) as HTMLElement,
             document.getElementById(element) as HTMLElement,
             resultElement,
-            Number.parseInt(counterpartIndex)
+            Number.parseInt(counterpartIndex),
         );
     }
 
@@ -1081,7 +1095,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             replaced.set(text.id, { original: text.value, translation: newValue });
             const prevFile: Record<string, Record<string, string>> = JSON.parse(
-                await readTextFile(await join(projectPath, dataDir, logFile))
+                await readTextFile(await join(projectPath, dataDir, logFile)),
             );
 
             const newObject: Record<string, Record<string, string>> = {
@@ -1125,7 +1139,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const prevFile: Record<string, Record<string, string>> = JSON.parse(
-            await readTextFile(await join(projectPath, dataDir, logFile))
+            await readTextFile(await join(projectPath, dataDir, logFile)),
         );
 
         const newObject: Record<string, Record<string, string>> = {
@@ -1145,7 +1159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         saving = true;
         saveButton.firstElementChild?.classList.add("animate-spin");
 
-        let dirName: string = await join(projectPath, translationDir);
+        let dirName: string = await join(projectPath, dataDir, translationDir);
 
         if (backup) {
             const date = new Date();
@@ -1164,7 +1178,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 projectPath,
                 dataDir,
                 backupDir,
-                `${formattedDate}_${nextBackupNumber.toString().padStart(2, "0")}`
+                `${formattedDate}_${nextBackupNumber.toString().padStart(2, "0")}`,
             );
 
             for (const subDir of [mapsDir, otherDir, pluginsDir]) {
@@ -1521,7 +1535,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const contentNames: string[] = [];
         const content: string[][] = [];
 
-        for (const entry of await readDir(await join(projectPath, translationDir), {
+        for (const entry of await readDir(await join(projectPath, dataDir, translationDir), {
             recursive: true,
         })) {
             const folder = entry.name as string;
@@ -1538,7 +1552,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
 
                 contentNames.push(name.slice(0, -4));
-                content.push((await readTextFile(await join(projectPath, translationDir, folder, name))).split("\n"));
+                content.push(
+                    (await readTextFile(await join(projectPath, dataDir, translationDir, folder, name))).split("\n"),
+                );
             }
         }
 
@@ -1597,7 +1613,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     "translation-text-input",
                     "outlinePrimary",
                     "backgroundPrimary",
-                    "outlineFocused"
+                    "outlineFocused",
                 );
 
                 const rowElement = document.createElement("div");
@@ -1626,7 +1642,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             for (const node of child.children as HTMLCollectionOf<HTMLDivElement>) {
                 heights.set(
                     [((node.firstElementChild as HTMLElement).children[1].innerHTML.count("\n") + 1) * 28 + 8],
-                    i
+                    i,
                 );
                 i++;
             }
@@ -1716,9 +1732,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                         : gameEngineType === EngineType.VX
                         ? ".rvdata"
                         : ".rxdata"
-                }`
+                }`,
             ),
-            dump(scriptEntries)
+            dump(scriptEntries),
         );
     }
 
@@ -1728,7 +1744,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const compileSettings: CompileSettings = JSON.parse(
-            await readTextFile(await join(projectPath, dataDir, compileSettingsFile))
+            await readTextFile(await join(projectPath, dataDir, compileSettingsFile)),
         );
 
         if (!compileSettings.initialized || !compileSettings.doNotAskAgain || !silent) {
@@ -1752,7 +1768,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const executionTime = await invokeCompile({
                 projectPath,
-                originalPath: await join(projectPath, originalDir),
+                originalDir: originalDir,
                 outputPath: compileSettings.customOutputPath.path,
                 gameTitle: currentGameTitle.value,
                 romanize: compileSettings.romanize,
@@ -1766,9 +1782,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (gameEngineType === EngineType.New) {
                 alert(`${windowLocalization.compileSuccess} ${executionTime})}`);
             } else {
-                await createDir(await join(projectPath, "output"), { recursive: true });
+                await createDir(await join(projectPath, dataDir, "output"), { recursive: true });
 
-                for (const entry of await readDir(await join(projectPath, jsonDataDir))) {
+                for (const entry of await readDir(await join(projectPath, dataDir, jsonDataDir))) {
                     if ((entry.name as string).includes("Scripts")) {
                         continue;
                     }
@@ -1786,6 +1802,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await writeBinaryFile(
                         await join(
                             projectPath,
+                            dataDir,
                             "output",
                             `${(entry.name as string).slice(0, -5)}.${
                                 gameEngineType === EngineType.VXAce
@@ -1793,27 +1810,28 @@ document.addEventListener("DOMContentLoaded", async () => {
                                     : gameEngineType === EngineType.VX
                                     ? "rvdata"
                                     : "rxdata"
-                            }`
+                            }`,
                         ),
-                        dumped
+                        dumped,
                     );
                 }
 
                 if (!compileSettings.disableProcessing.of.plugins) {
                     await writeScripts(
                         await join(
-                            await join(projectPath, originalDir === jsonDataDir ? "Data" : originalDir),
+                            projectPath,
+                            originalDir === (await join(dataDir, jsonDataDir)) ? "Data" : originalDir,
                             `Scripts.${
                                 gameEngineType === EngineType.VXAce
                                     ? "rvdata2"
                                     : gameEngineType === EngineType.VX
                                     ? "rvdata"
                                     : "rxdata"
-                            }`
+                            }`,
                         ),
-                        await join(projectPath, translationDir, otherDir),
-                        await join(projectPath, "output"),
-                        compileSettings.romanize
+                        await join(projectPath, dataDir, translationDir, otherDir),
+                        await join(projectPath, dataDir, "output"),
+                        compileSettings.romanize,
                     );
                 }
             }
@@ -2069,7 +2087,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     async (event) => await languageMenuClick(event.target as HTMLElement),
                     {
                         once: true,
-                    }
+                    },
                 );
                 break;
         }
@@ -2106,7 +2124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         },
                     },
                     doNotAskAgain: true,
-                })
+                }),
             );
         }
     }
@@ -2337,7 +2355,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 "replaced-element",
                                 "textSecond",
                                 "borderPrimary",
-                                "backgroundSecond"
+                                "backgroundSecond",
                             );
 
                             replacedElement.innerHTML = `<div class="text-base textThird">${key}</div><div class=text-base>${value.original}</div><div class="flex justify-center items-center text-xl textPrimary font-material">arrow_downward</div><div class="text-base">${value.translation}</div>`;
@@ -2359,7 +2377,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                         searchPanelReplaced.addEventListener(
                             "mousedown",
-                            async (event) => await handleReplacedClick(event)
+                            async (event) => await handleReplacedClick(event),
                         );
                     } else {
                         searchSwitch.innerHTML = "search";
@@ -2367,7 +2385,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                         searchPanelReplaced.removeEventListener(
                             "mousedown",
-                            async (event) => await handleReplacedClick(event)
+                            async (event) => await handleReplacedClick(event),
                         );
                     }
                 }
@@ -2385,10 +2403,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                             await readTextFile(
                                 await join(
                                     projectPath,
-                                    `matches-${Number.parseInt(searchCurrentPage.textContent) - 1}.json`
-                                )
-                            )
-                        )
+                                    `matches-${Number.parseInt(searchCurrentPage.textContent) - 1}.json`,
+                                ),
+                            ),
+                        ),
                     )) {
                         appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
                     }
@@ -2407,10 +2425,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                             await readTextFile(
                                 await join(
                                     projectPath,
-                                    `matches-${Number.parseInt(searchCurrentPage.textContent) + 1}.json`
-                                )
-                            )
-                        )
+                                    `matches-${Number.parseInt(searchCurrentPage.textContent) + 1}.json`,
+                                ),
+                            ),
+                        ),
                     )) {
                         appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
                     }
@@ -2435,7 +2453,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     searchInput.calculateHeight();
                 });
             },
-            { once: true }
+            { once: true },
         );
     });
 
@@ -2454,7 +2472,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     replaceInput.calculateHeight();
                 });
             },
-            { once: true }
+            { once: true },
         );
     });
 
@@ -2472,7 +2490,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (event.code === "Enter") {
             const rowNumber: string = goToRowInput.value;
             const targetRow: HTMLTextAreaElement = document.getElementById(
-                `${state}-${rowNumber}`
+                `${state}-${rowNumber}`,
             ) as HTMLTextAreaElement;
 
             if (targetRow) {
@@ -2530,7 +2548,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         searchMenu.setAttribute("selected", "true");
         searchMenu.setAttribute(
             "offset",
-            `${event.clientX - searchMenu.offsetLeft},${event.clientY - searchMenu.offsetTop}`
+            `${event.clientX - searchMenu.offsetLeft},${event.clientY - searchMenu.offsetTop}`,
         );
 
         searchMenu.addEventListener(
@@ -2538,7 +2556,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             () => {
                 searchMenu.setAttribute("selected", "false");
             },
-            { once: true }
+            { once: true },
         );
     });
 
@@ -2586,7 +2604,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 for (let i = 0; i < textRows; i++) {
                     const elementToReplace = document.getElementById(
-                        `${focusedElementId.join("-")}-${focusedElementNumber + i}`
+                        `${focusedElementId.join("-")}-${focusedElementNumber + i}`,
                     ) as HTMLTextAreaElement;
 
                     replacedTextareas.set(elementToReplace.id, elementToReplace.value.replaceAll(text, ""));

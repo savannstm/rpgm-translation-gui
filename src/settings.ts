@@ -87,7 +87,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     period: backupPeriodInput.value,
                 },
             }),
-            { dir: Resource }
+            { dir: Resource },
         );
     });
 });

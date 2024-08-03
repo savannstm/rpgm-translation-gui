@@ -1,8 +1,10 @@
 import { Localization } from "./localization";
-import XRegExp from "xregexp";
-import { OrderedSet } from "immutable";
+
 import { writeTextFile } from "@tauri-apps/api/fs";
 import { join } from "@tauri-apps/api/path";
+
+import { OrderedSet } from "immutable";
+import XRegExp from "xregexp";
 
 export function romanizeString(string: string): string {
     const replacements = {
@@ -151,7 +153,7 @@ export function extractStrings(rubyCode: string, mode = false): string[] | [stri
                 indices.push(stringStartIndex + 1);
             } else {
                 (strings as OrderedSet<string>).add(
-                    rubyCode.slice(stringStartIndex + 1, i).replaceAll(/\r?\n/g, "\\#")
+                    rubyCode.slice(stringStartIndex + 1, i).replaceAll(/\r?\n/g, "\\#"),
                 );
             }
 
@@ -180,7 +182,7 @@ export async function readScripts(string: string, otherPath: string, romanize: b
             /(Graphics|Data|Audio|Movies|System)\/.*\/?/.test(trimmed) ||
             /r[xv]data2?$/.test(trimmed) ||
             XRegExp(
-                String.raw`^[.()+\-:;\[\]^~%&!№$@\`*\/→×？?ｘ％▼|♥♪！：〜『』「」〽。…‥＝゠、，【】［］｛｝（）〔〕｟｠〘〙〈〉《》・\\#'"<>=_ー※▶ⅠⅰⅡⅱⅢⅲⅣⅳⅤⅴⅥⅵⅦⅶⅧⅷⅨⅸⅩⅹⅪⅺⅫⅻⅬⅼⅭⅽⅮⅾⅯⅿ\s0-9]+$`
+                String.raw`^[.()+\-:;\[\]^~%&!№$@\`*\/→×？?ｘ％▼|♥♪！：〜『』「」〽。…‥＝゠、，【】［］｛｝（）〔〕｟｠〘〙〈〉《》・\\#'"<>=_ー※▶ⅠⅰⅡⅱⅢⅲⅣⅳⅤⅴⅥⅵⅦⅶⅧⅷⅨⅸⅩⅹⅪⅺⅫⅻⅬⅼⅭⅽⅮⅾⅯⅿ\s0-9]+$`,
             ).test(trimmed) ||
             /@window/.test(trimmed) ||
             /\$game/.test(trimmed) ||
@@ -190,7 +192,7 @@ export async function readScripts(string: string, otherPath: string, romanize: b
             XRegExp(String.raw`^([d\d\p{P}+-]*|[d\p{P}+-]*)$`).test(trimmed) ||
             /ALPHAC/.test(trimmed) ||
             /^(Actor<id>|ExtraDropItem|EquipLearnSkill|GameOver|Iconset|Window|true|false|MActor%d|w[rb]|\\f|\\n|\[[A-Z]*\])$/.test(
-                trimmed
+                trimmed,
             )
         ) {
             continue;

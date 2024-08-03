@@ -81,7 +81,7 @@ interface CSSRule {
 
 interface ReadCommandOptions extends Record<string, T> {
     projectPath: string;
-    originalPath: string;
+    originalDir: string;
     gameTitle: string;
     romanize: boolean;
     disableCustomProcessing: boolean;
@@ -93,7 +93,7 @@ interface ReadCommandOptions extends Record<string, T> {
 
 interface CompileCommandOptions extends Record<string, T> {
     projectPath: string;
-    originalPath: string;
+    originalDir: string;
     outputPath: string;
     gameTitle: string;
     romanize: boolean;

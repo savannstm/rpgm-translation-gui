@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sheet = getThemeStyleSheet() as CSSStyleSheet;
 
     const { theme, language } = JSON.parse(
-        await readTextFile(await join("res", "settings.json"), { dir: Resource })
+        await readTextFile(await join("res", "settings.json"), { dir: Resource }),
     ) as Settings;
 
     const windowLocalization = new HelpWindowLocalization(language);

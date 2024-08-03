@@ -1,5 +1,8 @@
 #![allow(clippy::too_many_arguments)]
-use crate::{romanize_string, Code, EngineType, GameType, ProcessingMode, Variable, STRING_IS_ONLY_SYMBOLS_RE};
+use crate::{
+    romanize_string, Code, EngineType, GameType, ProcessingMode, Variable, ENDS_WITH_IF_RE,
+    INVALID_MULTILINE_VARIABLE_RE, INVALID_VAIRIABLE_RE, LISA_PREFIX_RE, STRING_IS_ONLY_SYMBOLS_RE,
+};
 use indexmap::{IndexMap, IndexSet};
 use rayon::prelude::*;
 use sonic_rs::{from_str, Array, JsonContainerTrait, JsonValueTrait, Object, Value};
@@ -19,6 +22,11 @@ trait Join {
 impl<T: ToString + AsRef<str>, S: std::hash::BuildHasher> Join for IndexSet<T, S> {
     fn join(&self, delimiter: &str) -> String {
         let mut joined: String = String::new();
+
+        if self.is_empty() {
+            return joined;
+        }
+
         joined.push_str(self.get_index(0).unwrap().as_ref());
 
         for item in self.iter().skip(1) {
@@ -31,7 +39,12 @@ impl<T: ToString + AsRef<str>, S: std::hash::BuildHasher> Join for IndexSet<T, S
 }
 
 #[allow(clippy::single_match, clippy::match_single_binding, unused_mut)]
-fn parse_parameter(code: Code, mut parameter: &str, game_type: &Option<GameType>) -> Option<String> {
+fn parse_parameter(
+    code: Code,
+    mut parameter: &str,
+    game_type: &Option<GameType>,
+    engine_type: &EngineType,
+) -> Option<String> {
     if STRING_IS_ONLY_SYMBOLS_RE.is_match(parameter) {
         return None;
     }
@@ -56,7 +69,21 @@ fn parse_parameter(code: Code, mut parameter: &str, game_type: &Option<GameType>
                     }
                     _ => {}
                 }
-            } // custom processing for other games
+            }
+            GameType::LisaRPG => match code {
+                Code::Dialogue => {
+                    if let Some(re_match) = LISA_PREFIX_RE.find(parameter) {
+                        parameter = &parameter[re_match.start()..re_match.end()]
+                    }
+                }
+                _ => {}
+            }, // custom processing for other games
+        }
+    }
+
+    if engine_type != EngineType::New {
+        if let Some(re_match) = ENDS_WITH_IF_RE.find(parameter) {
+            parameter = &parameter[re_match.start()..]
         }
     }
 
@@ -69,6 +96,7 @@ fn parse_variable(
     variable_name: &Variable,
     filename: &str,
     game_type: &Option<GameType>,
+    engine_type: &EngineType,
 ) -> Option<(String, bool)> {
     if STRING_IS_ONLY_SYMBOLS_RE.is_match(&variable_text) {
         return None;
@@ -76,6 +104,20 @@ fn parse_variable(
 
     let mut is_continuation_of_description: bool = false;
 
+    #[allow(clippy::collapsible_if)]
+    if engine_type != EngineType::New {
+        if variable_text
+            .split('\n')
+            .all(|line: &str| line.is_empty() || INVALID_MULTILINE_VARIABLE_RE.is_match(line))
+            || INVALID_VAIRIABLE_RE.is_match(&variable_text)
+        {
+            return None;
+        };
+
+        variable_text = variable_text.replace("\r\n", "\n");
+    }
+
+    #[allow(clippy::collapsible_match)]
     if let Some(game_type) = game_type {
         match game_type {
             GameType::Termina => {
@@ -215,7 +257,8 @@ fn parse_variable(
                     }
                     _ => {}
                 }
-            } // custom processing for other games
+            }
+            _ => {} // custom processing for other games
         }
     }
 
@@ -332,7 +375,7 @@ pub fn read_map(
     const ALLOWED_CODES: [u64; 4] = [401, 102, 356, 324];
 
     for (filename, obj) in maps_obj_vec.into_iter() {
-        if let Some(display_name) = obj[if *engine_type == EngineType::New {
+        if let Some(display_name) = obj[if engine_type == EngineType::New {
             "displayName"
         } else {
             "display_name"
@@ -356,22 +399,19 @@ pub fn read_map(
             }
         }
 
-        let mut events_arr: Option<Vec<Value>> = None;
-        if *engine_type != EngineType::New {
-            events_arr = Some(
-                obj["events"]
-                    .as_object()
-                    .unwrap()
-                    .into_iter()
-                    .map(|(_, value)| value.to_owned())
-                    .collect(),
-            );
-        }
-
-        let iterator: std::iter::Skip<std::slice::Iter<Value>> = match *engine_type {
-            EngineType::New => obj["events"].as_array().unwrap().iter().skip(1),
-            _ => events_arr.as_ref().unwrap().iter().skip(1),
+        let events_arr: Vec<&Value> = if engine_type != EngineType::New {
+            obj["events"]
+                .as_object()
+                .unwrap()
+                .iter()
+                .skip(1)
+                .map(|(_, value)| value)
+                .collect()
+        } else {
+            obj["events"].as_array().unwrap().iter().skip(1).collect()
         };
+
+        let iterator = events_arr.iter();
 
         for event in iterator {
             if !event["pages"].is_array() {
@@ -393,7 +433,8 @@ pub fn read_map(
                                 joined = romanize_string(joined);
                             }
 
-                            let parsed: Option<String> = parse_parameter(Code::Dialogue, &joined, game_type);
+                            let parsed: Option<String> =
+                                parse_parameter(Code::Dialogue, &joined, game_type, engine_type);
 
                             if let Some(parsed) = parsed {
                                 if processing_mode == ProcessingMode::Append
@@ -430,7 +471,7 @@ pub fn read_map(
                             if let Some(subparameter_str) = parameters[0][i].as_str() {
                                 if !subparameter_str.is_empty() {
                                     let parsed: Option<String> =
-                                        parse_parameter(Code::Choice, subparameter_str, game_type);
+                                        parse_parameter(Code::Choice, subparameter_str, game_type, engine_type);
 
                                     if let Some(mut parsed) = parsed {
                                         if romanize {
@@ -454,7 +495,8 @@ pub fn read_map(
                         }
                     } else if let Some(parameter_str) = parameters[0].as_str() {
                         if !parameter_str.is_empty() {
-                            let parsed: Option<String> = parse_parameter(Code::System, parameter_str, game_type);
+                            let parsed: Option<String> =
+                                parse_parameter(Code::System, parameter_str, game_type, engine_type);
 
                             if let Some(mut parsed) = parsed {
                                 if romanize {
@@ -472,7 +514,8 @@ pub fn read_map(
                         }
                     } else if let Some(parameter_str) = parameters[1].as_str() {
                         if !parameter_str.is_empty() {
-                            let parsed: Option<String> = parse_parameter(Code::Unknown, parameter_str, game_type);
+                            let parsed: Option<String> =
+                                parse_parameter(Code::Unknown, parameter_str, game_type, engine_type);
 
                             if let Some(mut parsed) = parsed {
                                 if romanize {
@@ -545,6 +588,7 @@ pub fn read_other(
     file_is_not_parsed_msg: &str,
     game_type: &Option<GameType>,
     processing_mode: &ProcessingMode,
+    engine_type: &EngineType,
 ) {
     let other_files: Vec<DirEntry> = read_dir(other_path)
         .unwrap()
@@ -555,7 +599,7 @@ pub fn read_other(
                 let (real_name, extension) = filename.split_once('.').unwrap();
 
                 if !real_name.starts_with("Map")
-                    && !matches!(real_name, "Tilesets" | "Animations" | "States" | "System" | "Scripts")
+                    && !matches!(real_name, "Tilesets" | "Animations" | "States" | "System")
                     && extension == "json"
                 {
                     Some(entry)
@@ -652,8 +696,13 @@ pub fn read_other(
                         variable_str = variable_str.trim();
 
                         if !variable_str.is_empty() {
-                            let parsed: Option<(String, bool)> =
-                                parse_variable(variable_str.to_string(), &variable_name, &filename, game_type);
+                            let parsed: Option<(String, bool)> = parse_variable(
+                                variable_str.to_string(),
+                                &variable_name,
+                                &filename,
+                                game_type,
+                                engine_type,
+                            );
 
                             if let Some((mut parsed, is_continuation_of_description)) = parsed {
                                 if is_continuation_of_description {
@@ -737,7 +786,8 @@ pub fn read_other(
                                     joined = romanize_string(joined);
                                 }
 
-                                let parsed: Option<String> = parse_parameter(Code::Dialogue, &joined, game_type);
+                                let parsed: Option<String> =
+                                    parse_parameter(Code::Dialogue, &joined, game_type, engine_type);
 
                                 if let Some(parsed) = parsed {
                                     if processing_mode == ProcessingMode::Append
@@ -778,7 +828,7 @@ pub fn read_other(
                                 if let Some(subparameter_str) = parameters[0][i].as_str() {
                                     if !subparameter_str.is_empty() {
                                         let parsed: Option<String> =
-                                            parse_parameter(Code::Choice, subparameter_str, game_type);
+                                            parse_parameter(Code::Choice, subparameter_str, game_type, engine_type);
 
                                         if let Some(mut parsed) = parsed {
                                             if romanize {
@@ -802,7 +852,8 @@ pub fn read_other(
                             }
                         } else if let Some(parameter_str) = parameters[0].as_str() {
                             if !parameter_str.is_empty() {
-                                let parsed: Option<String> = parse_parameter(Code::System, parameter_str, game_type);
+                                let parsed: Option<String> =
+                                    parse_parameter(Code::System, parameter_str, game_type, engine_type);
 
                                 if let Some(mut parsed) = parsed {
                                     if romanize {
@@ -824,7 +875,8 @@ pub fn read_other(
                             }
                         } else if let Some(parameter_str) = parameters[1].as_str() {
                             if !parameter_str.is_empty() {
-                                let parsed: Option<String> = parse_parameter(Code::Unknown, parameter_str, game_type);
+                                let parsed: Option<String> =
+                                    parse_parameter(Code::Unknown, parameter_str, game_type, engine_type);
 
                                 if let Some(mut parsed) = parsed {
                                     if romanize {
@@ -927,7 +979,7 @@ pub fn read_system(
 
     // Armor types names
     // Normally it's system strings, but might be needed for some purposes
-    for string in system_obj[if *engine_type == EngineType::New {
+    for string in system_obj[if engine_type == EngineType::New {
         "armorTypes"
     } else {
         "armor_types"
@@ -973,7 +1025,7 @@ pub fn read_system(
     }
 
     // Names of equipment slots
-    if *engine_type == EngineType::New {
+    if engine_type == EngineType::New {
         for string in system_obj["equipTypes"].as_array().unwrap() {
             let str: &str = string.as_str().unwrap().trim();
 
@@ -994,7 +1046,7 @@ pub fn read_system(
     }
 
     // Names of battle options
-    for string in system_obj[if *engine_type == EngineType::New {
+    for string in system_obj[if engine_type == EngineType::New {
         "skillTypes"
     } else {
         "skill_types"
@@ -1020,7 +1072,7 @@ pub fn read_system(
     }
 
     // Game terms vocabulary
-    for (key, value) in system_obj[if *engine_type != EngineType::XP {
+    for (key, value) in system_obj[if engine_type != EngineType::XP {
         "terms"
     } else {
         "words"
@@ -1079,7 +1131,7 @@ pub fn read_system(
 
     // Weapon types names
     // Normally it's system strings, but might be needed for some purposes
-    for string in system_obj[if *engine_type == EngineType::New {
+    for string in system_obj[if engine_type == EngineType::New {
         "weaponTypes"
     } else {
         "weapon_types"
@@ -1107,7 +1159,7 @@ pub fn read_system(
     // Game title, parsed just for fun
     // Translators may add something like "ELFISH TRANSLATION v1.0.0" to the title
     {
-        let mut game_title_string: String = system_obj[if *engine_type == EngineType::New {
+        let mut game_title_string: String = system_obj[if engine_type == EngineType::New {
             "gameTitle"
         } else {
             "game_title"
