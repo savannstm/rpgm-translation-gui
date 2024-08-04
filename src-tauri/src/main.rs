@@ -205,7 +205,7 @@ fn compile(
     let maps_path: &Path = &project_path.join(data_dir).join("translation/maps");
     let other_path: &Path = &project_path.join(data_dir).join("translation/other");
     let plugins_path: &Path = &project_path.join(data_dir).join("translation/plugins");
-    let output_path: &Path = &output_path.join(data_dir).join("output/data");
+    let data_output_path: &Path = &output_path.join(data_dir).join("output/data");
     let plugins_output_path: &Path = &output_path.join(data_dir).join("output/js");
 
     let game_type: &Option<GameType> = &if disable_custom_processing {
@@ -215,7 +215,8 @@ fn compile(
     };
 
     if engine_type == EngineType::New {
-        create_dir_all(output_path).unwrap();
+        println!("{}", data_output_path.display());
+        create_dir_all(data_output_path).unwrap();
         create_dir_all(plugins_output_path).unwrap();
     }
 
@@ -223,7 +224,7 @@ fn compile(
         write_maps(
             maps_path,
             original_path,
-            output_path,
+            data_output_path,
             romanize,
             shuffle_level,
             logging,
@@ -237,7 +238,7 @@ fn compile(
         write_other(
             other_path,
             original_path,
-            output_path,
+            data_output_path,
             romanize,
             shuffle_level,
             logging,
@@ -251,7 +252,7 @@ fn compile(
         write_system(
             &original_path.join("System.json"),
             other_path,
-            output_path,
+            data_output_path,
             romanize,
             shuffle_level,
             logging,
@@ -260,7 +261,7 @@ fn compile(
         );
     }
 
-    let plugins_path: &Path = &plugins_path.join("Plugins.json");
+    let plugins_file_path: &Path = &plugins_path.join("plugins.json");
 
     if !disable_processing[3]
         && game_type.is_some()
@@ -268,7 +269,7 @@ fn compile(
         && plugins_path.exists()
     {
         write_plugins(
-            plugins_path,
+            plugins_file_path,
             plugins_path,
             plugins_output_path,
             shuffle_level,

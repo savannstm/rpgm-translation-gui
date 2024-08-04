@@ -100,7 +100,11 @@ export function extractStrings(rubyCode: string, mode = false): string[] | [stri
     function isEscaped(index: number) {
         let backslashCount = 0;
 
-        for (let i = index; i >= 0 && rubyCode[i] === "\\"; i--) {
+        for (let i = index; i >= 0; i--) {
+            if (rubyCode[i] !== "\\") {
+                break;
+            }
+
             backslashCount++;
         }
 
@@ -191,7 +195,7 @@ export async function readScripts(string: string, otherPath: string, romanize: b
             /.*\(/.test(trimmed) ||
             XRegExp(String.raw`^([d\d\p{P}+-]*|[d\p{P}+-]*)$`).test(trimmed) ||
             /ALPHAC/.test(trimmed) ||
-            /^(Actor<id>|ExtraDropItem|EquipLearnSkill|GameOver|Iconset|Window|true|false|MActor%d|w[rb]|\\f|\\n|\[[A-Z]*\])$/.test(
+            /^(Actor<id>|ExtraDropItem|EquipLearnSkill|GameOver|Iconset|Window|true|false|MActor%d|[wr]b|\\f|\\n|\[[A-Z]*\])$/.test(
                 trimmed,
             )
         ) {

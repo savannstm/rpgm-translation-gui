@@ -15,7 +15,7 @@ import "./extensions/string-extensions";
 import { EngineType, Language, ProcessingMode, State } from "./types/enums";
 
 import { ask, message, open as openPath } from "@tauri-apps/api/dialog";
-import { emit } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import {
     FileEntry,
     createDir,
@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const otherDir = "other";
     const pluginsDir = "plugins";
 
-    const dataDir = ".rpgm-translation-gui";
+    const programDataDir = ".rpgm-translation-gui";
     const logFile = "replacement-log.json";
     const compileSettingsFile = "compile-settings.json";
     const bookmarksFile = "bookmarks.txt";
@@ -94,16 +94,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const searchButton = document.getElementById("search-button") as HTMLButtonElement;
     const bookmarksButton = document.getElementById("bookmarks-button") as HTMLButtonElement;
     const bookmarksMenu = document.getElementById("bookmarks-menu") as HTMLDivElement;
-    const noProjectSelected = document.getElementById("no-project-selected") as HTMLDivElement;
+    const projectStatus = document.getElementById("project-status") as HTMLDivElement;
     const currentGameEngine = document.getElementById("current-game-engine") as HTMLDivElement;
     const currentGameTitle = document.getElementById("current-game-title") as HTMLInputElement;
     // #endregion
 
     // #region Program initialization
     let clickTimer: number | null = null;
-    let projectPath = "";
+    let backupIsActive = false;
     let originalDir = "";
-    let gameEngineType: EngineType;
+
+    let windowLocalization: MainWindowLocalization;
+    let windowLanguage: Language;
 
     const settings: Settings = (await exists(settingsPath, { dir: Resource }))
         ? JSON.parse(await readTextFile(settingsPath, { dir: Resource }))
@@ -118,25 +120,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     await setTheme(theme);
 
     // Set language
-    let windowLanguage: Language;
-    let windowLocalization: MainWindowLocalization;
 
     await setLanguage(settings.language);
 
     // Initialize the project
     await initializeProject(settings.projectPath);
 
-    initializeThemes();
-
-    if (projectPath) {
-        await createDataDir();
-        await createLogFile();
-        await createCompileSettings();
-    }
-
-    if (settings.firstLaunch) {
-        await initializeFirstLaunch();
-    }
     // #endregion
 
     const replaced = new Map<string, Record<string, string>>();
@@ -145,7 +134,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const selectedTextareas = new Map<string, string>();
     const replacedTextareas = new Map<string, string>();
 
-    const bookmarks: Set<string> = await fetchBookmarks();
+    const bookmarks: Set<string> = await fetchBookmarks(
+        await join(settings.projectPath, programDataDir, bookmarksFile),
+    );
 
     let searchRegex = false;
     let searchWhole = false;
@@ -207,9 +198,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         bookmarksMenu.appendChild(bookmarkElement);
     }
 
-    async function fetchBookmarks() {
-        const bookmarksFilePath = await join(projectPath, dataDir, bookmarksFile);
-
+    async function fetchBookmarks(bookmarksFilePath: string) {
         if (!(await exists(bookmarksFilePath))) {
             return new Set<string>();
         }
@@ -232,11 +221,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         return new Set<string>(bookmarkTitles);
     }
 
-    async function createDataDir() {
-        const dataDirPath = await join(projectPath, dataDir);
-
-        if (!(await exists(dataDirPath))) {
-            await createDir(dataDirPath);
+    async function createDataDir(path: string) {
+        if (!(await exists(path))) {
+            await createDir(path);
         }
     }
 
@@ -278,7 +265,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 addBookmark(bookmarkText);
             }
 
-            await writeTextFile(await join(projectPath, dataDir, bookmarksFile), Array.from(bookmarks).join(","));
+            await writeTextFile(
+                await join(settings.projectPath, programDataDir, bookmarksFile),
+                Array.from(bookmarks).join(","),
+            );
             target.classList.toggle("backgroundThird");
         } else if (event.button === 0) {
             if (shiftPressed) {
@@ -412,52 +402,37 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    async function ensureTranslationSubdirsExist(translationPath: string): Promise<boolean> {
-        for (const dir of [mapsDir, otherDir]) {
-            if (!(await exists(await join(translationPath, dir)))) {
-                await message(windowLocalization.missingTranslationSubdirs);
-                return false;
-            }
+    async function ensureProjectIsValid(pathToProject: string): Promise<boolean> {
+        if (!pathToProject) {
+            return false;
         }
 
-        return true;
-    }
-
-    async function ensureProjectIsValid(projectPath: string): Promise<boolean> {
-        if (!(await exists(projectPath))) {
+        if (!(await exists(pathToProject))) {
             await message(windowLocalization.selectedFolderMissing);
             return false;
         }
 
-        noProjectSelected.innerHTML = windowLocalization.loadingProject;
-        const interval = animateProgressText(noProjectSelected);
-
-        const translationPath = await join(projectPath, dataDir, translationDir);
-        const parsed = (await exists(translationPath)) ? true : false;
-        const JSONDataPath = await join(projectPath, dataDir, jsonDataDir);
-
-        if (await exists(await join(projectPath, "original"))) {
-            originalDir = "original";
-        } else if (await exists(await join(projectPath, "Data"))) {
+        if (await exists(await join(pathToProject, "Data"))) {
             originalDir = "Data";
-        } else if (await exists(await join(projectPath, "data"))) {
+        } else if (await exists(await join(pathToProject, "data"))) {
             originalDir = "data";
-        } else {
-            await message(windowLocalization.missingOriginalDir);
-            return false;
         }
 
-        if (await exists(await join(projectPath, originalDir, "System.rxdata"))) {
-            gameEngineType = EngineType.XP;
+        if (await exists(await join(pathToProject, "original"))) {
+            originalDir = "original";
+        }
+
+        if (await exists(await join(pathToProject, originalDir, "System.rxdata"))) {
+            settings.engineType = EngineType.XP;
             currentGameEngine.innerHTML = "XP";
-        } else if (await exists(await join(projectPath, originalDir, "System.rvdata"))) {
-            gameEngineType = EngineType.VX;
+        } else if (await exists(await join(pathToProject, originalDir, "System.rvdata"))) {
+            settings.engineType = EngineType.VX;
             currentGameEngine.innerHTML = "VX";
-        } else if (await exists(await join(projectPath, originalDir, "System.rvdata2"))) {
-            gameEngineType = EngineType.VXAce;
+        } else if (await exists(await join(pathToProject, originalDir, "System.rvdata2"))) {
+            settings.engineType = EngineType.VXAce;
             currentGameEngine.innerHTML = "VX Ace";
-        } else if (await exists(await join(projectPath, originalDir, "System.json"))) {
-            gameEngineType = EngineType.New;
+        } else if (await exists(await join(pathToProject, originalDir, "System.json"))) {
+            settings.engineType = EngineType.New;
             currentGameEngine.innerHTML = "MV / MZ";
         } else {
             await message(windowLocalization.cannotDetermineEngine);
@@ -469,163 +444,30 @@ document.addEventListener("DOMContentLoaded", async () => {
             return false;
         }
 
-        if (!parsed) {
-            let gameTitle!: string;
-
-            if (gameEngineType === EngineType.New) {
-                gameTitle = JSON.parse(await readTextFile(await join(projectPath, originalDir, "System.json")))
-                    .gameTitle as string;
-            } else {
-                const iniFileContent = (await readTextFile(await join(projectPath, "Game.ini"))).split("\n");
-
-                for (const line of iniFileContent) {
-                    if (line.startsWith("title")) {
-                        gameTitle = line.split("=", 2)[1].trim();
-                    }
-                }
-
-                if (!(await exists(JSONDataPath))) {
-                    const decoder = new TextDecoder();
-
-                    await createDir(await join(projectPath, dataDir, jsonDataDir));
-
-                    const entries = (await readDir(await join(projectPath, originalDir))).filter(
-                        (entry) =>
-                            !["Animations", "MapInfos", "Tilesets"].includes(
-                                (entry.name as string).slice(0, entry.name?.lastIndexOf(".")),
-                            ) && /data2?$/.test(entry.name as string),
-                    );
-
-                    for (const entry of entries) {
-                        const name = entry.name as string;
-
-                        const serializedMarshalData = load(await readBinaryFile(entry.path), {
-                            convertHashKeysToString: true,
-                            convertInstanceVarsToString: "",
-                            string: name.startsWith("Scripts") ? "binary" : undefined,
-                        });
-
-                        if (name.startsWith("Scripts")) {
-                            const codes: string[] = [];
-
-                            for (const arr of serializedMarshalData as Uint8Array[][]) {
-                                const code = decoder.decode(inflate(arr[2]));
-                                codes.push(code);
-                            }
-
-                            const otherPath = await join(projectPath, dataDir, translationDir, otherDir);
-                            await createDir(otherPath, { recursive: true });
-
-                            const joinedCodes = codes.join("");
-                            await writeTextFile(
-                                await join(projectPath, dataDir, jsonDataDir, "Scripts.txt"),
-                                joinedCodes,
-                            );
-                            await readScripts(joinedCodes, otherPath, false);
-                            continue;
-                        }
-
-                        await writeTextFile(
-                            await join(
-                                projectPath,
-                                dataDir,
-                                jsonDataDir,
-                                `${name.slice(0, name.lastIndexOf("."))}.json`,
-                            ),
-                            JSON.stringify(serializedMarshalData, (_, value) => {
-                                if (value instanceof Uint8Array) {
-                                    return {
-                                        __type: "Uint8Array",
-                                        data: Array.from(value),
-                                    };
-                                }
-
-                                return value;
-                            }),
-                        );
-                    }
-                }
-
-                originalDir = await join(dataDir, jsonDataDir);
-            }
-
-            await invokeRead({
-                projectPath,
-                originalDir,
-                gameTitle,
-                romanize: false,
-                disableCustomProcessing: false,
-                disableProcessing: [false, false, false],
-                logging: false,
-                processingMode: ProcessingMode.Default,
-                engineType: gameEngineType,
-            });
-        }
-
-        if (gameEngineType === EngineType.New) {
-            const systemOriginalText = await readTextFile(
-                await join(projectPath, dataDir, translationDir, otherDir, "system.txt"),
-            );
-            const originalGameTitle = systemOriginalText.slice(systemOriginalText.lastIndexOf("\n"));
-            const systemTranslatedText = await readTextFile(
-                await join(projectPath, dataDir, translationDir, otherDir, "system_trans.txt"),
-            );
-            const translatedGameTitle = systemTranslatedText.slice(systemTranslatedText.lastIndexOf("\n"));
-
-            if (originalGameTitle !== "") {
-                currentGameTitle.value = originalGameTitle;
-            } else {
-                currentGameTitle.value = translatedGameTitle;
-            }
-        } else {
-            originalDir = await join(dataDir, jsonDataDir);
-        }
-
-        clearInterval(interval);
-        if (!parsed) {
-            return true;
-        } else {
-            return await ensureTranslationSubdirsExist(translationPath);
-        }
+        return true;
     }
 
     async function openDirectory(): Promise<void> {
         const directory = (await openPath({ directory: true, multiple: false })) as string;
 
         if (directory) {
-            if (directory === projectPath) {
+            if (directory === settings.projectPath) {
                 await message(windowLocalization.directoryAlreadyOpened);
                 return;
             }
-
-            const projectIsValid = await ensureProjectIsValid(directory);
-
-            if (!projectIsValid) {
-                noProjectSelected.innerHTML = windowLocalization.noProjectSelected;
-                return;
-            }
-
-            projectPath = directory;
 
             changeState(null);
             contentContainer.innerHTML = "";
             currentGameTitle.innerHTML = "";
 
-            settings.projectPath = projectPath;
-
-            await createDir(await join(projectPath, dataDir, backupDir), { recursive: true });
-            nextBackupNumber = Number.parseInt(await determineLastBackupNumber());
-            if (settings.backup.enabled) {
-                backup(settings.backup.period);
-            }
-
-            await createContent();
+            await initializeProject(directory);
         }
     }
 
     async function createSettings(): Promise<Settings | undefined> {
         const language = await determineLanguage();
 
+        windowLanguage = language;
         windowLocalization = new MainWindowLocalization(language);
 
         await message(windowLocalization.cannotGetSettings);
@@ -640,6 +482,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     theme: "cool-zinc",
                     firstLaunch: true,
                     projectPath: "",
+                    engineType: null,
                 }),
                 {
                     dir: Resource,
@@ -654,22 +497,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function setLanguage(language: Language) {
-        windowLanguage = language;
-        windowLocalization = new MainWindowLocalization(language);
-        initializeLocalization();
-    }
-
-    async function determineLastBackupNumber(): Promise<string> {
-        const backupsNumber = await readDir(await join(projectPath, dataDir, backupDir));
-
-        if (backupsNumber.length === 0) {
-            return "00";
-        } else {
-            return backupsNumber
-                .map((backup) => Number.parseInt((backup.name as string).slice(-2)))
-                .sort((a, b) => b - a)[0]
-                .toString();
+        if (!windowLanguage || !windowLocalization) {
+            windowLanguage = language;
+            windowLocalization = new MainWindowLocalization(language);
         }
+
+        initializeLocalization();
     }
 
     async function createRegExp(text: string): Promise<RegExp | undefined> {
@@ -780,7 +613,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        for (const file of await readDir(projectPath)) {
+        for (const file of await readDir(settings.projectPath)) {
             if (file.name?.startsWith("matches")) {
                 await removeFile(file.path);
             }
@@ -843,7 +676,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (count % 1000 === 0) {
                 await writeTextFile(
-                    await join(projectPath, dataDir, `matches-${file}.json`),
+                    await join(settings.projectPath, programDataDir, `matches-${file}.json`),
                     JSON.stringify(objectToWrite),
                 );
 
@@ -853,14 +686,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (file === 0) {
-            await writeTextFile(await join(projectPath, dataDir, "matches-0.json"), JSON.stringify(objectToWrite));
+            await writeTextFile(
+                await join(settings.projectPath, programDataDir, "matches-0.json"),
+                JSON.stringify(objectToWrite),
+            );
         }
 
         searchTotalPages.textContent = file.toString();
         searchCurrentPage.textContent = "0";
 
         for (const [id, result] of Object.entries(
-            JSON.parse(await readTextFile(await join(projectPath, dataDir, "matches-0.json"))),
+            JSON.parse(await readTextFile(await join(settings.projectPath, programDataDir, "matches-0.json"))),
         )) {
             appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
         }
@@ -896,12 +732,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             element.setAttribute("reverted", "");
 
             const replacementLogContent: Record<string, { original: string; translation: string }> = JSON.parse(
-                await readTextFile(await join(projectPath, dataDir, logFile)),
+                await readTextFile(await join(settings.projectPath, programDataDir, logFile)),
             );
 
             delete replacementLogContent[clicked.id];
 
-            await writeTextFile(await join(projectPath, dataDir, logFile), JSON.stringify(replacementLogContent));
+            await writeTextFile(
+                await join(settings.projectPath, programDataDir, logFile),
+                JSON.stringify(replacementLogContent),
+            );
         }
     }
 
@@ -1095,7 +934,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             replaced.set(text.id, { original: text.value, translation: newValue });
             const prevFile: Record<string, Record<string, string>> = JSON.parse(
-                await readTextFile(await join(projectPath, dataDir, logFile)),
+                await readTextFile(await join(settings.projectPath, programDataDir, logFile)),
             );
 
             const newObject: Record<string, Record<string, string>> = {
@@ -1103,7 +942,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ...Object.fromEntries([...replaced]),
             };
 
-            await writeTextFile(await join(projectPath, dataDir, logFile), JSON.stringify(newObject));
+            await writeTextFile(await join(settings.projectPath, programDataDir, logFile), JSON.stringify(newObject));
             replaced.clear();
 
             text.value = newValue;
@@ -1139,7 +978,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const prevFile: Record<string, Record<string, string>> = JSON.parse(
-            await readTextFile(await join(projectPath, dataDir, logFile)),
+            await readTextFile(await join(settings.projectPath, programDataDir, logFile)),
         );
 
         const newObject: Record<string, Record<string, string>> = {
@@ -1147,19 +986,19 @@ document.addEventListener("DOMContentLoaded", async () => {
             ...Object.fromEntries([...replaced]),
         };
 
-        await writeTextFile(await join(projectPath, dataDir, logFile), JSON.stringify(newObject));
+        await writeTextFile(await join(settings.projectPath, programDataDir, logFile), JSON.stringify(newObject));
         replaced.clear();
     }
 
     async function save(backup = false): Promise<void> {
-        if (saving || !projectPath) {
+        if (saving || !settings.projectPath) {
             return;
         }
 
         saving = true;
         saveButton.firstElementChild?.classList.add("animate-spin");
 
-        let dirName: string = await join(projectPath, dataDir, translationDir);
+        let dirName: string = await join(settings.projectPath, programDataDir, translationDir);
 
         if (backup) {
             const date = new Date();
@@ -1175,8 +1014,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             nextBackupNumber = (nextBackupNumber % settings.backup.max) + 1;
 
             dirName = await join(
-                projectPath,
-                dataDir,
+                settings.projectPath,
+                programDataDir,
                 backupDir,
                 `${formattedDate}_${nextBackupNumber.toString().padStart(2, "0")}`,
             );
@@ -1200,7 +1039,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             const dirPath =
-                gameEngineType === EngineType.New
+                settings.engineType === EngineType.New
                     ? i < 2
                         ? mapsDir
                         : i < 12
@@ -1224,17 +1063,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         saving = false;
     }
 
-    function backup(seconds: number): void {
-        if (!settings.backup.enabled) {
-            return;
-        }
-
-        setTimeout(async () => {
+    function backup() {
+        const intervalId = setInterval(async () => {
             if (settings.backup.enabled) {
+                backupIsActive = true;
                 await save(true);
-                backup(seconds);
+            } else {
+                backupIsActive = false;
+                clearInterval(intervalId);
             }
-        }, seconds * 1000);
+        }, settings.backup.period * 1000);
     }
 
     function updateState(newState: string, slide = true): void {
@@ -1329,7 +1167,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleKeypress(event: KeyboardEvent): Promise<void> {
-        if (!projectPath) {
+        if (!settings.projectPath) {
             return;
         }
 
@@ -1467,7 +1305,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleSearchInputKeypress(event: KeyboardEvent): Promise<void> {
-        if (!projectPath) {
+        if (!settings.projectPath) {
             return;
         }
 
@@ -1509,7 +1347,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function handleReplaceInputKeypress(event: KeyboardEvent) {
-        if (!projectPath) {
+        if (!settings.projectPath) {
             return;
         }
 
@@ -1528,14 +1366,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function createContent(): Promise<void> {
-        if (!projectPath) {
+        if (!settings.projectPath) {
             return;
         }
 
         const contentNames: string[] = [];
         const content: string[][] = [];
 
-        for (const entry of await readDir(await join(projectPath, dataDir, translationDir), {
+        for (const entry of await readDir(await join(settings.projectPath, programDataDir, translationDir), {
             recursive: true,
         })) {
             const folder = entry.name as string;
@@ -1553,7 +1391,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 contentNames.push(name.slice(0, -4));
                 content.push(
-                    (await readTextFile(await join(projectPath, dataDir, translationDir, folder, name))).split("\n"),
+                    (
+                        await readTextFile(
+                            await join(settings.projectPath, programDataDir, translationDir, folder, name),
+                        )
+                    ).split("\n"),
                 );
             }
         }
@@ -1564,12 +1406,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         for (let i = 0; i < contentNames.length - 1; i += 2) {
             const contentName = contentNames[i];
-            const contentDiv: HTMLDivElement = document.createElement("div");
+            const contentDiv = document.createElement("div");
             contentDiv.id = contentName;
             contentDiv.classList.add("hidden", "flex-col", "h-auto");
 
             if (contentName === "system") {
-                if (gameEngineType === EngineType.New) {
+                if (settings.engineType === EngineType.New) {
                     const originalGameTitle = content[i].pop() as string;
                     const translatedGameTitle = content[i + 1].pop() as string;
 
@@ -1579,7 +1421,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         currentGameTitle.value = translatedGameTitle;
                     }
                 } else {
-                    const iniFilePath = await readTextFile(await join(projectPath, "Game.ini"));
+                    const iniFilePath = await readTextFile(await join(settings.projectPath, "Game.ini"));
                     for (const line of iniFilePath.split("\n")) {
                         if (line.includes("title")) {
                             currentGameTitle.value = line.split("=", 2)[1].trim();
@@ -1665,8 +1507,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.body.firstElementChild?.classList.remove("invisible");
         }
 
-        if (noProjectSelected) {
-            noProjectSelected.innerHTML = "";
+        if (projectStatus) {
+            projectStatus.innerHTML = "";
         }
     }
 
@@ -1727,11 +1569,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             await join(
                 outputPath,
                 `Scripts.${
-                    gameEngineType === EngineType.VXAce
-                        ? ".rvdata2"
-                        : gameEngineType === EngineType.VX
-                        ? ".rvdata"
-                        : ".rxdata"
+                    settings.engineType === EngineType.VXAce
+                        ? "rvdata2"
+                        : settings.engineType === EngineType.VX
+                        ? "rvdata"
+                        : "rxdata"
                 }`,
             ),
             dump(scriptEntries),
@@ -1739,12 +1581,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function compile(silent: boolean): Promise<void> {
-        if (!projectPath) {
+        if (!settings.projectPath) {
             return;
         }
 
         const compileSettings: CompileSettings = JSON.parse(
-            await readTextFile(await join(projectPath, dataDir, compileSettingsFile)),
+            await readTextFile(await join(settings.projectPath, programDataDir, compileSettingsFile)),
         );
 
         if (!compileSettings.initialized || !compileSettings.doNotAskAgain || !silent) {
@@ -1767,7 +1609,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const startTime = performance.now();
 
             const executionTime = await invokeCompile({
-                projectPath,
+                projectPath: settings.projectPath,
                 originalDir: originalDir,
                 outputPath: compileSettings.customOutputPath.path,
                 gameTitle: currentGameTitle.value,
@@ -1776,15 +1618,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                 disableCustomProcessing: compileSettings.disableCustomProcessing,
                 disableProcessing: Object.values(compileSettings.disableProcessing.of),
                 logging: compileSettings.logging,
-                engineType: gameEngineType,
+                engineType: settings.engineType,
             });
 
-            if (gameEngineType === EngineType.New) {
-                alert(`${windowLocalization.compileSuccess} ${executionTime})}`);
+            if (settings.engineType === EngineType.New) {
+                alert(`${windowLocalization.compileSuccess} ${executionTime}`);
             } else {
-                await createDir(await join(projectPath, dataDir, "output"), { recursive: true });
+                await createDir(await join(settings.projectPath, programDataDir, "output"), { recursive: true });
 
-                for (const entry of await readDir(await join(projectPath, dataDir, jsonDataDir))) {
+                for (const entry of await readDir(await join(settings.projectPath, programDataDir, jsonDataDir))) {
                     if ((entry.name as string).includes("Scripts")) {
                         continue;
                     }
@@ -1801,13 +1643,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                     await writeBinaryFile(
                         await join(
-                            projectPath,
-                            dataDir,
+                            settings.projectPath,
+                            programDataDir,
                             "output",
                             `${(entry.name as string).slice(0, -5)}.${
-                                gameEngineType === EngineType.VXAce
+                                settings.engineType === EngineType.VXAce
                                     ? "rvdata2"
-                                    : gameEngineType === EngineType.VX
+                                    : settings.engineType === EngineType.VX
                                     ? "rvdata"
                                     : "rxdata"
                             }`,
@@ -1819,18 +1661,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (!compileSettings.disableProcessing.of.plugins) {
                     await writeScripts(
                         await join(
-                            projectPath,
-                            originalDir === (await join(dataDir, jsonDataDir)) ? "Data" : originalDir,
+                            settings.projectPath,
+                            originalDir === (await join(programDataDir, jsonDataDir)) ? "Data" : originalDir,
                             `Scripts.${
-                                gameEngineType === EngineType.VXAce
+                                settings.engineType === EngineType.VXAce
                                     ? "rvdata2"
-                                    : gameEngineType === EngineType.VX
+                                    : settings.engineType === EngineType.VX
                                     ? "rvdata"
                                     : "rxdata"
                             }`,
                         ),
-                        await join(projectPath, dataDir, translationDir, otherDir),
-                        await join(projectPath, dataDir, "output"),
+                        await join(settings.projectPath, programDataDir, translationDir, otherDir),
+                        await join(settings.projectPath, programDataDir, "output"),
                         compileSettings.romanize,
                     );
                 }
@@ -1872,10 +1714,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             ghost.remove();
         }
 
-        const result: { left: number; top: number }[] = getNewLinePositions(focusedElement);
+        const result = getNewLinePositions(focusedElement);
 
         for (const { left, top } of result) {
-            const ghostNewLine: HTMLDivElement = document.createElement("div");
+            const ghostNewLine = document.createElement("div");
             ghostNewLine.classList.add("ghost-new-line", "textThird");
             ghostNewLine.innerHTML = "\\n";
             ghostNewLine.style.left = `${left}px`;
@@ -1953,15 +1795,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         searchLocationButton.classList.toggle("backgroundThird");
     }
 
-    function createOptionsWindow() {
-        new WebviewWindow("options", {
+    async function createSettingsWindow() {
+        const settingsWindow = new WebviewWindow("settings", {
             url: "./settings.html",
-            title: windowLocalization.optionsButtonTitle,
+            title: windowLocalization.settingsButtonTitle,
             width: 800,
             height: 600,
             center: true,
             resizable: false,
         });
+
+        const settingsUnlisten = await settingsWindow.once<string[]>("backup-settings", (data) => {
+            console.log(data.payload);
+            const payload = data.payload;
+            const enabled = payload[0];
+            const max = payload[1];
+            const period = payload[2];
+
+            if (enabled && !backupIsActive) {
+                backup();
+            }
+
+            settings.backup.enabled = enabled === "true" ? true : false;
+            settings.backup.max = Number.parseInt(max);
+            settings.backup.period = Number.parseInt(period);
+        });
+
+        await settingsWindow.once("tauri://destroyed", settingsUnlisten);
     }
 
     async function exitProgram(): Promise<boolean> {
@@ -1997,6 +1857,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 await awaitSaving();
 
                 if (await exitProgram()) {
+                    await writeTextFile(settingsPath, JSON.stringify(settings), { dir: Resource });
                     location.reload();
                 }
                 break;
@@ -2100,12 +1961,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function createCompileSettings() {
-        const compileSettingsPath = await join(projectPath, dataDir, compileSettingsFile);
-
-        if (!(await exists(compileSettingsPath))) {
+    async function createCompileSettings(path: string) {
+        if (!(await exists(path))) {
             await writeTextFile(
-                compileSettingsPath,
+                path,
                 JSON.stringify({
                     initialized: false,
                     logging: false,
@@ -2129,11 +1988,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function createLogFile() {
-        const logPath = await join(projectPath, dataDir, logFile);
-
-        if (!(await exists(logPath))) {
-            await writeTextFile(logPath, "{}");
+    async function createLogFile(path: string) {
+        if (!(await exists(path))) {
+            await writeTextFile(path, "{}");
         }
     }
 
@@ -2173,14 +2030,160 @@ document.addEventListener("DOMContentLoaded", async () => {
         settings.firstLaunch = false;
     }
 
-    async function initializeProject(project: string): Promise<void> {
-        if (!project || !(await ensureProjectIsValid(project))) {
+    async function loadProject() {
+        const translationPath = await join(settings.projectPath, programDataDir, translationDir);
+        const parsed = await exists(translationPath);
+
+        const mapsPath = await join(translationPath, mapsDir);
+        const otherPath = await join(translationPath, otherDir);
+        await createDir(mapsPath, { recursive: true });
+        await createDir(otherPath, { recursive: true });
+
+        if (!parsed) {
+            let gameTitle!: string;
+
+            if (settings.engineType === EngineType.New) {
+                gameTitle = JSON.parse(await readTextFile(await join(settings.projectPath, originalDir, "System.json")))
+                    .gameTitle as string;
+            } else {
+                if (!(await exists(await join(settings.projectPath, programDataDir, jsonDataDir)))) {
+                    const decoder = new TextDecoder();
+
+                    await createDir(await join(settings.projectPath, programDataDir, jsonDataDir), { recursive: true });
+
+                    const entries = await readDir(await join(settings.projectPath, originalDir));
+                    for (const entry of entries) {
+                        const name = entry.name as string;
+                        const basename = name.slice(0, name.lastIndexOf("."));
+
+                        if (
+                            ["Animations", "MapInfos", "Tilesets", "Scripts"].includes(basename) ||
+                            !/data2?$/.test(name)
+                        ) {
+                            continue;
+                        }
+
+                        const serializedMarshalData = load(await readBinaryFile(entry.path), {
+                            convertHashKeysToString: true,
+                            convertInstanceVarsToString: "",
+                        });
+
+                        const stringified = JSON.stringify(serializedMarshalData, (_, value) => {
+                            if (value instanceof Uint8Array) {
+                                return {
+                                    __type: "Uint8Array",
+                                    data: Array.from(value),
+                                };
+                            }
+
+                            return value;
+                        });
+
+                        await writeTextFile(
+                            await join(
+                                settings.projectPath,
+                                programDataDir,
+                                jsonDataDir,
+                                `${name.slice(0, name.lastIndexOf("."))}.json`,
+                            ),
+                            stringified,
+                        );
+                    }
+
+                    const serializedScriptsData = load(
+                        await readBinaryFile(
+                            await join(
+                                settings.projectPath,
+                                originalDir,
+                                `Scripts.${
+                                    settings.engineType === EngineType.VXAce
+                                        ? "rvdata2"
+                                        : settings.engineType === EngineType.VX
+                                        ? "rvdata"
+                                        : "rxdata"
+                                }`,
+                            ),
+                        ),
+                        {
+                            string: "binary",
+                        },
+                    ) as Uint8Array[][];
+
+                    const codes: string[] = [];
+
+                    for (const arr of serializedScriptsData) {
+                        codes.push(decoder.decode(inflate(arr[2])));
+                    }
+
+                    await writeTextFile(
+                        await join(settings.projectPath, programDataDir, jsonDataDir, "Scripts.txt"),
+                        codes.join(""),
+                    );
+                }
+
+                const iniFileContent = (await readTextFile(await join(settings.projectPath, "Game.ini"))).split("\n");
+
+                for (const line of iniFileContent) {
+                    if (line.startsWith("title")) {
+                        gameTitle = line.split("=")[1].trim();
+                    }
+                }
+
+                originalDir = await join(programDataDir, jsonDataDir);
+
+                await readScripts(
+                    await readTextFile(await join(settings.projectPath, programDataDir, jsonDataDir, "Scripts.txt")),
+                    otherPath,
+                    false,
+                );
+            }
+
+            await invokeRead({
+                projectPath: settings.projectPath,
+                originalDir,
+                gameTitle,
+                romanize: false,
+                disableCustomProcessing: false,
+                disableProcessing: [false, false, false],
+                logging: false,
+                processingMode: ProcessingMode.Default,
+                engineType: settings.engineType,
+            });
+        }
+    }
+
+    async function initializeProject(pathToProject: string): Promise<void> {
+        projectStatus.innerHTML = windowLocalization.loadingProject;
+        const interval = animateProgressText(projectStatus);
+
+        const projectIsValid = await ensureProjectIsValid(pathToProject);
+
+        if (!projectIsValid) {
             settings.projectPath = "";
-            noProjectSelected.innerHTML = windowLocalization.noProjectSelected;
+            projectStatus.innerHTML = windowLocalization.noProjectSelected;
         } else {
-            projectPath = project;
+            settings.projectPath = pathToProject;
+
+            await loadProject();
+
+            await createDataDir(await join(settings.projectPath, programDataDir));
+            await createLogFile(await join(settings.projectPath, programDataDir, logFile));
+            await createCompileSettings(await join(settings.projectPath, programDataDir, compileSettingsFile));
+            initializeThemes();
+            await createDir(await join(settings.projectPath, programDataDir, backupDir), { recursive: true });
+
+            if (settings.backup.enabled) {
+                backup();
+            }
+
+            if (settings.firstLaunch) {
+                await initializeFirstLaunch();
+            }
+
             await createContent();
         }
+
+        clearInterval(interval);
     }
 
     function initializeThemes() {
@@ -2203,30 +2206,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             center: true,
         });
 
-        const unlistenRestart = await readWindow.once("restart", () => {
+        const unlistenRestart = await readWindow.once("restart", async () => {
+            await writeTextFile(settingsPath, JSON.stringify(settings), { dir: Resource });
             location.reload();
         });
 
-        let engineTypeValue: number;
-
-        switch (gameEngineType) {
-            case EngineType.New:
-                engineTypeValue = 3;
-                break;
-            case EngineType.VXAce:
-                engineTypeValue = 2;
-                break;
-            case EngineType.VX:
-                engineTypeValue = 1;
-                break;
-            case EngineType.XP:
-                engineTypeValue = 0;
-                break;
-        }
         const unlistenFetch = await readWindow.once("fetch", async () => {
             await emit("metadata", [
                 (document.getElementById("current-game-title") as HTMLInputElement).value,
-                engineTypeValue,
+                settings.engineType,
             ]);
         });
 
@@ -2250,7 +2238,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         switch (target.id) {
             case "menu-button":
-                if (!projectPath) {
+                if (!settings.projectPath) {
                     return;
                 }
 
@@ -2274,8 +2262,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             case "open-button":
                 await openDirectory();
                 break;
-            case "options-button":
-                createOptionsWindow();
+            case "settings-button":
+                createSettingsWindow();
                 break;
             case themeButton.id:
                 themeMenu.toggleMultiple("hidden", "flex");
@@ -2313,7 +2301,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 break;
             }
             case "search-button":
-                if (!projectPath) {
+                if (!settings.projectPath) {
                     return;
                 }
 
@@ -2345,7 +2333,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         searchSwitch.innerHTML = "menu_book";
 
                         const replacementLogContent: Record<string, { original: string; translation: string }> =
-                            JSON.parse(await readTextFile(await join(projectPath, dataDir, logFile)));
+                            JSON.parse(await readTextFile(await join(settings.projectPath, programDataDir, logFile)));
 
                         for (const [key, value] of Object.entries(replacementLogContent)) {
                             const replacedContainer: HTMLDivElement = document.createElement("div");
@@ -2402,7 +2390,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         JSON.parse(
                             await readTextFile(
                                 await join(
-                                    projectPath,
+                                    settings.projectPath,
                                     `matches-${Number.parseInt(searchCurrentPage.textContent) - 1}.json`,
                                 ),
                             ),
@@ -2424,7 +2412,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         JSON.parse(
                             await readTextFile(
                                 await join(
-                                    projectPath,
+                                    settings.projectPath,
                                     `matches-${Number.parseInt(searchCurrentPage.textContent) + 1}.json`,
                                 ),
                             ),
@@ -2480,7 +2468,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     document.addEventListener("keydown", async (event) => await handleKeypress(event));
     document.addEventListener("keyup", (event) => {
-        if (event.key === "Shift") shiftPressed = false;
+        if (event.key === "Shift") {
+            shiftPressed = false;
+        }
     });
 
     contentContainer.addEventListener("focus", handleFocus, true);
@@ -2509,14 +2499,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     searchMenu.addEventListener("click", async (event) => {
+        if (!settings.projectPath) {
+            return;
+        }
+
         const target = event.target as HTMLElement;
 
         switch (target.id) {
             case "replace-button":
-                if (!projectPath) {
-                    return;
-                }
-
                 if (searchInput.value.trim() && replaceInput.value.trim()) {
                     await replaceText(searchInput.value, true);
                 }
@@ -2568,13 +2558,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .split(",", 2)
                 .map((element) => Number.parseInt(element)) as [number, number];
 
-            const screenWidth = window.innerWidth;
-            const screenHeight = window.innerHeight;
-            const elementWidth = searchMenu.offsetWidth;
-            const elementHeight = searchMenu.offsetHeight;
-
-            const newLeft = Math.max(0, Math.min(event.clientX - offsets[0], screenWidth - elementWidth));
-            const newTop = Math.max(0, Math.min(event.clientY - offsets[1], screenHeight - elementHeight));
+            const newLeft = Math.max(
+                0,
+                Math.min(event.clientX - offsets[0], window.innerWidth - searchMenu.offsetWidth),
+            );
+            const newTop = Math.max(
+                0,
+                Math.min(event.clientY - offsets[1], window.innerHeight - searchMenu.offsetHeight),
+            );
 
             searchMenu.style.left = `${newLeft}px`;
             searchMenu.style.top = `${newTop}px`;
@@ -2584,7 +2575,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     contentContainer.addEventListener("mousedown", async (event) => await handleMousedown(event));
 
     contentContainer.addEventListener("paste", (event) => {
-        const text = event.clipboardData?.getData("text");
+        const text = event.clipboardData?.getData("text/plain");
 
         if (
             contentContainer.contains(document.activeElement) &&
@@ -2625,7 +2616,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ) {
             event.preventDefault();
             selectedTextareas.set(document.activeElement.id, (document.activeElement as HTMLTextAreaElement).value);
-            event.clipboardData?.setData("text", Array.from(selectedTextareas.values()).join("\\\\#"));
+            event.clipboardData?.setData("text/plain", Array.from(selectedTextareas.values()).join("\\\\#"));
         }
     });
 
@@ -2653,7 +2644,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.activeElement?.tagName === "TEXTAREA"
         ) {
             event.preventDefault();
-            event.clipboardData?.setData("text", Array.from(selectedTextareas.values()).join("\\\\#"));
+            event.clipboardData?.setData("text/plain", Array.from(selectedTextareas.values()).join("\\\\#"));
 
             for (const key of selectedTextareas.keys()) {
                 const textarea = document.getElementById(key) as HTMLTextAreaElement;
@@ -2662,6 +2653,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             saved = false;
         }
+    });
+
+    await listen("fetch-settings", async () => {
+        await emit("settings", settings);
     });
 
     await appWindow.onCloseRequested(async (event) => {

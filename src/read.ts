@@ -16,9 +16,19 @@ import { appWindow } from "@tauri-apps/api/window";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
-    const { projectPath, theme, language } = JSON.parse(
-        await readTextFile("res/settings.json", { dir: Resource }),
-    ) as Settings;
+    let settings!: Settings;
+
+    await once<Settings>("settings", (data) => {
+        settings = data.payload;
+    });
+
+    await emit("fetch-settings");
+
+    while (settings === undefined) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    const { projectPath, theme, language, engineType } = settings;
 
     applyTheme(
         getThemeStyleSheet() as CSSStyleSheet,
@@ -33,7 +43,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const modeDescription = document.getElementById("mode-description") as HTMLDivElement;
     const loggingCheckbox = document.getElementById("logging-checkbox") as HTMLSpanElement;
     const romanizeCheckbox = document.getElementById("romanize-checkbox") as HTMLSpanElement;
-    const customParsingCheckbox = document.getElementById("custom-parsing-checkbox") as HTMLSpanElement;
+    const customProcessingCheckbox = document.getElementById("custom-processing-checkbox") as HTMLSpanElement;
     const disableProcessingCheckbox = document.getElementById("disable-processing-checkbox") as HTMLSpanElement;
     const disableProcessingSettings = document.getElementById("disable-processing-settings") as HTMLDivElement;
     const doNotAskAgainCheckbox = document.getElementById("dont-ask-again-checkbox") as HTMLSpanElement;
@@ -79,11 +89,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     romanizeCheckbox.innerHTML = "";
                 }
                 break;
-            case customParsingCheckbox.id:
-                if (!customParsingCheckbox.textContent) {
-                    customParsingCheckbox.innerHTML = "check";
+            case customProcessingCheckbox.id:
+                if (!customProcessingCheckbox.textContent) {
+                    customProcessingCheckbox.innerHTML = "check";
                 } else {
-                    customParsingCheckbox.innerHTML = "";
+                    customProcessingCheckbox.innerHTML = "";
                 }
                 break;
             case disableProcessingCheckbox.id:
@@ -164,18 +174,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         await once<string[]>("metadata", async (data) => {
             const gameTitle = data.payload[0];
-            const engineType = Number.parseInt(data.payload[1]) as EngineType;
 
-            let originalDir!: string;
+            let originalDir: string;
 
-            if (await exists(await join(projectPath, ".rpgm-translation-gui/json-data"))) {
-                originalDir = ".rpgm-translation-gui/json-data";
-            } else if (await exists(await join(projectPath, "original"))) {
-                originalDir = "original";
-            } else if (await exists(await join(projectPath, "Data"))) {
-                originalDir = "Data";
-            } else if (await exists(await join(projectPath, "data"))) {
+            if (engineType === EngineType.New) {
                 originalDir = "data";
+
+                if (await exists(await join(projectPath, "original"))) {
+                    originalDir = "original";
+                }
+            } else {
+                originalDir = ".rpgm-translation-gui/json-data";
             }
 
             const progressText = document.getElementById("progress-text") as HTMLDivElement;
@@ -197,7 +206,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 originalDir: originalDir,
                 gameTitle,
                 romanize: romanizeCheckbox.textContent ? true : false,
-                disableCustomProcessing: customParsingCheckbox.textContent ? true : false,
+                disableCustomProcessing: customProcessingCheckbox.textContent ? true : false,
                 disableProcessing: Object.values(disableProcessings).slice(0, -1),
                 logging: false,
                 processingMode: readingModeSelect.value === "append" ? ProcessingMode.Append : ProcessingMode.Force,
@@ -209,7 +218,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await readScripts(
                         await readTextFile(await join(projectPath, originalDir, "Scripts.txt")),
                         await join(projectPath, ".rpgm-translation-gui/translation/other"),
-                        false,
+                        romanizeCheckbox.textContent ? true : false,
                     );
                 }
             }

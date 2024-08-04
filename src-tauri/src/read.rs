@@ -203,7 +203,6 @@ fn parse_variable(
                                 "Codex #1",
                                 "The Tale of the Pocketcat I",
                                 "The Tale of the Pocketcat II",
-                                "New poems of love and torment",
                             ]
                             .contains(&variable_text.as_str())
                                 || variable_text.starts_with("The Fellowship")
@@ -222,26 +221,30 @@ fn parse_variable(
                     Variable::Note => {
                         let mut variable_text_chars: std::str::Chars = variable_text.chars();
 
-                        if let Some(first_char) = variable_text_chars.next() {
-                            if let Some(second_char) = variable_text_chars.next() {
-                                if ((first_char == '\n' && second_char != '\n')
-                                    || (first_char.is_ascii_alphabetic() || first_char == '"'))
-                                    && !['.', '!', '/', '?'].contains(&first_char)
-                                {
-                                    is_continuation_of_description = true;
+                        if !variable_text.starts_with("flesh puppetry") {
+                            if let Some(first_char) = variable_text_chars.next() {
+                                if let Some(second_char) = variable_text_chars.next() {
+                                    if ((first_char == '\n' && second_char != '\n')
+                                        || (first_char.is_ascii_alphabetic() || first_char == '"' || first_char == '4'))
+                                        && !['.', '!', '/', '?'].contains(&first_char)
+                                    {
+                                        is_continuation_of_description = true;
+                                    }
                                 }
                             }
                         }
 
                         if is_continuation_of_description {
-                            if let Some((left, _)) = variable_text.trim_start().split_once('\n') {
-                                if !left.ends_with('.') && !left.ends_with('%') {
+                            if let Some((mut left, _)) = variable_text.trim_start().split_once('\n') {
+                                left = left.trim();
+
+                                if !left.ends_with(['.', '%', '!', '"']) {
                                     return None;
                                 }
 
                                 variable_text = r"\#".to_string() + left;
                             } else {
-                                if !variable_text.ends_with('.') && !variable_text.ends_with('%') {
+                                if !variable_text.ends_with(['.', '%', '!', '"']) {
                                     return None;
                                 }
 

@@ -1,17 +1,30 @@
+import { emit, once } from "@tauri-apps/api/event";
 import { applyTheme, getThemeStyleSheet } from "./extensions/functions";
 import { SettingsWindowLocalization } from "./extensions/localization";
 
-import { readTextFile, writeTextFile } from "@tauri-apps/api/fs";
+import { readTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory } from "@tauri-apps/api/path";
 import { appWindow } from "@tauri-apps/api/window";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
-    const sheet = getThemeStyleSheet() as CSSStyleSheet;
+    let settings!: Settings;
 
-    const settings: Settings = JSON.parse(await readTextFile("res/settings.json", { dir: Resource }));
+    await once<Settings>("settings", (data) => {
+        settings = data.payload;
+    });
 
-    applyTheme(sheet, JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[settings.theme]);
+    await emit("fetch-settings");
+
+    while (settings === undefined) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    applyTheme(
+        getThemeStyleSheet() as CSSStyleSheet,
+        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[settings.theme],
+    );
+
     const windowLocalization = new SettingsWindowLocalization(settings.language);
 
     const backupPeriodLabel = document.getElementById("backup-period-label") as HTMLSpanElement;
@@ -77,17 +90,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     appWindow.onCloseRequested(async () => {
-        await writeTextFile(
-            "res/settings.json",
-            JSON.stringify({
-                ...settings,
-                backup: {
-                    enabled: backupCheck.textContent ? true : false,
-                    max: backupMaxInput.value,
-                    period: backupPeriodInput.value,
-                },
-            }),
-            { dir: Resource },
-        );
+        await emit("backup-settings", [backupCheck.textContent, backupMaxInput.value, backupPeriodInput.value]);
     });
 });

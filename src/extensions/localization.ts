@@ -19,7 +19,7 @@ export class MainWindowLocalization {
     readonly menuButtonTitle: string;
     readonly saveButtonTitle: string;
     readonly compileButtonTitle: string;
-    readonly optionsButtonTitle: string;
+    readonly settingsButtonTitle: string;
     readonly searchButtonTitle: string;
     readonly searchInputTitle: string;
     readonly replaceButtonTitle: string;
@@ -92,7 +92,7 @@ export class MainWindowLocalization {
                 this.menuButtonTitle = "Вкладки (Tab)";
                 this.saveButtonTitle = "Сохранить файлы перевода (Ctrl + S)";
                 this.compileButtonTitle = "Скомпилировать (Alt + C)";
-                this.optionsButtonTitle = "Настройки";
+                this.settingsButtonTitle = "Настройки";
                 this.searchButtonTitle = "Поиск (Ctrl + F)";
                 this.searchInputTitle = "Поиск";
                 this.replaceButtonTitle = "Заменить все совпадения на";
@@ -166,7 +166,7 @@ export class MainWindowLocalization {
                 this.menuButtonTitle = "Tabs (Tab)";
                 this.saveButtonTitle = "Save the translation files (Ctrl + S)";
                 this.compileButtonTitle = "Compile (Alt + C)";
-                this.optionsButtonTitle = "Options";
+                this.settingsButtonTitle = "Options";
                 this.searchButtonTitle = "Search (Ctrl + F)";
                 this.searchInputTitle = "Search";
                 this.replaceButtonTitle = "Replace all matches with";
@@ -321,7 +321,7 @@ export class CompileWindowLocalization {
     readonly chooseOptionText: string;
     readonly shuffleLinesOption: string;
     readonly shuffleAllOption: string;
-    readonly disableCustomParsing: string;
+    readonly disableCustomProcessing: string;
     readonly customOutputPath: string;
     readonly selectOutputPath: string;
     readonly disableProcessing: string;
@@ -344,7 +344,7 @@ export class CompileWindowLocalization {
                 this.chooseOptionText = "Выберите опцию";
                 this.shuffleLinesOption = "Перемешать линии в строках";
                 this.shuffleAllOption = "Перемешать линии и слова";
-                this.disableCustomParsing =
+                this.disableCustomProcessing =
                     "Выключить индивидуальную обработку (используйте лишь если вы прочитали файлы без индивидуальной обработки)";
                 this.customOutputPath = "Другой выходной путь";
                 this.selectOutputPath = "Выбрать выходной путь";
@@ -367,8 +367,8 @@ export class CompileWindowLocalization {
                 this.chooseOptionText = "Choose an option";
                 this.shuffleLinesOption = "Shuffle text lines";
                 this.shuffleAllOption = "Shuffle both lines and words";
-                this.disableCustomParsing =
-                    "Disable custom parsing (use only if you've read files without custom parsing)";
+                this.disableCustomProcessing =
+                    "Disable custom processing (use only if you've read files without custom processing)";
                 this.customOutputPath = "Custom output path";
                 this.selectOutputPath = "Select output path";
                 this.disableProcessing = "Disable processing of...";

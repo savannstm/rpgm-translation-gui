@@ -113,28 +113,32 @@ fn get_translated_variable(
                         let mut note_chars: std::str::Chars = note.chars();
                         let mut is_continuation_of_description: bool = false;
 
-                        if let Some(first_char) = note_chars.next() {
-                            if let Some(second_char) = note_chars.next() {
-                                if ((first_char == '\n' && second_char != '\n')
-                                    || (first_char.is_ascii_alphabetic() || first_char == '"'))
-                                    && !['.', '!', '/', '?'].contains(&first_char)
-                                {
-                                    is_continuation_of_description = true;
+                        if !note.starts_with("flesh puppetry") {
+                            if let Some(first_char) = note_chars.next() {
+                                if let Some(second_char) = note_chars.next() {
+                                    if ((first_char == '\n' && second_char != '\n')
+                                        || (first_char.is_ascii_alphabetic() || first_char == '"' || first_char == '4'))
+                                        && !['.', '!', '/', '?'].contains(&first_char)
+                                    {
+                                        is_continuation_of_description = true;
+                                    }
                                 }
                             }
                         }
 
                         if is_continuation_of_description {
-                            if let Some((left, _)) = note.trim_start().split_once('\n') {
-                                if left.ends_with('.') || left.ends_with('%') {
+                            if let Some((mut left, _)) = note.trim_start().split_once('\n') {
+                                left = left.trim();
+
+                                if left.ends_with(['.', '%', '!', '"']) {
                                     note_string = "\n".to_string() + left;
                                 }
-                            } else if note.ends_with('.') || note.ends_with('%') {
-                                note_string = "\n".to_string() + note
+                            } else if note.ends_with(['.', '%', '!', '"']) {
+                                note_string = note.to_string();
                             }
 
                             if !note_string.is_empty() {
-                                variable_text = variable_text + &note_string
+                                variable_text = variable_text + &note_string;
                             }
                         }
                     }

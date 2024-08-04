@@ -1,21 +1,32 @@
+import { emit, once } from "@tauri-apps/api/event";
 import { applyTheme, getThemeStyleSheet } from "./extensions/functions";
 import { HelpWindowLocalization } from "./extensions/localization";
 
 import { readTextFile } from "@tauri-apps/api/fs";
-import { BaseDirectory, join } from "@tauri-apps/api/path";
+import { BaseDirectory } from "@tauri-apps/api/path";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
-    const sheet = getThemeStyleSheet() as CSSStyleSheet;
+    let settings!: Settings;
 
-    const { theme, language } = JSON.parse(
-        await readTextFile(await join("res", "settings.json"), { dir: Resource }),
-    ) as Settings;
+    await once<Settings>("settings", (data) => {
+        settings = data.payload;
+    });
+
+    await emit("fetch-settings");
+
+    while (settings === undefined) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    const { theme, language } = settings;
+
+    applyTheme(
+        getThemeStyleSheet() as CSSStyleSheet,
+        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
+    );
 
     const windowLocalization = new HelpWindowLocalization(language);
-    const themeObj: Theme = JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme];
-
-    applyTheme(sheet, themeObj);
 
     const helpTitle = document.getElementById("help-title") as HTMLDivElement;
     const help = document.getElementById("help") as HTMLDivElement;

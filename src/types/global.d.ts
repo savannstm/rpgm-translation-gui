@@ -12,18 +12,17 @@ interface HTMLTextAreaElement {
     calculateHeight(): void;
 }
 
-interface BackupSetting {
-    enabled: boolean;
-    period: number;
-    max: number;
-}
-
 interface Settings {
     language: Language;
-    backup: BackupSetting;
-    theme: ThemeName;
+    backup: {
+        enabled: boolean;
+        period: number;
+        max: number;
+    };
+    theme: string;
     firstLaunch: boolean;
     projectPath: string;
+    engineType: EngineType;
 }
 
 interface CompileSettings {
@@ -53,8 +52,7 @@ interface CompileSettings {
 
 type ThemeObject = Record<string, Theme>;
 
-interface Theme {
-    [key: string]: string;
+interface Theme extends Record<string, string> {
     name: string;
     backgroundDark: string;
     backgroundPrimary: string;

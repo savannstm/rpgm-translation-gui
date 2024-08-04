@@ -2,23 +2,33 @@ import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/
 import { CompileWindowLocalization } from "./extensions/localization";
 
 import { open as openPath } from "@tauri-apps/api/dialog";
-import { emit } from "@tauri-apps/api/event";
+import { emit, once } from "@tauri-apps/api/event";
 import { BaseDirectory, readTextFile, writeTextFile } from "@tauri-apps/api/fs";
 import { join } from "@tauri-apps/api/path";
 import { appWindow } from "@tauri-apps/api/window";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
-    const sheet = getThemeStyleSheet() as CSSStyleSheet;
+    let settings!: Settings;
 
-    const { projectPath, theme, language } = JSON.parse(
-        await readTextFile("res/settings.json", { dir: Resource }),
-    ) as Settings;
+    await once<Settings>("settings", (data) => {
+        settings = data.payload;
+    });
+
+    await emit("fetch-settings");
+
+    while (settings === undefined) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    const { projectPath, theme, language } = settings;
+
+    applyTheme(
+        getThemeStyleSheet() as CSSStyleSheet,
+        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
+    );
 
     const windowLocalization = new CompileWindowLocalization(language);
-    const themeObj: Theme = JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme];
-
-    applyTheme(sheet, themeObj);
     applyLocalization(windowLocalization);
 
     const settingsContainer = document.getElementById("settings-container") as HTMLDivElement;
@@ -26,7 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const romanizeCheckbox = document.getElementById("romanize-checkbox") as HTMLSpanElement;
     const shuffleCheckbox = document.getElementById("shuffle-checkbox") as HTMLSpanElement;
     const shuffleSettings = document.getElementById("shuffle-settings") as HTMLDivElement;
-    const customParsingCheckbox = document.getElementById("custom-parsing-checkbox") as HTMLSpanElement;
+    const customProcessingCheckbox = document.getElementById("custom-processing-checkbox") as HTMLSpanElement;
     const customOutputPathCheckbox = document.getElementById("custom-output-path-checkbox") as HTMLSpanElement;
     const customOutputPathSettings = document.getElementById("custom-output-path-settings") as HTMLDivElement;
     const disableProcessingCheckbox = document.getElementById("disable-processing-checkbox") as HTMLSpanElement;
@@ -63,7 +73,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         shuffleSettings.classList.add("hidden", "-translate-y-full");
     }
 
-    customParsingCheckbox.innerHTML = compileSettings.disableCustomProcessing ? "check" : "";
+    customProcessingCheckbox.innerHTML = compileSettings.disableCustomProcessing ? "check" : "";
 
     if (compileSettings.customOutputPath.enabled) {
         customOutputPathCheckbox.innerHTML = "check";
@@ -88,7 +98,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (compileSettings.customOutputPath.path !== "") {
         outputPath.value = compileSettings.customOutputPath.path;
     } else {
-        const path = await join(await join(".rpgm-translation-gui", projectPath));
+        const path = await join(await join(projectPath));
         outputPath.value = path;
         compileSettings.customOutputPath.path = path;
     }
@@ -145,12 +155,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     compileSettings.shuffle.enabled = false;
                 }
                 break;
-            case customParsingCheckbox.id:
-                if (!customParsingCheckbox.textContent) {
-                    customParsingCheckbox.innerHTML = "check";
+            case customProcessingCheckbox.id:
+                if (!customProcessingCheckbox.textContent) {
+                    customProcessingCheckbox.innerHTML = "check";
                     compileSettings.disableCustomProcessing = true;
                 } else {
-                    customParsingCheckbox.innerHTML = "";
+                    customProcessingCheckbox.innerHTML = "";
                     compileSettings.disableCustomProcessing = false;
                 }
                 break;

@@ -2,13 +2,33 @@ import { applyTheme, getThemeStyleSheet } from "./extensions/functions";
 import { AboutWindowLocalization } from "./extensions/localization";
 
 import { getVersion } from "@tauri-apps/api/app";
+import { emit, once } from "@tauri-apps/api/event";
 import { readTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory } from "@tauri-apps/api/path";
 import { open as openLink } from "@tauri-apps/api/shell";
 const { Resource } = BaseDirectory;
 
 window.addEventListener("DOMContentLoaded", async () => {
-    const sheet = getThemeStyleSheet() as CSSStyleSheet;
+    let settings!: Settings;
+
+    await once<Settings>("settings", (data) => {
+        settings = data.payload;
+    });
+
+    await emit("fetch-settings");
+
+    while (settings === undefined) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    const { theme, language } = settings;
+
+    applyTheme(
+        getThemeStyleSheet() as CSSStyleSheet,
+        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
+    );
+
+    const windowLocalization = new AboutWindowLocalization(language);
 
     const version = document.getElementById("version") as HTMLSpanElement;
     const versionNumber = document.getElementById("version-number") as HTMLSpanElement;
@@ -20,13 +40,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     const license = document.getElementById("license") as HTMLSpanElement;
     const licenseLink = document.getElementById("license-link") as HTMLAnchorElement;
     const wtpflLink = document.getElementById("wtfpl-link") as HTMLAnchorElement;
-
-    const { theme, language } = JSON.parse(await readTextFile("res/settings.json", { dir: Resource })) as Settings;
-
-    const windowLocalization = new AboutWindowLocalization(language);
-    const themeObj: Theme = JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme];
-
-    applyTheme(sheet, themeObj);
 
     version.innerHTML = windowLocalization.version;
     versionNumber.innerHTML = await getVersion();
