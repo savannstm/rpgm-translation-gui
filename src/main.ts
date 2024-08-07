@@ -228,11 +228,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function determineLanguage(): Promise<Language> {
-        const locale: string | null = await getLocale();
-
-        if (!locale) {
-            return Language.English;
-        }
+        const locale: string = (await getLocale()) ?? "en";
 
         switch (locale) {
             case "ru":
@@ -1030,7 +1026,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const outputArray: string[] = [];
 
             for (const child of contentElement.children) {
-                const node: HTMLTextAreaElement = child.firstElementChild?.children[2] as HTMLTextAreaElement;
+                const node = child.firstElementChild?.children[2] as HTMLTextAreaElement;
                 outputArray.push(node.value.replaceAll("\n", "\\#"));
             }
 
@@ -1421,9 +1417,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                         currentGameTitle.value = translatedGameTitle;
                     }
                 } else {
-                    const iniFilePath = await readTextFile(await join(settings.projectPath, "Game.ini"));
-                    for (const line of iniFilePath.split("\n")) {
-                        if (line.includes("title")) {
+                    const iniFileContent = await readTextFile(await join(settings.projectPath, "Game.ini"));
+                    for (const line of iniFileContent.split("\n")) {
+                        if (line.toLowerCase().includes("title")) {
                             currentGameTitle.value = line.split("=", 2)[1].trim();
                         }
                     }
@@ -1610,7 +1606,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const executionTime = await invokeCompile({
                 projectPath: settings.projectPath,
-                originalDir: originalDir,
+                originalDir: originalDir === "Data" ? await join(programDataDir, jsonDataDir) : originalDir,
                 outputPath: compileSettings.customOutputPath.path,
                 gameTitle: currentGameTitle.value,
                 romanize: compileSettings.romanize,
@@ -1806,7 +1802,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         const settingsUnlisten = await settingsWindow.once<string[]>("backup-settings", (data) => {
-            console.log(data.payload);
             const payload = data.payload;
             const enabled = payload[0];
             const max = payload[1];
@@ -2036,6 +2031,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const mapsPath = await join(translationPath, mapsDir);
         const otherPath = await join(translationPath, otherDir);
+
         await createDir(mapsPath, { recursive: true });
         await createDir(otherPath, { recursive: true });
 
@@ -2124,7 +2120,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const iniFileContent = (await readTextFile(await join(settings.projectPath, "Game.ini"))).split("\n");
 
                 for (const line of iniFileContent) {
-                    if (line.startsWith("title")) {
+                    if (line.toLowerCase().startsWith("title")) {
                         gameTitle = line.split("=")[1].trim();
                     }
                 }
@@ -2230,25 +2226,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     topPanelButtonsContainer.addEventListener("click", async (event) => {
-        if (event.target === topPanelButtonsContainer) {
+        const target = topPanelButtonsContainer.secondHighestParent(event.target as HTMLElement);
+
+        if ((!settings.projectPath && target.id !== "open-directory-button") || target === topPanelButtonsContainer) {
             return;
         }
 
-        const target: HTMLElement = topPanelButtonsContainer.secondHighestParent(event.target as HTMLElement);
-
         switch (target.id) {
             case "menu-button":
-                if (!settings.projectPath) {
-                    return;
-                }
-
                 leftPanel.toggleMultiple("translate-x-0", "-translate-x-full");
                 break;
             case saveButton.id:
                 await save();
                 break;
             case "compile-button":
-                if (clickTimer == null) {
+                if (clickTimer === null) {
                     clickTimer = setTimeout(async () => {
                         clickTimer = null;
                         await compile(true);
@@ -2301,10 +2293,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 break;
             }
             case "search-button":
-                if (!settings.projectPath) {
-                    return;
-                }
-
                 if (searchMenu.classList.contains("hidden")) {
                     searchMenu.classList.remove("hidden");
                     requestAnimationFrame(() => {
@@ -2531,6 +2519,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     searchMenu.addEventListener("mousedown", (event) => {
         const target = event.target as HTMLElement;
+
         if (target.id !== searchMenu.id) {
             return;
         }
@@ -2654,6 +2643,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             saved = false;
         }
     });
+
+    window.addEventListener(
+        "error",
+        (event) => {
+            alert(`${windowLocalization.errorOccurred} ${event.message}\nline: ${event.lineno}\ncol: ${event.colno}`);
+        },
+        true,
+    );
 
     await listen("fetch-settings", async () => {
         await emit("settings", settings);

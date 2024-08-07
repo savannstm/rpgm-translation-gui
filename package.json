@@ -1,7 +1,7 @@
 {
     "name": "rpgm-translation-gui",
     "private": true,
-    "version": "3.10.1",
+    "version": "3.10.2",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -14,7 +14,7 @@
     },
     "dependencies": {
         "@hyrious/marshal": "^0.3.3",
-        "@savannstm/marshal": "^0.5.0",
+        "@savannstm/marshal": "^0.5.1",
         "@tauri-apps/api": "^1.6.0",
         "immutable": "^4.3.7",
         "pako": "^2.1.0",
@@ -27,7 +27,7 @@
         "eslint": "^9.8.0",
         "tailwindcss": "^3.4.7",
         "typescript": "^5.5.4",
-        "typescript-eslint": "^8.0.0",
+        "typescript-eslint": "^8.0.1",
         "vite": "^5.3.5",
         "vite-plugin-minify": "^1.5.2"
     }

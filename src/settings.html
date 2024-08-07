@@ -12,28 +12,28 @@
         <div id="options-menu" class="flex flex-col p-8">
             <div class="z-50 flex flex-row items-center gap-2 py-4 backgroundDark">
                 <span id="backup-check" class="text-xl checkbox borderPrimary size-8">check</span>
-                <span id="backup"></span>
+                <span id="backup" class="backup"></span>
             </div>
 
             <div class="overflow-hidden">
                 <div id="backup-settings" class="z-30 flex-col transition-all duration-300">
                     <div id="backup-period" class="flex flex-row items-center py-4">
-                        <span id="backup-period-label" class="mr-2"></span>
+                        <span id="backup-period-label" class="mr-2 backupPeriodLabel"></span>
                         <input
                             type="number"
                             id="backup-period-input"
                             class="p-2 w-auto h-8 backgroundSecond rounded-md outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none mr-2 text-xl"
                         />
-                        <span id="backup-period-note"></span>
+                        <span id="backup-period-note" class="backupPeriodNote"></span>
                     </div>
                     <div id="backup-max" class="flex flex-row items-center py-4">
-                        <span id="backup-max-label" class="mr-2"></span>
+                        <span id="backup-max-label" class="mr-2 backupMaxLabel"></span>
                         <input
                             type="number"
                             id="backup-max-input"
                             class="p-2 w-auto h-8 backgroundSecond rounded-md outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-xl mr-2"
                         />
-                        <span id="backup-max-note"></span>
+                        <span id="backup-max-note" class="backupMaxNote"></span>
                     </div>
                 </div>
             </div>

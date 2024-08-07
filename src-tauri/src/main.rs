@@ -74,6 +74,10 @@ enum Variable {
     Name,
     Nickname,
     Description,
+    Message1,
+    Message2,
+    Message3,
+    Message4,
     Note,
 }
 
@@ -215,7 +219,6 @@ fn compile(
     };
 
     if engine_type == EngineType::New {
-        println!("{}", data_output_path.display());
         create_dir_all(data_output_path).unwrap();
         create_dir_all(plugins_output_path).unwrap();
     }

@@ -1,5 +1,5 @@
 import { emit, once } from "@tauri-apps/api/event";
-import { applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
 import { HelpWindowLocalization } from "./extensions/localization";
 
 import { readTextFile } from "@tauri-apps/api/fs";
@@ -26,15 +26,5 @@ document.addEventListener("DOMContentLoaded", async () => {
         JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
     );
 
-    const windowLocalization = new HelpWindowLocalization(language);
-
-    const helpTitle = document.getElementById("help-title") as HTMLDivElement;
-    const help = document.getElementById("help") as HTMLDivElement;
-    const hotkeysTitle = document.getElementById("hotkeys-title") as HTMLDivElement;
-    const hotkeys = document.getElementById("hotkeys") as HTMLDivElement;
-
-    helpTitle.innerHTML = windowLocalization.helpTitle;
-    help.innerHTML = windowLocalization.help;
-    hotkeysTitle.innerHTML = windowLocalization.hotkeysTitle;
-    hotkeys.innerHTML = windowLocalization.hotkeys;
+    applyLocalization(new HelpWindowLocalization(language));
 });

@@ -1,5 +1,5 @@
 import { emit, once } from "@tauri-apps/api/event";
-import { applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
 import { SettingsWindowLocalization } from "./extensions/localization";
 
 import { readTextFile } from "@tauri-apps/api/fs";
@@ -25,23 +25,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[settings.theme],
     );
 
-    const windowLocalization = new SettingsWindowLocalization(settings.language);
+    applyLocalization(new SettingsWindowLocalization(settings.language));
 
-    const backupPeriodLabel = document.getElementById("backup-period-label") as HTMLSpanElement;
-    const backupPeriodNote = document.getElementById("backup-period-note") as HTMLSpanElement;
-    const backupMaxLabel = document.getElementById("backup-max-label") as HTMLSpanElement;
-    const backupMaxNote = document.getElementById("backup-max-note") as HTMLSpanElement;
-    const backup = document.getElementById("backup") as HTMLSpanElement;
     const backupCheck = document.getElementById("backup-check") as HTMLSpanElement;
     const backupSettings = document.getElementById("backup-settings") as HTMLDivElement;
     const backupMaxInput = document.getElementById("backup-max-input") as HTMLInputElement;
     const backupPeriodInput = document.getElementById("backup-period-input") as HTMLInputElement;
-
-    backupPeriodLabel.innerHTML = windowLocalization.backupPeriodLabel;
-    backupPeriodNote.innerHTML = windowLocalization.backupPeriodNote;
-    backupMaxLabel.innerHTML = windowLocalization.backupMaxLabel;
-    backupMaxNote.innerHTML = windowLocalization.backupMaxNote;
-    backup.innerHTML = windowLocalization.backup;
 
     backupMaxInput.value = settings.backup.max.toString();
     backupPeriodInput.value = settings.backup.period.toString();
@@ -90,6 +79,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     appWindow.onCloseRequested(async () => {
-        await emit("backup-settings", [backupCheck.textContent, backupMaxInput.value, backupPeriodInput.value]);
+        await emit("backup-settings", [
+            backupCheck.textContent ? true : false,
+            backupMaxInput.value,
+            backupPeriodInput.value,
+        ]);
     });
 });

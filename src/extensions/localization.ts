@@ -69,6 +69,7 @@ export class MainWindowLocalization {
     readonly bookmarksButtonTitle: string;
     readonly readButtonTitle: string;
     readonly directoryAlreadyOpened: string;
+    readonly errorOccurred: string;
 
     constructor(language: Language) {
         switch (language) {
@@ -145,6 +146,7 @@ export class MainWindowLocalization {
                 this.bookmarksButtonTitle = "Закладки (Ctrl + B)";
                 this.readButtonTitle = "Перечитать файлы (Alt + R)";
                 this.directoryAlreadyOpened = "Выбранная директория уже открыта в программе.";
+                this.errorOccurred = "Произошла ошибка:";
                 break;
             default:
                 this.cannotGetSettings = "Cannot find program's settings.";
@@ -219,6 +221,7 @@ export class MainWindowLocalization {
                 this.bookmarksButtonTitle = "Bookmarks (Ctrl + B)";
                 this.readButtonTitle = "Re-read files (Alt + R)";
                 this.directoryAlreadyOpened = "Selected directory is already opened in the program.";
+                this.errorOccurred = "An error has occurred:";
                 break;
         }
     }
@@ -285,27 +288,27 @@ export class AboutWindowLocalization {
 }
 
 export class HelpWindowLocalization {
-    readonly helpTitle: string;
     readonly help: string;
-    readonly hotkeysTitle: string;
+    readonly helpText: string;
     readonly hotkeys: string;
+    readonly hotkeysText: string;
 
     constructor(language: Language) {
         switch (language) {
             case Language.Russian:
-                this.helpTitle = "Как пользоваться; что делать; куда нажимать?";
-                this.help =
+                this.help = "Как пользоваться; что делать; куда нажимать?";
+                this.helpText =
                     'Чтобы запустить проект и начать перевод, используйте кнопку "Открыть папку" в левом верхнем углу. Открываемая папка должна содержать в себе папку "data" с оригинальными файлами игры. Если текст игры не был распарсен ранее с использованием CLI-инструментов, прогрмма автоматически распарсит его. По умолчанию, программа поддерживает чтение и запись файлов движков RPG Maker XP/VX/VXAce/MV/MZ.<br>Программа регулярно создает резервные копии файлов переводов по пути "папка_проекта/.rpgm-translation-gui/backups", период резервного копирования и максимальное количество резервных копий можно регулировать в настройках. По умолчанию программа создает резервные копии каждые 60 секунд.<br>При сохранении перевода в программе, все файлы перевода будут сохранятся по пути "папка_проекта/.rpgm-translation-gui/translation".<br>Чтобы сохранить изменения в проекте, нажмите кнопку сохранить или используйте сочетание клавиш Ctrl + S. Программа автоматически сохранит ваш проект, и когда вы снова запустите программу, вы сможете продолжить с того места, на котором остановились.<br>Чтобы скомпилировать ваш перевод в рабочие файлы игры, нажмите кнопку компиляции или используйте сочетание клавиш Alt + C. Обязательно сохраните перевод перед компиляцией. Программа создаст полностью функциональные файлы игры с применённым переводом в папке "папка_проекта/.rpgm-translation-gui/output".<br>Вы можете еще раз прочитать это руководство или получить справку о горячих клавишах программы, выбрав пункты верхнего меню "Помощь" > "Помощь".';
-                this.hotkeysTitle = "Горячие клавиши";
-                this.hotkeys =
+                this.hotkeys = "Горячие клавиши";
+                this.hotkeysText =
                     "Цифры от 1 до + - Редактирование разных файлов<br>Tab - Открыть панель выбора файлов<br>Ctrl + S - Сохранить файлы перевода<br>Ctrl + F - Навестись на строку поиска<br>R - Открыть панель поиска<br>Alt + Enter - Перепрыгнуть на нижнее текстовое поле<br>Ctrl + Enter - Перепрыгнуть на верхнее текстовое поле<br>Esc - Если курсор сфокусирован на текстовом поле, убрать фокусировку на текстовом поле; иначе, выйти из состояния редактирования файлов<br>Alt + C, пока вы НЕ наведены на поле ввода текста - Скомпилировать<br>Alt + C, Alt + W, Alt + R, Alt + L, Alt + T, пока вы наведены на поле ввода текста для поиска - переключить поиск по регистру, по словам целиком, по регулярным выражением, по текущему файлу, и только по переводу соответственно<br>ЛКМ на результате поиска - перейти к найденному элементу<br>ПКМ на результате поиска - заменить текст этого элемента на тот, что в данный момент введён в поле<br>ЛКМ на результате журнала - перейти к изменённому ранее элементу<br>ПКМ на результате журнала - вернуть изменённый элемент в предыдущее состояние<br>Ctrl + G - открыть поле для ввода числа линии, на которую вы хотите перейти<br>Ctrl + B - открыть окно закладок<br>Ctrl + R - открыть окно чтения файлов";
                 break;
             default:
-                this.helpTitle = "How to use; what to do; where to click?";
-                this.help =
+                this.help = "How to use; what to do; where to click?";
+                this.helpText =
                     "To start the project and start the translation, use the 'Open Folder' button in the upper left corner. The folder must contain the 'data' folder with the original game files. If the text of the game has not been parsed previously using CLI tools, the program will automatically parse it. By default, the program supports reading and writing RPG Maker XP/VX/VXAce/MV/MZ engine files.<br>The program regularly creates backups of translation files in the path 'project_folder/.rpgm-translation-gui/backups', the backup period and the maximum number of backups can be adjusted in the settings. By default, the program creates backups every 60 seconds.<br>When saving a translation in the program, all translation files will be saved in the path 'project_folder/.rpgm-translation-gui/translation'. To save the changes in the project, click save or use the keyboard shortcut Ctrl + S. The program will automatically save your project, and when you run the program again, you can pick up where you left off. To compile your translation into working game files, click the compile button or use the Alt + C keyboard shortcut. Be sure to save the translation before compiling. The program will create fully functional game files with the applied translation in the folder 'project_folder/.rpgm-translation-gui/output'.<br>You can read this manual again or get help about the program's hotkeys by selecting the 'Help' > 'Help' item in the top menu.";
-                this.hotkeysTitle = "Hotkeys";
-                this.hotkeys =
+                this.hotkeys = "Hotkeys";
+                this.hotkeysText =
                     'Digits from "1" to "+" - Open different files to edit<br>Tab - Open the panel for selecting files<br>Ctrl + S - Save the translation files<br>Ctrl + F - Focus on the search field<br>R - Open the search panel<br>Alt + Enter - Jump to the textarea below the focused<br>Ctrl + Enter - Jump to the textarea above the focused<br>Esc - If focused element is the textarea, remove the focus, else exit from editing mode<br>Alt + C, if you are NOT focused on the textarea - Compile translation<br>Alt + C, Alt + W, Alt + R, Alt + L, Alt + T, while you are focused on the search field - toggle case, whole text, regular expressions, only current file, and only translation text search respectively<br>LMB on the search result - scroll into the view of the result element<br>RMB on the search result - replace matching text of this element with the one that\'s currently entered into the replace field<br>LMB on the log result - scroll into the view of the earlier changed element<br>RMB on the log result - revert changed element to the original state<br>Ctrl + G - open the input field for jumping to specific row<br>Ctrl + B - open the bookmarks window<br>Ctrl + R - open the files reading window';
                 break;
         }
@@ -394,7 +397,7 @@ export class ReadWindowLocalization {
     readonly options: string;
     readonly enableLoggingOption: string;
     readonly romanizeOption: string;
-    readonly disableCustomParsing: string;
+    readonly disableCustomProcessing: string;
     readonly disableProcessing: string;
     readonly disableMapsProcessingOption: string;
     readonly disableOtherProcessingOption: string;
@@ -420,7 +423,7 @@ export class ReadWindowLocalization {
                 this.enableLoggingOption = "Включить логирование (в текущий момент не имеет функционала)";
                 this.romanizeOption =
                     'Романизация текста. Если вы парсите текст из японской игры, содержащей символы вроде 「」,являющимися обычными японскими кавычками, они будут автоматически заменены на их европейские эквиваленты. (в данном случае, "")';
-                this.disableCustomParsing =
+                this.disableCustomProcessing =
                     "Выключить индивидуальную обработку (используйте лишь если вы прочитали файлы без индивидуальной обработки)";
                 this.disableProcessing = "Выключить обработку...";
                 this.disableMapsProcessingOption = "Выключить обработку файлов maps";
@@ -446,8 +449,8 @@ export class ReadWindowLocalization {
                 this.enableLoggingOption = "Enable logging (currently does nothing)";
                 this.romanizeOption =
                     'Whether to romanize text. If you parsing text from a Japanese game, that contains symbols like 「」, which are just the Japanese quotation marks, it automatically replaces these symbols by their roman equivalents. (in this case, "")';
-                this.disableCustomParsing =
-                    "Disable custom parsing (use only if you've read files without custom parsing)";
+                this.disableCustomProcessing =
+                    "Disable custom processing (use only if you've read files without custom processing)";
                 this.disableProcessing = "Disable processing of...";
                 this.disableMapsProcessingOption = "Disable maps processing";
                 this.disableOtherProcessingOption = "Disable other processing";
