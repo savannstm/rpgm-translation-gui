@@ -233,6 +233,7 @@ export class SettingsWindowLocalization {
     readonly backupMaxLabel: string;
     readonly backupMaxNote: string;
     readonly backup: string;
+    readonly font: string;
 
     constructor(language: Language) {
         switch (language) {
@@ -242,6 +243,7 @@ export class SettingsWindowLocalization {
                 this.backupMaxLabel = "Максимальное количество резервных копий:";
                 this.backupMaxNote = "(минимум 1, максимум 99)";
                 this.backup = "Резервное копирование";
+                this.font = "Шрифт";
                 break;
             default:
                 this.backupPeriodLabel = "Create backup every:";
@@ -249,6 +251,7 @@ export class SettingsWindowLocalization {
                 this.backupMaxLabel = "Max number of backups:";
                 this.backupMaxNote = "(min 1, max 99)";
                 this.backup = "Backup";
+                this.font = "Font";
                 break;
         }
     }

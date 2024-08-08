@@ -26,6 +26,7 @@ export const enum State {
     Enemies = "enemies",
     Items = "items",
     Skills = "skills",
+    States = "states",
     System = "system",
     Troops = "troops",
     Weapons = "weapons",

@@ -20,6 +20,7 @@ interface Settings {
         max: number;
     };
     theme: string;
+    font: string;
     firstLaunch: boolean;
     projectPath: string;
     engineType: EngineType;

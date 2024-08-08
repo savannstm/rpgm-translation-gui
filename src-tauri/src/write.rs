@@ -712,7 +712,7 @@ pub fn write_other(
                     let (real_name, extension) = filename.split_once('.').unwrap();
 
                     if !real_name.starts_with("Map")
-                        && !matches!(real_name, "Tilesets" | "Animations" | "States" | "System")
+                        && !matches!(real_name, "Tilesets" | "Animations" | "System")
                         && extension == "json"
                     {
                         vec.push((

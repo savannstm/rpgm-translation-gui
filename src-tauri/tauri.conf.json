@@ -7,7 +7,7 @@
     },
     "package": {
         "productName": "rpgm-translation-gui",
-        "version": "3.10.2"
+        "version": "3.10.3"
     },
     "tauri": {
         "allowlist": {
@@ -95,6 +95,11 @@
             },
             "os": {
                 "all": true
+            },
+            "protocol": {
+                "all": false,
+                "asset": true,
+                "assetScope": ["**"]
             }
         },
         "windows": [
@@ -106,7 +111,7 @@
             }
         ],
         "security": {
-            "csp": null
+            "csp": "\"csp\": \"default-src 'self'; img-src 'self' asset: https://asset.localhost\""
         },
         "bundle": {
             "active": true,

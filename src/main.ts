@@ -38,6 +38,14 @@ import { dump, load } from "@savannstm/marshal";
 import { deflate, inflate } from "pako";
 import XRegExp from "xregexp";
 
+document.addEventListener(
+    "error",
+    (event) => {
+        alert(`An error occurred: ${event.message}\nline: ${event.lineno}\ncol: ${event.colno}`);
+    },
+    true,
+);
+
 document.addEventListener("DOMContentLoaded", async () => {
     // #region Static constants
     const sheet = getThemeStyleSheet() as CSSStyleSheet;
@@ -116,6 +124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     let theme: Theme = themes[settings.theme];
     let currentTheme: string;
+    let nextBackupNumber: number;
 
     await setTheme(theme);
 
@@ -154,8 +163,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     let shiftPressed = false;
 
     let multipleTextAreasSelected = false;
-
-    let nextBackupNumber: number;
 
     leftPanel.style.height = `${window.innerHeight - topPanel.clientHeight - menuBar.clientHeight}px`;
 
@@ -476,6 +483,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     backup: { enabled: true, period: 60, max: 99 },
                     language: language,
                     theme: "cool-zinc",
+                    font: "Segoe UI",
                     firstLaunch: true,
                     projectPath: "",
                     engineType: null,
@@ -1240,32 +1248,35 @@ document.addEventListener("DOMContentLoaded", async () => {
                     case "KeyR":
                         await displaySearchResults();
                         break;
-                    case "Digit1":
+                    case "Backquote":
                         changeState(State.Maps);
                         break;
-                    case "Digit2":
+                    case "Digit1":
                         changeState(State.Names);
                         break;
-                    case "Digit3":
+                    case "Digit2":
                         changeState(State.Actors);
                         break;
-                    case "Digit4":
+                    case "Digit3":
                         changeState(State.Armors);
                         break;
-                    case "Digit5":
+                    case "Digit4":
                         changeState(State.Classes);
                         break;
-                    case "Digit6":
+                    case "Digit5":
                         changeState(State.CommonEvents);
                         break;
-                    case "Digit7":
+                    case "Digit6":
                         changeState(State.Enemies);
                         break;
-                    case "Digit8":
+                    case "Digit7":
                         changeState(State.Items);
                         break;
-                    case "Digit9":
+                    case "Digit8":
                         changeState(State.Skills);
+                        break;
+                    case "Digit9":
+                        changeState(State.States);
                         break;
                     case "Digit0":
                         changeState(State.System);
@@ -2168,6 +2179,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             initializeThemes();
             await createDir(await join(settings.projectPath, programDataDir, backupDir), { recursive: true });
 
+            nextBackupNumber = (await readDir(await join(settings.projectPath, programDataDir, backupDir)))
+                .map((entry) => {
+                    const name = entry.name as string;
+                    const number = name.slice(0, -2);
+                    return Number.parseInt(number);
+                })
+                .sort((a: number, b: number) => a - b)[0];
+
+            if (!nextBackupNumber) {
+                nextBackupNumber = 0;
+            }
+
             if (settings.backup.enabled) {
                 backup();
             }
@@ -2251,7 +2274,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await compile(false);
                 }
                 break;
-            case "open-button":
+            case "open-directory-button":
                 await openDirectory();
                 break;
             case "settings-button":
@@ -2643,14 +2666,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             saved = false;
         }
     });
-
-    window.addEventListener(
-        "error",
-        (event) => {
-            alert(`${windowLocalization.errorOccurred} ${event.message}\nline: ${event.lineno}\ncol: ${event.colno}`);
-        },
-        true,
-    );
 
     await listen("fetch-settings", async () => {
         await emit("settings", settings);
