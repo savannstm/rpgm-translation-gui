@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await emit("fetch-settings");
 
-    while (settings === undefined) {
+    while (!settings) {
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
@@ -28,8 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
     );
 
-    const windowLocalization = new CompileWindowLocalization(language);
-    applyLocalization(windowLocalization);
+    applyLocalization(new CompileWindowLocalization(language));
 
     const settingsContainer = document.getElementById("settings-container") as HTMLDivElement;
     const loggingCheckbox = document.getElementById("logging-checkbox") as HTMLSpanElement;

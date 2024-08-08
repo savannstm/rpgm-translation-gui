@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await emit("fetch-settings");
 
-    while (settings === undefined) {
+    while (!settings) {
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
 

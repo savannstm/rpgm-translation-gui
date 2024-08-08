@@ -1,5 +1,6 @@
 import { emit, once } from "@tauri-apps/api/event";
 import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import "./extensions/math-extensions";
 import { SettingsWindowLocalization } from "./extensions/localization";
 
 import { readDir, readTextFile } from "@tauri-apps/api/fs";
@@ -23,7 +24,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await emit("fetch-settings");
 
-    while (settings === undefined) {
+    while (!settings) {
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
@@ -41,7 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const fontSelect = document.getElementById("font-select") as HTMLSelectElement;
 
     async function fetchFonts(): Promise<FontObject | undefined> {
-        const fontsObject: FontObject = {} as FontObject;
+        const fontsObject = {} as FontObject;
         const platform = await getPlatform();
         let fontPath: string;
 
@@ -121,25 +122,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     backupMaxInput.addEventListener("input", () => {
         backupMaxInput.value = backupMaxInput.value.replaceAll(/[^0-9]/g, "");
-        const backupMaxValue = Number.parseInt(backupMaxInput.value);
-
-        backupMaxInput.value = (backupMaxValue < 1 ? 1 : backupMaxValue > 99 ? 99 : backupMaxValue).toString();
+        backupMaxInput.value = Math.clamp(Number.parseInt(backupMaxInput.value), 1, 99).toString();
     });
 
     backupPeriodInput.addEventListener("input", () => {
         backupPeriodInput.value = backupPeriodInput.value.replaceAll(/[^0-9]/g, "");
-        const backupPeriodValue = Number.parseInt(backupPeriodInput.value);
-
-        backupPeriodInput.value = (
-            backupPeriodValue < 60 ? 60 : backupPeriodValue > 3600 ? 3600 : backupPeriodValue
-        ).toString();
+        backupPeriodInput.value = Math.clamp(Number.parseInt(backupPeriodInput.value), 60, 3600).toString();
     });
 
     appWindow.onCloseRequested(async () => {
         await emit("backup-settings", [
-            backupCheck.textContent ? true : false,
-            backupMaxInput.value,
-            backupPeriodInput.value,
+            Boolean(backupCheck.textContent),
+            Number.parseInt(backupMaxInput.value),
+            Number.parseInt(backupPeriodInput.value),
         ]);
     });
 });

@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await emit("fetch-settings");
 
-    while (settings === undefined) {
+    while (!settings) {
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
@@ -166,10 +166,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const disableProcessings: Record<string, boolean> = {
-            maps: disableMapsProcessingCheckbox.textContent ? true : false,
-            other: disableOtherProcessingCheckbox.textContent ? true : false,
-            system: disableSystemProcessingCheckbox.textContent ? true : false,
-            plugins: disablePluginsProcessingCheckbox.textContent ? true : false,
+            maps: Boolean(disableMapsProcessingCheckbox.textContent),
+            other: Boolean(disableOtherProcessingCheckbox.textContent),
+            system: Boolean(disableSystemProcessingCheckbox.textContent),
+            plugins: Boolean(disablePluginsProcessingCheckbox.textContent),
         };
 
         await once<string[]>("metadata", async (data) => {
@@ -205,8 +205,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 projectPath,
                 originalDir: originalDir,
                 gameTitle,
-                romanize: romanizeCheckbox.textContent ? true : false,
-                disableCustomProcessing: customProcessingCheckbox.textContent ? true : false,
+                romanize: Boolean(romanizeCheckbox.textContent),
+                disableCustomProcessing: Boolean(customProcessingCheckbox.textContent),
                 disableProcessing: Object.values(disableProcessings).slice(0, -1),
                 logging: false,
                 processingMode: readingModeSelect.value === "append" ? ProcessingMode.Append : ProcessingMode.Force,
@@ -218,7 +218,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     await readScripts(
                         await readTextFile(await join(projectPath, originalDir, "Scripts.txt")),
                         await join(projectPath, ".rpgm-translation-gui/translation/other"),
-                        romanizeCheckbox.textContent ? true : false,
+                        Boolean(romanizeCheckbox.textContent),
                     );
                 }
             }

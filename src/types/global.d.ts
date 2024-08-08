@@ -12,6 +12,10 @@ interface HTMLTextAreaElement {
     calculateHeight(): void;
 }
 
+interface Math {
+    clamp(value: number, min: number, max: number): number;
+}
+
 interface Settings {
     language: Language;
     backup: {

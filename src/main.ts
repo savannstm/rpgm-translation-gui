@@ -38,14 +38,6 @@ import { dump, load } from "@savannstm/marshal";
 import { deflate, inflate } from "pako";
 import XRegExp from "xregexp";
 
-document.addEventListener(
-    "error",
-    (event) => {
-        alert(`An error occurred: ${event.message}\nline: ${event.lineno}\ncol: ${event.colno}`);
-    },
-    true,
-);
-
 document.addEventListener("DOMContentLoaded", async () => {
     // #region Static constants
     const sheet = getThemeStyleSheet() as CSSStyleSheet;
@@ -1812,19 +1804,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             resizable: false,
         });
 
-        const settingsUnlisten = await settingsWindow.once<string[]>("backup-settings", (data) => {
-            const payload = data.payload;
-            const enabled = payload[0];
-            const max = payload[1];
-            const period = payload[2];
+        const settingsUnlisten = await settingsWindow.once<[boolean, number, number]>("backup-settings", (data) => {
+            const [enabled, max, period] = data.payload;
 
             if (enabled && !backupIsActive) {
                 backup();
             }
 
-            settings.backup.enabled = enabled === "true" ? true : false;
-            settings.backup.max = Number.parseInt(max);
-            settings.backup.period = Number.parseInt(period);
+            settings.backup.enabled = enabled;
+            settings.backup.max = max;
+            settings.backup.period = period;
         });
 
         await settingsWindow.once("tauri://destroyed", settingsUnlisten);
@@ -2056,7 +2045,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (!(await exists(await join(settings.projectPath, programDataDir, jsonDataDir)))) {
                     const decoder = new TextDecoder();
 
-                    await createDir(await join(settings.projectPath, programDataDir, jsonDataDir), { recursive: true });
+                    await createDir(await join(settings.projectPath, programDataDir, jsonDataDir), {
+                        recursive: true,
+                    });
 
                     const entries = await readDir(await join(settings.projectPath, originalDir));
                     for (const entry of entries) {

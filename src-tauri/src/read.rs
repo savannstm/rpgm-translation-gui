@@ -637,7 +637,6 @@ pub fn read_map(
                 .as_object()
                 .unwrap()
                 .iter()
-                .skip(1)
                 .map(|(_, value)| value)
                 .collect()
         } else {
@@ -887,11 +886,11 @@ pub fn read_other(
                 }
             }
         }
-        //Other files have the structure somewhat similar to Maps.json files
+        // Other files have the structure somewhat similar to Maps.json files
         else {
-            //Skipping first element in array as it is null
+            // Skipping first element in array as it is null
             for obj in obj_arr.into_iter().skip(1) {
-                //CommonEvents doesn't have pages, so we can just check if it's Troops
+                // CommonEvents doesn't have pages, so we can just check if it's Troops
                 let pages_length: usize = if filename.starts_with("Tr") {
                     obj["pages"].as_array().unwrap().len()
                 } else {
