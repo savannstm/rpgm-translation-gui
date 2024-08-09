@@ -1409,6 +1409,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             contentDiv.id = contentName;
             contentDiv.classList.add("hidden", "flex-col", "h-auto");
 
+            let length: number = content[i].length;
+
             if (contentName === "system") {
                 if (settings.engineType === EngineType.New) {
                     const originalGameTitle = content[i].pop() as string;
@@ -1427,9 +1429,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                         }
                     }
                 }
+
+                length -= 1;
             }
 
-            for (let j = 0; j < content[i].length; j++) {
+            for (let j = 0; j < length; j++) {
                 const originalText = content[i][j];
                 const translationText = content[i + 1][j];
 
