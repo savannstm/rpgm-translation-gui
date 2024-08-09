@@ -1409,31 +1409,26 @@ document.addEventListener("DOMContentLoaded", async () => {
             contentDiv.id = contentName;
             contentDiv.classList.add("hidden", "flex-col", "h-auto");
 
-            let length: number = content[i].length;
-
             if (contentName === "system") {
-                if (settings.engineType === EngineType.New) {
-                    const originalGameTitle = content[i].pop() as string;
-                    const translatedGameTitle = content[i + 1].pop() as string;
+                const originalGameTitle = content[i].pop() as string;
+                const translatedGameTitle = content[i + 1].pop() as string;
 
+                if (settings.engineType === EngineType.New) {
                     if (translatedGameTitle === "") {
                         currentGameTitle.value = originalGameTitle;
                     } else {
                         currentGameTitle.value = translatedGameTitle;
                     }
                 } else {
-                    const iniFileContent = await readTextFile(await join(settings.projectPath, "Game.ini"));
-                    for (const line of iniFileContent.split("\n")) {
+                    for (const line of (await readTextFile(await join(settings.projectPath, "Game.ini"))).split("\n")) {
                         if (line.toLowerCase().includes("title")) {
                             currentGameTitle.value = line.split("=", 2)[1].trim();
                         }
                     }
                 }
-
-                length -= 1;
             }
 
-            for (let j = 0; j < length; j++) {
+            for (let j = 0; j < content[i].length; j++) {
                 const originalText = content[i][j];
                 const translationText = content[i + 1][j];
 
