@@ -39,11 +39,11 @@ import { deflate, inflate } from "pako";
 import XRegExp from "xregexp";
 
 document.addEventListener("DOMContentLoaded", async () => {
+    const tw = (strings: TemplateStringsArray, ...values: string[]): string => String.raw({ raw: strings }, ...values);
     // #region Static constants
     const sheet = getThemeStyleSheet() as CSSStyleSheet;
 
     const resDir = "res";
-    const jsonDataDir = "json-data";
     const translationDir = "translation";
     const backupDir = "backups";
 
@@ -191,7 +191,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function addBookmark(bookmarkTitle: string) {
         const bookmarkElement = document.createElement("button");
-        bookmarkElement.classList.add("bookmark", "backgroundPrimary", "backgroundSecondHovered");
+        bookmarkElement.className = tw`backgroundPrimary backgroundSecondHovered flex flex-row items-center justify-center p-2`;
         bookmarkElement.innerHTML = bookmarkTitle;
 
         bookmarksMenu.appendChild(bookmarkElement);
@@ -530,22 +530,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         const resultContainer = document.createElement("div");
 
         const resultElement = document.createElement("div");
-        resultElement.classList.add("search-result", "textSecond", "borderPrimary", "backgroundSecond");
+        resultElement.className = tw`textSecond borderPrimary backgroundSecond my-1 cursor-pointer border-2 p-1 text-xl`;
 
         const thirdParent = element.parentElement?.parentElement?.parentElement as HTMLDivElement;
 
-        const [counterpartElement, sourceIndex] = findCounterpart(element.id);
-        const [source, row] = extractInfo(element);
+        const [counterpartElement, sourceIndex] = element.id.includes("original")
+            ? [document.getElementById(element.id.replace("original", "translation")) as HTMLElement, 1]
+            : [document.getElementById(element.id.replace("translation", "original")) as HTMLElement, 0];
+
+        const [source, row] = element.id.split("-", 3).slice(1, 3);
 
         const mainDiv = document.createElement("div");
-        mainDiv.classList.add("text-base");
+        mainDiv.className = tw`text-base`;
 
         const resultDiv = document.createElement("div");
         resultDiv.innerHTML = result;
         mainDiv.appendChild(resultDiv);
 
         const originalInfo = document.createElement("div");
-        originalInfo.classList.add("text-xs", "textThird");
+        originalInfo.className = tw`textThird text-xs`;
 
         const secondParent = element.parentElement?.parentElement as HTMLElement;
         const currentFile = secondParent.id.slice(0, secondParent.id.lastIndexOf("-"));
@@ -553,7 +556,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         mainDiv.appendChild(originalInfo);
 
         const arrow = document.createElement("div");
-        arrow.classList.add("search-result-arrow", "textSecond");
+        arrow.className = tw`textSecond flex items-center justify-center font-material text-xl`;
         arrow.innerHTML = "arrow_downward";
         mainDiv.appendChild(arrow);
 
@@ -565,7 +568,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         mainDiv.appendChild(counterpart);
 
         const counterpartInfo = document.createElement("div");
-        counterpartInfo.classList.add("text-xs", "textThird");
+        counterpartInfo.className = tw`textThird text-xs`;
 
         counterpartInfo.innerHTML = `${currentFile} - ${sourceIndex === 0 ? "original" : "translation"} - ${row}`;
         mainDiv.appendChild(counterpartInfo);
@@ -755,7 +758,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (searchPanelFound.children.length > 0 && searchPanelFound.firstElementChild?.id !== "no-results") {
             loadingContainer = document.createElement("div");
-            loadingContainer.classList.add("flex", "justify-center", "items-center", "h-full", "w-full");
+            loadingContainer.className = tw`flex size-full items-center justify-center`;
             loadingContainer.innerHTML = searchPanel.classList.contains("translate-x-0")
                 ? `<div class="text-4xl animate-spin font-material">refresh</div>`
                 : "";
@@ -793,21 +796,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             searchPanel.setAttribute("moving", "false");
         }
-    }
-
-    function findCounterpart(id: string): [HTMLElement, number] {
-        if (id.includes("original")) {
-            return [document.getElementById(id.replace("original", "translation")) as HTMLElement, 1];
-        } else {
-            return [document.getElementById(id.replace("translation", "original")) as HTMLElement, 0];
-        }
-    }
-
-    function extractInfo(element: HTMLElement): [string, string] {
-        const parts = element.id.split("-", 3);
-        const source = parts[1];
-        const row = parts[2];
-        return [source, row];
     }
 
     async function handleResultClick(
@@ -849,8 +837,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             target.parentElement?.hasAttribute("data")
                 ? target.parentElement
                 : target.parentElement?.parentElement?.hasAttribute("data")
-                ? target.parentElement?.parentElement
-                : target.parentElement?.parentElement?.parentElement
+                  ? target.parentElement?.parentElement
+                  : target.parentElement?.parentElement?.parentElement
         ) as HTMLDivElement;
 
         if (!searchPanelFound.contains(resultElement)) {
@@ -916,8 +904,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const replacerText: string = replaceInput.value;
 
-            const highlightedReplacement: HTMLSpanElement = document.createElement("span");
-            highlightedReplacement.classList.add("bg-red-600");
+            const highlightedReplacement = document.createElement("span");
+            highlightedReplacement.className = tw`bg-red-600`;
             highlightedReplacement.textContent = replacerText;
 
             const newText: string[] = text.value.split(regexp);
@@ -1039,11 +1027,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ? i < 2
                         ? mapsDir
                         : i < 12
-                        ? otherDir
-                        : pluginsDir
+                          ? otherDir
+                          : pluginsDir
                     : i < 2
-                    ? mapsDir
-                    : otherDir;
+                      ? mapsDir
+                      : otherDir;
 
             const filePath = `${dirPath}/${contentElement.id}_trans.txt`;
             await writeTextFile(await join(dirName, filePath), outputArray.join("\n"));
@@ -1155,7 +1143,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const scrollOffset = nextElement.clientHeight + 8;
+        const scrollOffset = nextElement.clientHeight;
         window.scrollBy(0, step * scrollOffset);
         focusedElement.blur();
         nextElement.focus();
@@ -1205,7 +1193,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     case "KeyF":
                         event.preventDefault();
 
-                        searchMenu.classList.replace("flex", "hidden");
+                        searchMenu.classList.replace("hidden", "flex");
                         searchInput.focus();
                         break;
                     case "KeyB":
@@ -1364,6 +1352,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    function fromHTML(html: string): HTMLElement | HTMLCollection {
+        const template = document.createElement("template");
+        template.innerHTML = html;
+
+        const result = template.content.children as HTMLCollectionOf<HTMLElement>;
+
+        if (result.length === 1) {
+            return result[0];
+        }
+
+        return result;
+    }
+
     async function createContent(): Promise<void> {
         if (!settings.projectPath) {
             return;
@@ -1407,7 +1408,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const contentName = contentNames[i];
             const contentDiv = document.createElement("div");
             contentDiv.id = contentName;
-            contentDiv.classList.add("hidden", "flex-col", "h-auto");
+            contentDiv.className = tw`hidden flex-col`;
 
             if (contentName === "system") {
                 const originalGameTitle = content[i].pop() as string;
@@ -1428,40 +1429,59 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
+            let contentDivHeight = 0;
+
             for (let j = 0; j < content[i].length; j++) {
-                const originalText = content[i][j];
+                const originalText = content[i][j].replaceAll("\\#", "\n");
                 const translationText = content[i + 1][j];
 
                 const textParent = document.createElement("div");
                 textParent.id = `${contentName}-${j + 1}`;
-                textParent.classList.add("content-parent");
+                textParent.className = tw`-mb-0.5 h-auto w-full`;
 
                 const textContainer = document.createElement("div");
-                textContainer.classList.add("flex", "content-child");
+                textContainer.className = tw`flex h-full flex-row justify-around`;
 
                 const originalTextElement = document.createElement("div");
+                originalTextElement.title = windowLocalization.originalTextFieldTitle;
                 originalTextElement.id = `${contentName}-original-${j + 1}`;
-                originalTextElement.textContent = originalText.replaceAll("\\#", "\n");
-                originalTextElement.classList.add("original-text-div", "backgroundPrimary", "outlinePrimary");
+                originalTextElement.className = tw`backgroundPrimary borderPrimary -ml-0.5 inline-block w-full cursor-pointer whitespace-pre-wrap border-2 p-1`;
+                originalTextElement.textContent = originalText;
 
-                const translationTextElement = document.createElement("textarea");
                 const translationTextSplit = translationText.split("\\#");
+                const translationTextElement = document.createElement("textarea");
                 translationTextElement.id = `${contentName}-translation-${j + 1}`;
                 translationTextElement.rows = translationTextSplit.length;
+                translationTextElement.className = tw`borderPrimary backgroundPrimary borderFocused -ml-0.5 h-auto w-full resize-none overflow-hidden border-2 p-1 outline-none focus:z-10`;
                 translationTextElement.value = translationTextSplit.join("\n");
-                translationTextElement.classList.add(
-                    "translation-text-input",
-                    "outlinePrimary",
-                    "backgroundPrimary",
-                    "outlineFocused",
-                );
 
                 const rowElement = document.createElement("div");
                 rowElement.id = `${contentName}-row-${j + 1}`;
-                rowElement.innerHTML = `<span>${(
-                    j + 1
-                ).toString()}</span><div class="flex w-full h-7 justify-end items-center"><button class="bookmarkButton borderPrimary backgroundPrimaryHovered textThird">bookmark</button></div>`;
-                rowElement.classList.add("row", "backgroundPrimary");
+                rowElement.className = tw`backgroundPrimary borderPrimary flex w-48 flex-row border-2 p-1`;
+
+                const spanElement = document.createElement("span");
+                spanElement.textContent = (j + 1).toString();
+
+                const innerDiv = document.createElement("div");
+                innerDiv.className = tw`flex w-full items-start justify-end p-0.5`;
+
+                const button = document.createElement("button");
+                button.className = tw`borderPrimary backgroundPrimaryHovered textThird flex h-6 w-6 items-center justify-center rounded-md border-2 font-material text-xl`;
+                button.textContent = "bookmark";
+
+                innerDiv.appendChild(button);
+                rowElement.appendChild(spanElement);
+                rowElement.appendChild(innerDiv);
+
+                const linesNumber = originalText.count("\n") + 1;
+                const minHeight = linesNumber * 28 + 12;
+
+                rowElement.style.minHeight =
+                    originalTextElement.style.minHeight =
+                    translationTextElement.style.minHeight =
+                    textParent.style.minHeight =
+                        `${minHeight}px`;
+                contentDivHeight += minHeight;
 
                 textContainer.appendChild(rowElement);
                 textContainer.appendChild(originalTextElement);
@@ -1470,39 +1490,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 contentDiv.appendChild(textParent);
             }
 
+            contentDiv.style.minHeight = `${contentDivHeight}px`;
             contentContainer.appendChild(contentDiv);
-        }
-
-        for (const child of contentContainer.children as HTMLCollectionOf<HTMLDivElement>) {
-            child.toggleMultiple("hidden", "flex");
-
-            const heights = new Uint32Array(child.children.length);
-            let i = 0;
-
-            for (const node of child.children as HTMLCollectionOf<HTMLDivElement>) {
-                heights.set(
-                    [((node.firstElementChild as HTMLElement).children[1].innerHTML.count("\n") + 1) * 28 + 8],
-                    i,
-                );
-                i++;
-            }
-
-            i = 0;
-            for (const node of child.children as HTMLCollectionOf<HTMLDivElement>) {
-                node.style.minHeight = `${heights[i] + 8}px`;
-
-                for (const child of node.firstElementChild?.children as HTMLCollectionOf<HTMLDivElement>) {
-                    child.style.minHeight = `${heights[i]}px`;
-                }
-
-                node.firstElementChild?.classList.add("hidden");
-                i++;
-            }
-
-            child.style.minHeight = `${child.scrollHeight}px`;
-            child.toggleMultiple("hidden", "flex");
-
-            document.body.firstElementChild?.classList.remove("invisible");
         }
 
         if (projectStatus) {
@@ -1511,7 +1500,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function writeScripts(scriptsFilePath: string, otherPath: string, outputPath: string, romanize: boolean) {
-        const scriptEntries = load(await readBinaryFile(scriptsFilePath), { string: "binary" }) as Uint8Array[][];
+        const scriptEntries = load(await readBinaryFile(scriptsFilePath), { stringMode: "binary" }) as {
+            __type: "bytes";
+            data: number[];
+        }[][];
         const originalScriptsText = (await readTextFile(await join(otherPath, "scripts.txt"))).split("\n");
         const translatedScriptsText = (await readTextFile(await join(otherPath, "scripts_trans.txt"))).split("\n");
 
@@ -1523,7 +1515,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             let code: string;
 
             {
-                const inflated = inflate(script[2]);
+                const inflated = inflate(new Uint8Array(script[2].data));
 
                 try {
                     code = decoder.decode(inflated);
@@ -1560,7 +1552,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 code = before + after;
             }
 
-            scriptEntries[i][2] = deflate(code, { level: 6 });
+            scriptEntries[i][2] = { __type: "bytes", data: Array.from(deflate(code, { level: 6 })) };
         }
 
         await writeBinaryFile(
@@ -1570,8 +1562,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     settings.engineType === EngineType.VXAce
                         ? "rvdata2"
                         : settings.engineType === EngineType.VX
-                        ? "rvdata"
-                        : "rxdata"
+                          ? "rvdata"
+                          : "rxdata"
                 }`,
             ),
             dump(scriptEntries),
@@ -1604,11 +1596,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             compileButton.firstElementChild?.classList.add("animate-spin");
 
-            const startTime = performance.now();
-
             const executionTime = await invokeCompile({
                 projectPath: settings.projectPath,
-                originalDir: originalDir === "Data" ? await join(programDataDir, jsonDataDir) : originalDir,
+                originalDir: originalDir,
                 outputPath: compileSettings.customOutputPath.path,
                 gameTitle: currentGameTitle.value,
                 romanize: compileSettings.romanize,
@@ -1619,64 +1609,26 @@ document.addEventListener("DOMContentLoaded", async () => {
                 engineType: settings.engineType,
             });
 
-            if (settings.engineType === EngineType.New) {
-                alert(`${windowLocalization.compileSuccess} ${executionTime}`);
-            } else {
-                await createDir(await join(settings.projectPath, programDataDir, "output"), { recursive: true });
-
-                for (const entry of await readDir(await join(settings.projectPath, programDataDir, jsonDataDir))) {
-                    if ((entry.name as string).includes("Scripts")) {
-                        continue;
-                    }
-
-                    const jsonContent = JSON.parse(await readTextFile(entry.path), (_, value) => {
-                        if (value && value.__type === "Uint8Array") {
-                            return new Uint8Array(value.data);
-                        }
-
-                        return value;
-                    });
-
-                    const dumped = dump(jsonContent, { convertStringsToInstanceVar: "" });
-
-                    await writeBinaryFile(
-                        await join(
-                            settings.projectPath,
-                            programDataDir,
-                            "output",
-                            `${(entry.name as string).slice(0, -5)}.${
-                                settings.engineType === EngineType.VXAce
-                                    ? "rvdata2"
-                                    : settings.engineType === EngineType.VX
-                                    ? "rvdata"
-                                    : "rxdata"
-                            }`,
-                        ),
-                        dumped,
-                    );
-                }
-
-                if (!compileSettings.disableProcessing.of.plugins) {
-                    await writeScripts(
-                        await join(
-                            settings.projectPath,
-                            originalDir === (await join(programDataDir, jsonDataDir)) ? "Data" : originalDir,
-                            `Scripts.${
-                                settings.engineType === EngineType.VXAce
-                                    ? "rvdata2"
-                                    : settings.engineType === EngineType.VX
-                                    ? "rvdata"
-                                    : "rxdata"
-                            }`,
-                        ),
-                        await join(settings.projectPath, programDataDir, translationDir, otherDir),
-                        await join(settings.projectPath, programDataDir, "output"),
-                        compileSettings.romanize,
-                    );
-                }
+            if (!compileSettings.disableProcessing.of.plugins) {
+                await writeScripts(
+                    await join(
+                        settings.projectPath,
+                        originalDir,
+                        `Scripts.${
+                            settings.engineType === EngineType.VXAce
+                                ? "rvdata2"
+                                : settings.engineType === EngineType.VX
+                                  ? "rvdata"
+                                  : "rxdata"
+                        }`,
+                    ),
+                    await join(settings.projectPath, programDataDir, translationDir, otherDir),
+                    await join(settings.projectPath, programDataDir, "output", "Data"),
+                    compileSettings.romanize,
+                );
             }
 
-            alert(`${windowLocalization.compileSuccess} ${(performance.now() - startTime) / 1000}`);
+            alert(`${windowLocalization.compileSuccess} ${executionTime}`);
             compileButton.firstElementChild?.classList.remove("animate-spin");
         }
     }
@@ -1715,11 +1667,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         const result = getNewLinePositions(focusedElement);
 
         for (const { left, top } of result) {
-            const ghostNewLine = document.createElement("div");
-            ghostNewLine.classList.add("ghost-new-line", "textThird");
-            ghostNewLine.innerHTML = "\\n";
-            ghostNewLine.style.left = `${left}px`;
-            ghostNewLine.style.top = `${top}px`;
+            const ghostNewLine = fromHTML(
+                `<div class="z-50 cursor-default pointer-events-none select-none absolute textThird" style="left: ${left}px; top: ${top + 2}px">\\n</div>`,
+            ) as HTMLDivElement;
 
             activeGhostLines.push(ghostNewLine);
             document.body.appendChild(ghostNewLine);
@@ -1728,10 +1678,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     function handleFocus(event: FocusEvent): void {
         const target = event.target as HTMLTextAreaElement;
-
-        for (const ghost of activeGhostLines) {
-            ghost.remove();
-        }
 
         if (
             contentContainer.contains(target) &&
@@ -2041,83 +1987,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 gameTitle = JSON.parse(await readTextFile(await join(settings.projectPath, originalDir, "System.json")))
                     .gameTitle as string;
             } else {
-                if (!(await exists(await join(settings.projectPath, programDataDir, jsonDataDir)))) {
-                    const decoder = new TextDecoder();
-
-                    await createDir(await join(settings.projectPath, programDataDir, jsonDataDir), {
-                        recursive: true,
-                    });
-
-                    const entries = await readDir(await join(settings.projectPath, originalDir));
-                    for (const entry of entries) {
-                        const name = entry.name as string;
-                        const basename = name.slice(0, name.lastIndexOf("."));
-
-                        if (
-                            ["Animations", "MapInfos", "Tilesets", "Scripts"].includes(basename) ||
-                            !/data2?$/.test(name)
-                        ) {
-                            continue;
-                        }
-
-                        const serializedMarshalData = load(await readBinaryFile(entry.path), {
-                            convertHashKeysToString: true,
-                            convertInstanceVarsToString: "",
-                        });
-
-                        const stringified = JSON.stringify(serializedMarshalData, (_, value) => {
-                            if (value instanceof Uint8Array) {
-                                return {
-                                    __type: "Uint8Array",
-                                    data: Array.from(value),
-                                };
-                            }
-
-                            return value;
-                        });
-
-                        await writeTextFile(
-                            await join(
-                                settings.projectPath,
-                                programDataDir,
-                                jsonDataDir,
-                                `${name.slice(0, name.lastIndexOf("."))}.json`,
-                            ),
-                            stringified,
-                        );
-                    }
-
-                    const serializedScriptsData = load(
-                        await readBinaryFile(
-                            await join(
-                                settings.projectPath,
-                                originalDir,
-                                `Scripts.${
-                                    settings.engineType === EngineType.VXAce
-                                        ? "rvdata2"
-                                        : settings.engineType === EngineType.VX
-                                        ? "rvdata"
-                                        : "rxdata"
-                                }`,
-                            ),
-                        ),
-                        {
-                            string: "binary",
-                        },
-                    ) as Uint8Array[][];
-
-                    const codes: string[] = [];
-
-                    for (const arr of serializedScriptsData) {
-                        codes.push(decoder.decode(inflate(arr[2])));
-                    }
-
-                    await writeTextFile(
-                        await join(settings.projectPath, programDataDir, jsonDataDir, "Scripts.txt"),
-                        codes.join(""),
-                    );
-                }
-
                 const iniFileContent = (await readTextFile(await join(settings.projectPath, "Game.ini"))).split("\n");
 
                 for (const line of iniFileContent) {
@@ -2126,13 +1995,33 @@ document.addEventListener("DOMContentLoaded", async () => {
                     }
                 }
 
-                originalDir = await join(programDataDir, jsonDataDir);
+                const decoder = new TextDecoder();
+                const codes: string[] = [];
 
-                await readScripts(
-                    await readTextFile(await join(settings.projectPath, programDataDir, jsonDataDir, "Scripts.txt")),
-                    otherPath,
-                    false,
-                );
+                const serializedScriptsData = load(
+                    await readBinaryFile(
+                        await join(
+                            settings.projectPath,
+                            originalDir,
+                            `Scripts.${
+                                settings.engineType === EngineType.VXAce
+                                    ? "rvdata2"
+                                    : settings.engineType === EngineType.VX
+                                      ? "rvdata"
+                                      : "rxdata"
+                            }`,
+                        ),
+                    ),
+                    {
+                        stringMode: "binary",
+                    },
+                ) as { __type: "bytes"; data: number[] }[][];
+
+                for (const arr of serializedScriptsData) {
+                    codes.push(decoder.decode(inflate(new Uint8Array(arr[2].data))));
+                }
+
+                await readScripts(codes.join(""), otherPath, false);
             }
 
             await invokeRead({
@@ -2175,7 +2064,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const number = name.slice(0, -2);
                     return Number.parseInt(number);
                 })
-                .sort((a: number, b: number) => a - b)[0];
+                .sort((a, b) => a - b)[0];
 
             if (!nextBackupNumber) {
                 nextBackupNumber = 0;
@@ -2200,7 +2089,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const themeButton = document.createElement("button");
             themeButton.id = themeName;
             themeButton.innerHTML = themeName;
-            themeButton.classList.add("dropdown-menu-button", "backgroundPrimary", "backgroundPrimaryHovered");
+            themeButton.className = tw`backgroundPrimary backgroundPrimaryHovered p-2 text-base`;
 
             themeMenu.insertBefore(themeButton, createThemeMenuButton);
         }
@@ -2340,12 +2229,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             const replacedContainer: HTMLDivElement = document.createElement("div");
 
                             const replacedElement: HTMLDivElement = document.createElement("div");
-                            replacedElement.classList.add(
-                                "replaced-element",
-                                "textSecond",
-                                "borderPrimary",
-                                "backgroundSecond",
-                            );
+                            replacedElement.className = tw`textSecond borderPrimary backgroundSecond my-1 cursor-pointer border-2 p-1 text-xl`;
 
                             replacedElement.innerHTML = `<div class="text-base textThird">${key}</div><div class=text-base>${value.original}</div><div class="flex justify-center items-center text-xl textPrimary font-material">arrow_downward</div><div class="text-base">${value.translation}</div>`;
 
@@ -2476,6 +2360,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     contentContainer.addEventListener("focus", handleFocus, true);
     contentContainer.addEventListener("blur", handleBlur, true);
+    contentContainer.addEventListener("click", (event) => {
+        const target = event.target as HTMLElement;
+
+        if (target.id.includes("-original-")) {
+            navigator.clipboard.writeText(target.textContent as string);
+        }
+    });
 
     goToRowInput.addEventListener("keydown", (event) => {
         if (event.code === "Enter") {

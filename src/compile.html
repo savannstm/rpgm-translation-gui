@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
     <head>
         <meta charset="UTF-8" />
@@ -8,58 +8,58 @@
         <link rel="stylesheet" href="material.css" />
         <script type="module" src="./compile.ts" defer></script>
     </head>
-    <body class="p-0 m-0 overflow-x-hidden text-lg textPrimary backgroundDark">
+    <body class="textPrimary backgroundDark m-0 overflow-x-hidden p-0 text-lg">
         <div class="p-8">
-            <div class="text-2xl options"></div>
+            <div class="options text-2xl"></div>
             <div id="settings-container">
                 <div class="flex flex-col">
-                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
-                        <span id="logging-checkbox" class="text-xl checkbox borderPrimary size-8"></span>
+                    <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
+                        <span id="logging-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
                         <span class="enableLoggingOption"></span>
                     </div>
 
-                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
-                        <span id="romanize-checkbox" class="text-xl checkbox borderPrimary size-8"></span>
+                    <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
+                        <span id="romanize-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
                         <span class="romanizeOption"></span>
                     </div>
 
-                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
-                        <span id="shuffle-checkbox" class="text-xl checkbox borderPrimary size-8"></span>
+                    <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
+                        <span id="shuffle-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
                         <span class="shuffleOption"></span>
                     </div>
 
-                    <div id="shuffle-settings" class="z-40 flex-row gap-2 pt-2 pl-4 transition-transform duration-300">
+                    <div id="shuffle-settings" class="z-40 flex-row gap-2 pl-4 pt-2 transition-transform duration-300">
                         <span class="shuffleLevel"></span>
-                        <select id="shuffle-select" class="rounded-sm outline-none backgroundSecond">
+                        <select id="shuffle-select" class="backgroundSecond rounded-sm outline-none">
                             <option value="0" class="chooseOptionText"></option>
                             <option value="1" class="shuffleLinesOption"></option>
                             <option value="2" class="shuffleAllOption"></option>
                         </select>
                     </div>
 
-                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
-                        <span id="custom-processing-checkbox" class="text-xl checkbox borderPrimary size-8"></span>
+                    <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
+                        <span id="custom-processing-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
                         <span class="disableCustomProcessing"></span>
                     </div>
 
-                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
-                        <span id="custom-output-path-checkbox" class="text-xl checkbox borderPrimary size-8"></span>
+                    <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
+                        <span id="custom-output-path-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
                         <span class="customOutputPath"></span>
                     </div>
 
                     <div
                         id="custom-output-path-settings"
-                        class="z-40 flex-row gap-2 pt-2 pl-4 transition-transform duration-300"
+                        class="z-40 flex-row gap-2 pl-4 pt-2 transition-transform duration-300"
                     >
                         <button
                             id="select-output-path"
-                            class="h-12 p-1 rounded-sm selectOutputPath backgroundPrimary backgroundSecondHovered"
+                            class="selectOutputPath backgroundPrimary backgroundSecondHovered h-12 rounded-sm p-1"
                         ></button>
-                        <input type="text" id="output-path" class="w-9/12 h-12 input textSecond backgroundSecond" />
+                        <input type="text" id="output-path" class="input textSecond backgroundSecond h-12 w-9/12" />
                     </div>
 
-                    <div class="z-50 flex flex-row gap-2 pt-2 backgroundDark">
-                        <span id="disable-processing-checkbox" class="text-xl checkbox borderPrimary size-8"></span>
+                    <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
+                        <span id="disable-processing-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
                         <span class="disableProcessing"></span>
                     </div>
 
@@ -67,7 +67,7 @@
                         <div class="flex flex-row gap-2 pt-2">
                             <span
                                 id="disable-maps-processing-checkbox"
-                                class="text-xl checkbox borderPrimary size-8"
+                                class="checkbox borderPrimary size-8 text-xl"
                             ></span>
                             <span class="disableMapsProcessingOption"></span>
                         </div>
@@ -75,7 +75,7 @@
                         <div class="flex flex-row gap-2 pt-2">
                             <span
                                 id="disable-other-processing-checkbox"
-                                class="text-xl checkbox borderPrimary size-8"
+                                class="checkbox borderPrimary size-8 text-xl"
                             ></span>
                             <span class="disableOtherProcessingOption"></span>
                         </div>
@@ -83,7 +83,7 @@
                         <div class="flex flex-row gap-2 pt-2">
                             <span
                                 id="disable-system-processing-checkbox"
-                                class="text-xl checkbox borderPrimary size-8"
+                                class="checkbox borderPrimary size-8 text-xl"
                             ></span>
                             <span class="disableSystemProcessingOption"></span>
                         </div>
@@ -91,14 +91,14 @@
                         <div class="flex flex-row gap-2 pt-2">
                             <span
                                 id="disable-plugins-processing-checkbox"
-                                class="text-xl checkbox borderPrimary size-8"
+                                class="checkbox borderPrimary size-8 text-xl"
                             ></span>
                             <span class="disablePluginsProcessingOption"></span>
                         </div>
                     </div>
 
                     <div class="flex flex-row gap-2 pt-2">
-                        <span id="dont-ask-again-checkbox" class="text-xl checkbox borderPrimary size-8"></span>
+                        <span id="dont-ask-again-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
                         <span class="dontAskAgain"></span>
                     </div>
                 </div>
@@ -106,7 +106,7 @@
             <div class="flex items-center justify-center pt-4">
                 <button
                     id="compile-button"
-                    class="w-48 h-8 text-xl border-2 rounded-md button backgroundPrimaryHovered borderPrimary textThird compileButtonText"
+                    class="button backgroundPrimaryHovered borderPrimary textThird compileButtonText h-8 w-48 rounded-md border-2 text-xl"
                 ></button>
             </div>
         </div>

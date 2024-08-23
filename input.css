@@ -3,59 +3,19 @@
 @tailwind utilities;
 
 .button {
-    @apply flex items-center justify-center p-4 select-none;
+    @apply flex select-none items-center justify-center p-4;
 }
 
 .input {
-    @apply p-2 rounded-sm resize-none focus:outline-none;
+    @apply resize-none rounded-sm p-2 focus:outline-none;
 }
 
 .menu-button {
-    @apply flex flex-col items-center justify-center h-full p-2;
-}
-
-.search-result {
-    @apply p-1 my-1 text-xl border-2 cursor-pointer;
-}
-
-.search-result-arrow {
-    @apply flex items-center justify-center text-xl font-material;
-}
-
-.original-text-div {
-    @apply inline-block w-full h-auto p-1 mr-2 whitespace-pre-wrap outline outline-2;
-}
-
-.translation-text-input {
-    @apply w-full h-auto p-1 resize-none outline outline-2;
-}
-
-.ghost-new-line {
-    @apply absolute z-50 cursor-default pointer-events-none select-none;
-}
-
-.replaced-element {
-    @apply p-1 my-1 text-xl border-2 cursor-pointer;
-}
-
-.content-parent {
-    @apply z-10 w-full h-auto p-1;
-}
-
-.content-child {
-    @apply flex-row h-auto;
-}
-
-.row {
-    @apply flex flex-row h-auto p-1 outline-none w-36;
+    @apply flex h-full flex-col items-center justify-center p-2;
 }
 
 .dropdown-menu {
-    @apply fixed z-50 flex-col w-auto h-auto rounded-md;
-}
-
-.dropdown-menu-button {
-    @apply p-2 text-base;
+    @apply fixed z-50 h-auto w-auto flex-col rounded-md;
 }
 
 .menu-bar-button {
@@ -63,13 +23,5 @@
 }
 
 .checkbox {
-    @apply flex items-center justify-center text-xl border-2 rounded-md cursor-pointer select-none font-material min-h-8 min-w-8;
-}
-
-.bookmarkButton {
-    @apply flex items-center justify-center w-6 h-6 text-xl border-2 rounded-md font-material;
-}
-
-.bookmark {
-    @apply flex flex-row items-center justify-center p-2;
+    @apply flex min-h-8 min-w-8 cursor-pointer select-none items-center justify-center rounded-md border-2 font-material text-xl;
 }

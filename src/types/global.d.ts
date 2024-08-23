@@ -82,7 +82,7 @@ interface CSSRule {
     selectorText: string;
 }
 
-interface ReadCommandOptions extends Record<string, T> {
+interface ReadCommandOptions extends Record<string, unknown> {
     projectPath: string;
     originalDir: string;
     gameTitle: string;
@@ -94,7 +94,7 @@ interface ReadCommandOptions extends Record<string, T> {
     engineType: EngineType;
 }
 
-interface CompileCommandOptions extends Record<string, T> {
+interface CompileCommandOptions extends Record<string, unknown> {
     projectPath: string;
     originalDir: string;
     outputPath: string;

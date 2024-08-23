@@ -175,6 +175,7 @@ export async function readScripts(string: string, otherPath: string, romanize: b
     const strings = [];
 
     const extractedStrings = extractStrings(string) as string[];
+
     for (const extracted of extractedStrings) {
         let trimmed = extracted.replaceAll("　", " ").trim();
 
@@ -238,8 +239,24 @@ export function applyTheme(sheet: CSSStyleSheet, theme: Theme | [string, string]
         for (const [key, value] of Object.entries(theme)) {
             for (const rule of sheet.cssRules) {
                 if (key.endsWith("Focused") && rule.selectorText === `.${key}:focus`) {
+                    const styleLength = rule.style.length;
+                    if (styleLength > 1) {
+                        for (let i = 0; i < styleLength; i++) {
+                            rule.style.setProperty(rule.style[i], value);
+                        }
+                        continue;
+                    }
+
                     rule.style.setProperty(rule.style[0], value);
                 } else if (key.endsWith("Hovered") && rule.selectorText === `.${key}:hover`) {
+                    const styleLength = rule.style.length;
+                    if (styleLength > 1) {
+                        for (let i = 0; i < styleLength; i++) {
+                            rule.style.setProperty(rule.style[i], value);
+                        }
+                        continue;
+                    }
+
                     rule.style.setProperty(rule.style[0], value);
                 } else if (rule.selectorText === `.${key}`) {
                     const styleLength = rule.style.length;

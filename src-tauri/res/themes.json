@@ -28,7 +28,7 @@
         "outlineFocused": "#a1a1aa",
         "borderPrimary": "#52525b",
         "borderSecond": "#3f3f46",
-        "borderFocused": "#52525b",
+        "borderFocused": "#a1a1aa",
         "backgroundSecond": "#3f3f46",
         "backgroundPrimaryHovered": "#52525b",
         "backgroundSecondHovered": "#3f3f46",

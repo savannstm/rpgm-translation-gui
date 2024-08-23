@@ -70,6 +70,7 @@ export class MainWindowLocalization {
     readonly readButtonTitle: string;
     readonly directoryAlreadyOpened: string;
     readonly errorOccurred: string;
+    readonly originalTextFieldTitle: string;
 
     constructor(language: Language) {
         switch (language) {
@@ -147,6 +148,7 @@ export class MainWindowLocalization {
                 this.readButtonTitle = "Перечитать файлы (Alt + R)";
                 this.directoryAlreadyOpened = "Выбранная директория уже открыта в программе.";
                 this.errorOccurred = "Произошла ошибка:";
+                this.originalTextFieldTitle = "Кликните, чтобы скопировать текст";
                 break;
             default:
                 this.cannotGetSettings = "Cannot find program's settings.";
@@ -222,6 +224,7 @@ export class MainWindowLocalization {
                 this.readButtonTitle = "Re-read files (Alt + R)";
                 this.directoryAlreadyOpened = "Selected directory is already opened in the program.";
                 this.errorOccurred = "An error has occurred:";
+                this.originalTextFieldTitle = "Click to copy text";
                 break;
         }
     }

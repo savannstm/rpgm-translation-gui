@@ -17,10 +17,16 @@ mod write;
 use read::*;
 use write::*;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 enum GameType {
     Termina,
     LisaRPG,
+}
+
+impl PartialEq<GameType> for &GameType {
+    fn eq(&self, other: &GameType) -> bool {
+        *self == other
+    }
 }
 
 #[derive(PartialEq)]
@@ -86,7 +92,7 @@ lazy_static! {
     pub static ref ENDS_WITH_IF_RE: Regex = Regex::new(r" if\(.*\)$").unwrap();
     pub static ref LISA_PREFIX_RE: Regex = Regex::new(r"^(\\et\[[0-9]+\]|\\nbt)").unwrap();
     pub static ref INVALID_MULTILINE_VARIABLE_RE: Regex = Regex::new(r"^#? ?<.*>.?$|^[a-z][0-9]$").unwrap();
-    pub static ref INVALID_VAIRIABLE_RE: Regex = Regex::new(r"^[+-]?[0-9]+$|^///|---|restrict eval").unwrap();
+    pub static ref INVALID_VARIABLE_RE: Regex = Regex::new(r"^[+-]?[0-9]+$|^///|---|restrict eval").unwrap();
     pub static ref SELECT_WORDS_RE: Regex = Regex::new(r"\S+").unwrap();
 }
 
@@ -221,6 +227,8 @@ fn compile(
     if engine_type == EngineType::New {
         create_dir_all(data_output_path).unwrap();
         create_dir_all(plugins_output_path).unwrap();
+    } else {
+        create_dir_all(output_path.join(data_dir).join("output/Data")).unwrap();
     }
 
     if !disable_processing[0] {
@@ -253,7 +261,12 @@ fn compile(
 
     if !disable_processing[2] {
         write_system(
-            &original_path.join("System.json"),
+            &original_path.join(match engine_type {
+                EngineType::New => "System.json",
+                EngineType::VXAce => "System.rvdata2",
+                EngineType::VX => "System.rvdata",
+                EngineType::XP => "System.rxdata",
+            }),
             other_path,
             data_output_path,
             romanize,
@@ -268,7 +281,7 @@ fn compile(
 
     if !disable_processing[3]
         && game_type.is_some()
-        && *game_type.as_ref().unwrap() == GameType::Termina
+        && game_type.as_ref().unwrap() == GameType::Termina
         && plugins_path.exists()
     {
         write_plugins(
@@ -357,7 +370,12 @@ fn read(
 
     if !disable_processing[2] {
         read_system(
-            &original_path.join("System.json"),
+            &original_path.join(match engine_type {
+                EngineType::New => "System.json",
+                EngineType::VXAce => "System.rvdata2",
+                EngineType::VX => "System.rvdata",
+                EngineType::XP => "System.rxdata",
+            }),
             other_path,
             romanize,
             logging,

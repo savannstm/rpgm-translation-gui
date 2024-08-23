@@ -1,34 +1,35 @@
 {
     "name": "rpgm-translation-gui",
     "private": true,
-    "version": "3.10.4",
+    "version": "3.11.0",
     "type": "module",
     "scripts": {
         "dev": "vite",
         "build": "tsc && vite build",
         "preview": "vite preview",
         "tauri": "tauri",
-        "tw": "tailwindcss -i ./input.css -o ./src/style.css -w --minify",
-        "build-x64": "tauri build",
-        "build-i686": "tauri build --target i686-pc-windows-msvc"
+        "tw": "tailwindcss -i ./input.css -o ./src/style.css -w --minify"
     },
     "dependencies": {
-        "@hyrious/marshal": "^0.3.3",
-        "@savannstm/marshal": "^0.5.1",
+        "@savannstm/marshal": "^0.6.2",
         "@tauri-apps/api": "^1.6.0",
         "immutable": "^4.3.7",
         "pako": "^2.1.0",
         "xregexp": "^5.1.1"
     },
     "devDependencies": {
-        "@eslint/js": "^10.0.0",
+        "@eslint/js": "^9.9.0",
         "@tauri-apps/cli": "^1.6.0",
         "@types/pako": "^2.0.3",
-        "eslint": "^9.8.0",
-        "tailwindcss": "^3.4.9",
+        "eslint": "^9.9.0",
+        "prettier": "^3.3.3",
+        "prettier-plugin-organize-attributes": "^1.0.0",
+        "prettier-plugin-organize-imports": "^4.0.0",
+        "prettier-plugin-tailwindcss": "^0.6.6",
+        "tailwindcss": "^3.4.10",
         "typescript": "^5.5.4",
-        "typescript-eslint": "^8.0.1",
-        "vite": "^5.4.0",
-        "vite-plugin-minify": "^1.5.2"
+        "typescript-eslint": "^8.2.0",
+        "vite": "^5.4.2",
+        "vite-plugin-minify": "^2.0.0"
     }
 }
