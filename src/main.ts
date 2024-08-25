@@ -1536,6 +1536,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             for (let i = stringArray.length - 1; i >= 0; i--) {
                 let string = stringArray[i].replaceAll("　", "").trim();
+
                 if (string.length === 0 || !scriptsTranslationMap.has(string)) {
                     continue;
                 }
@@ -1545,11 +1546,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
 
                 const translated = scriptsTranslationMap.get(string) as string;
-                const before = code.slice(0, indexArray[i]);
-                const after = code.slice(indexArray[i]);
 
-                after.replace(string, translated);
-                code = before + after;
+                if (translated) {
+                    const before = code.slice(0, indexArray[i]);
+                    const after = code.slice(indexArray[i] + string.length);
+
+                    code = before + translated + after;
+                }
             }
 
             scriptEntries[i][2] = { __type: "bytes", data: Array.from(deflate(code, { level: 6 })) };
