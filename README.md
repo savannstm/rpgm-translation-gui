@@ -6,7 +6,7 @@
 
 As the name says, this repository contains a graphical interface designed for editing and translating the text of games based on RPG Maker XP/VX/VXAce/MV/MZ engines.
 
-The program is written using Rust and TypeScript, and the graphical interface is implemented using Tauri. Under the hood, this GUI uses [rvpacker-json-txt](https://github.com/savannstm/rvpacker-json-txt) to parse and write RPG Maker MV/MZ .json files, and [TypeScript implementation of Ruby Marshal](https://github.com/savannstm/marshal) to parse and write RPG Maker XP/VX/VXAce files.
+The program is written using Rust and TypeScript, and the graphical interface is implemented using Tauri. Under the hood, this GUI uses [rvpacker-json-txt](https://github.com/savannstm/rvpacker-json-txt) to parse and write RPG Maker MV/MZ .json files, and [Rust implementation of Ruby Marshal](https://github.com/savannstm/marshal-rs) to parse and write RPG Maker XP/VX/VXAce files.
 The program can open folders with games on the above-mentioned engines, and then parse the text of the games into .txt files from the source files located in the "data" folder.
 
 In some cases, the source files of the XP/VX/VXAce games may be encrypted (in this case, generally, there is no data folder in the root directory of the game).
