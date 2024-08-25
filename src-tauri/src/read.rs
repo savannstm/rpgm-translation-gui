@@ -1213,7 +1213,7 @@ pub fn read_system(
     .as_object()
     .unwrap()
     {
-        if key.starts_with("__") {
+        if !key.starts_with("__symbol__") {
             continue;
         }
 
