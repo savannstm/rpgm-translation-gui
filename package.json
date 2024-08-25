@@ -1,7 +1,7 @@
 {
     "name": "rpgm-translation-gui",
     "private": true,
-    "version": "3.11.0",
+    "version": "3.11.1",
     "type": "module",
     "scripts": {
         "dev": "vite",
@@ -11,17 +11,17 @@
         "tw": "tailwindcss -i ./input.css -o ./src/style.css -w --minify"
     },
     "dependencies": {
-        "@savannstm/marshal": "^0.6.2",
+        "@savannstm/marshal": "^0.6.3",
         "@tauri-apps/api": "^1.6.0",
         "immutable": "^4.3.7",
         "pako": "^2.1.0",
         "xregexp": "^5.1.1"
     },
     "devDependencies": {
-        "@eslint/js": "^9.9.0",
-        "@tauri-apps/cli": "^1.6.0",
+        "@eslint/js": "^9.9.1",
+        "@tauri-apps/cli": "^1.6.1",
         "@types/pako": "^2.0.3",
-        "eslint": "^9.9.0",
+        "eslint": "^9.9.1",
         "prettier": "^3.3.3",
         "prettier-plugin-organize-attributes": "^1.0.0",
         "prettier-plugin-organize-imports": "^4.0.0",
