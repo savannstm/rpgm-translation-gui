@@ -624,14 +624,14 @@ pub fn write_maps(
 
     let mut maps_translated_text_vec: Vec<String> = read_to_string(maps_path.join("maps_trans.txt"))
         .unwrap()
-        .par_split('\n')
-        .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
+        .split('\n')
+        .map(|line: &str| line.trim().to_string())
         .collect();
 
     let mut names_translated_text_vec: Vec<String> = read_to_string(maps_path.join("names_trans.txt"))
         .unwrap()
-        .par_split('\n')
-        .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
+        .split('\n')
+        .map(|line: &str| line.trim().to_string())
         .collect();
 
     if shuffle_level > 0 {
@@ -664,20 +664,12 @@ pub fn write_maps(
             a
         });
 
-    let names_translation_map: HashMap<String, String, BuildHasherDefault<Xxh3>> = names_original_text_vec
-        .into_par_iter()
-        .zip(names_translated_text_vec.into_par_iter())
-        .fold(
-            HashMap::default,
-            |mut map: HashMap<String, String, BuildHasherDefault<Xxh3>>, (key, value): (String, String)| {
-                map.insert(key, value);
-                map
-            },
-        )
-        .reduce(HashMap::default, |mut a, b| {
-            a.extend(b);
-            a
-        });
+    let names_translation_map: HashMap<String, String, BuildHasherDefault<Xxh3>> = HashMap::from_iter(
+        names_original_text_vec
+            .into_iter()
+            .zip(names_translated_text_vec)
+            .collect::<Vec<(String, String)>>(),
+    );
 
     // 401 - dialogue lines
     // 102 - dialogue choices array
@@ -1099,7 +1091,7 @@ pub fn write_system(
 
     let system_original_text: Vec<String> = read_to_string(other_path.join("system.txt"))
         .unwrap()
-        .par_split('\n')
+        .split('\n')
         .map(|line: &str| line.trim().to_string())
         .collect();
 
@@ -1113,7 +1105,7 @@ pub fn write_system(
 
     let mut system_translated_text: Vec<String> = system_translated_text
         .0
-        .par_split('\n')
+        .split('\n')
         .map(|line: &str| line.trim().to_string())
         .collect();
 
@@ -1148,7 +1140,7 @@ pub fn write_system(
     }]
     .as_array_mut()
     .unwrap()
-    .par_iter_mut()
+    .iter_mut()
     .for_each(|value: &mut Value| {
         let mut string: String = value.as_str().unwrap().trim().to_string();
 
@@ -1172,7 +1164,7 @@ pub fn write_system(
     }]
     .as_array_mut()
     .unwrap()
-    .par_iter_mut()
+    .iter_mut()
     .for_each(|value: &mut Value| {
         let mut string: String = value.as_str().unwrap().trim().to_string();
 
@@ -1193,7 +1185,7 @@ pub fn write_system(
         system_obj["equipTypes"]
             .as_array_mut()
             .unwrap()
-            .par_iter_mut()
+            .iter_mut()
             .for_each(|value: &mut Value| {
                 let mut string: String = value.as_str().unwrap().trim().to_string();
 
@@ -1218,7 +1210,7 @@ pub fn write_system(
     }]
     .as_array_mut()
     .unwrap()
-    .par_iter_mut()
+    .iter_mut()
     .for_each(|value: &mut Value| {
         let mut string: String = value.as_str().unwrap().trim().to_string();
 
@@ -1245,9 +1237,8 @@ pub fn write_system(
     .as_object_mut()
     .unwrap()
     .iter_mut()
-    .par_bridge()
     .for_each(|(key, value): (&str, &mut Value)| {
-        if key.starts_with("__") {
+        if !key.starts_with("__symbol__") {
             return;
         }
 
@@ -1255,7 +1246,7 @@ pub fn write_system(
             value
                 .as_array_mut()
                 .unwrap()
-                .par_iter_mut()
+                .iter_mut()
                 .for_each(|subvalue: &mut Value| {
                     if let Some(str) = subvalue.as_str() {
                         let mut string: String = str.trim().to_string();
@@ -1278,26 +1269,21 @@ pub fn write_system(
                 return;
             }
 
-            value
-                .as_object_mut()
-                .unwrap()
-                .iter_mut()
-                .par_bridge()
-                .for_each(|(_, value)| {
-                    let mut string: String = value.as_str().unwrap().trim().to_string();
+            value.as_object_mut().unwrap().iter_mut().for_each(|(_, value)| {
+                let mut string: String = value.as_str().unwrap().trim().to_string();
 
-                    if romanize {
-                        string = romanize_string(string)
+                if romanize {
+                    string = romanize_string(string)
+                }
+
+                if let Some(translated) = system_translation_map.get(&string) {
+                    if translated.is_empty() {
+                        return;
                     }
 
-                    if let Some(translated) = system_translation_map.get(&string) {
-                        if translated.is_empty() {
-                            return;
-                        }
-
-                        *value = to_value(translated).unwrap();
-                    }
-                });
+                    *value = to_value(translated).unwrap();
+                }
+            });
         }
     });
 
@@ -1308,7 +1294,7 @@ pub fn write_system(
     }]
     .as_array_mut()
     .unwrap()
-    .par_iter_mut()
+    .iter_mut()
     .for_each(|value: &mut Value| {
         let mut string: String = value.as_str().unwrap().trim().to_string();
 
