@@ -1,12 +1,11 @@
 #![allow(clippy::too_many_arguments)]
-use crate::{romanize_string, Code, EngineType, GameType, Variable, ENDS_WITH_IF_RE, SELECT_WORDS_RE};
+use crate::{romanize_string, Code, EngineType, GameType, Variable, ENDS_WITH_IF_RE, LISA_PREFIX_RE, SELECT_WORDS_RE};
 use fastrand::shuffle;
 use marshal_rs::{dump::dump, load::load};
 use rayon::prelude::*;
 use regex::{Captures, Match};
 use sonic_rs::{
-    from_str, from_value, json, to_string, to_value, Array, JsonContainerTrait, JsonValueMutTrait, JsonValueTrait,
-    Object, Value,
+    from_str, from_value, json, to_string, Array, JsonContainerTrait, JsonValueMutTrait, JsonValueTrait, Object, Value,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -37,6 +36,9 @@ fn get_translated_parameter<'a>(
     engine_type: &EngineType,
 ) -> Option<String> {
     let mut remaining_strings: Vec<String> = Vec::new();
+    // bool indicates insert whether at start or at end
+    // true inserts at end
+    // false inserts at start
     let mut insert_positions: Vec<bool> = Vec::new();
 
     #[allow(clippy::collapsible_match)]
@@ -48,6 +50,16 @@ fn get_translated_parameter<'a>(
                         && (!parameter.starts_with("choice_text") || parameter.ends_with("????"))
                     {
                         return None;
+                    }
+                }
+                _ => {}
+            },
+            GameType::LisaRPG => match code {
+                Code::Dialogue => {
+                    if let Some(re_match) = LISA_PREFIX_RE.find(parameter) {
+                        parameter = &parameter[re_match.end()..];
+                        remaining_strings.push(re_match.as_str().to_string());
+                        insert_positions.push(false);
                     }
                 }
                 _ => {}
@@ -76,8 +88,8 @@ fn get_translated_parameter<'a>(
 
         for (string, position) in remaining_strings.into_iter().zip(insert_positions.into_iter()) {
             match position {
-                true => translated = string + &translated,
-                false => translated += &string,
+                false => translated = string + &translated,
+                true => translated += &string,
             }
         }
 
@@ -257,7 +269,7 @@ fn write_list(
     engine_type: &EngineType,
     map: &HashMap<String, String, BuildHasherDefault<Xxh3>>,
 ) {
-    let list_length = list.len();
+    let list_length: usize = list.len();
 
     let mut in_sequence: bool = false;
     let mut line: Vec<String> = Vec::with_capacity(4);
@@ -273,7 +285,7 @@ fn write_list(
         .unwrap();
 
         let string_type: bool = !match code {
-            405 | 401 | 356 | 324 | 320 => list[it][if engine_type == EngineType::New {
+            320 | 324 | 356 | 401 | 405 => list[it][if engine_type == EngineType::New {
                 "parameters"
             } else {
                 "__symbol__parameters"
@@ -319,17 +331,17 @@ fn write_list(
                             }][0] = if !string_type {
                                 json!({
                                     "__type": "bytes",
-                                    "data": to_value(&split[i].bytes().collect::<Vec<u8>>()).unwrap()
+                                    "data": Array::from(split[i].as_bytes())
                                 })
                             } else {
-                                to_value(&split[i]).unwrap()
+                                Value::from(split[i])
                             };
                         } else {
                             list[index][if engine_type == EngineType::New {
                                 "parameters"
                             } else {
                                 "__symbol__parameters"
-                            }][0] = to_value("").unwrap();
+                            }][0] = Value::from_static_str(" ");
                         }
                     }
 
@@ -340,7 +352,7 @@ fn write_list(
                             "parameters"
                         } else {
                             "__symbol__parameters"
-                        }][0] = to_value(&remaining).unwrap();
+                        }][0] = Value::from(&remaining);
                     }
                 }
 
@@ -451,7 +463,7 @@ fn write_list(
                             "parameters"
                         } else {
                             "__symbol__parameters"
-                        }][0][i] = json!({"__type": "bytes", "data": to_value(&translated.into_bytes()).unwrap()});
+                        }][0][i] = json!({"__type": "bytes", "data": Array::from(translated.as_bytes())});
                     }
                 }
             }
@@ -501,7 +513,7 @@ fn write_list(
                         "parameters"
                     } else {
                         "__symbol__parameters"
-                    }][0] = json!({"__type": "bytes", "data": to_value(&translated.into_bytes()).unwrap()});
+                    }][0] = json!({"__type": "bytes", "data": Array::from(translated.as_bytes())});
                 }
             }
             320 | 324 | 402 => {
@@ -550,7 +562,7 @@ fn write_list(
                         "parameters"
                     } else {
                         "__symbol__parameters"
-                    }][1] = json!({"__type": "bytes", "data": to_value(&translated.into_bytes()).unwrap()});
+                    }][1] = json!({"__type": "bytes", "data": Array::from(translated.as_bytes())});
                 }
             }
             _ => unreachable!(),
@@ -616,15 +628,15 @@ pub fn write_maps(
         .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
         .collect();
 
-    let names_original_text_vec: Vec<String> = read_to_string(maps_path.join("names.txt"))
-        .unwrap()
-        .par_split('\n')
-        .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
-        .collect();
-
     let mut maps_translated_text_vec: Vec<String> = read_to_string(maps_path.join("maps_trans.txt"))
         .unwrap()
         .split('\n')
+        .map(|line: &str| line.replace(r"\#", "\n").trim().to_string())
+        .collect();
+
+    let names_original_text_vec: Vec<String> = read_to_string(maps_path.join("names.txt"))
+        .unwrap()
+        .par_split('\n')
         .map(|line: &str| line.trim().to_string())
         .collect();
 
@@ -694,7 +706,7 @@ pub fn write_maps(
                 }
 
                 if let Some(location_name) = names_translation_map.get(&display_name) {
-                    obj[display_name_label] = to_value(location_name).unwrap();
+                    obj[display_name_label] = Value::from(location_name);
                 }
             }
         }
@@ -984,7 +996,7 @@ pub fn write_other(
                                 );
 
                                 if let Some(translated) = translated {
-                                    obj[variable_label] = to_value(&translated).unwrap();
+                                    obj[variable_label] = Value::from(&translated);
                                 }
                             }
                         }
@@ -1153,7 +1165,7 @@ pub fn write_system(
                 return;
             }
 
-            *value = to_value(translated).unwrap();
+            *value = Value::from(translated);
         }
     });
 
@@ -1177,7 +1189,7 @@ pub fn write_system(
                 return;
             }
 
-            *value = to_value(translated).unwrap();
+            *value = Value::from(translated);
         }
     });
 
@@ -1198,7 +1210,7 @@ pub fn write_system(
                         return;
                     }
 
-                    *value = to_value(translated).unwrap();
+                    *value = Value::from(translated);
                 }
             });
     }
@@ -1223,7 +1235,7 @@ pub fn write_system(
                 return;
             }
 
-            *value = to_value(translated).unwrap();
+            *value = Value::from(translated);
         }
     });
 
@@ -1260,7 +1272,7 @@ pub fn write_system(
                                 return;
                             }
 
-                            *subvalue = to_value(translated).unwrap();
+                            *subvalue = Value::from(translated);
                         }
                     }
                 });
@@ -1281,7 +1293,7 @@ pub fn write_system(
                         return;
                     }
 
-                    *value = to_value(translated).unwrap();
+                    *value = Value::from(translated);
                 }
             });
         }
@@ -1307,7 +1319,7 @@ pub fn write_system(
                 return;
             }
 
-            *value = to_value(translated).unwrap();
+            *value = Value::from(translated);
         }
     });
 
@@ -1315,7 +1327,7 @@ pub fn write_system(
         "gameTitle"
     } else {
         "__symbol__game_title"
-    }] = to_value(&game_title).unwrap();
+    }] = Value::from(&game_title);
 
     let output_data: Vec<u8> = if engine_type == EngineType::New {
         to_string(&system_obj).unwrap().into_bytes()
@@ -1426,9 +1438,9 @@ pub fn write_plugins(
                                 string = string.replacen(text, translated, 1);
                             }
 
-                            *value = to_value(&string).unwrap();
+                            *value = Value::from(&string);
                         } else if let Some(translated) = plugins_translation_map.get(&string) {
-                            *value = to_value(translated).unwrap();
+                            *value = Value::from(translated);
                         }
                     });
             }
@@ -1442,7 +1454,7 @@ pub fn write_plugins(
                     .for_each(|(_, value)| {
                         if let Some(str) = value.as_str() {
                             if let Some(translated) = plugins_translation_map.get(str) {
-                                *value = to_value(translated).unwrap();
+                                *value = Value::from(translated);
                             }
                         }
                     });
