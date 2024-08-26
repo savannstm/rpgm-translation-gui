@@ -314,7 +314,7 @@ fn parse_list<T: BuildHasher>(
 
                 if let Some(parsed) = parsed {
                     if processing_mode == ProcessingMode::Append && !map.contains_key(&joined) {
-                        map.shift_insert(set.len(), parsed.clone(), "".into());
+                        map.shift_insert(set.len(), parsed.clone(), String::new());
                     }
 
                     set.insert(parsed);
@@ -403,7 +403,7 @@ fn parse_list<T: BuildHasher>(
                             }
 
                             if processing_mode == ProcessingMode::Append && !map.contains_key(&parsed) {
-                                map.shift_insert(set.len(), parsed.clone(), "".into());
+                                map.shift_insert(set.len(), parsed.clone(), String::new());
                             }
 
                             set.insert(parsed);
@@ -445,7 +445,7 @@ fn parse_list<T: BuildHasher>(
                         }
 
                         if processing_mode == ProcessingMode::Append && !map.contains_key(&parsed) {
-                            map.shift_insert(set.len(), parsed.clone(), "".into());
+                            map.shift_insert(set.len(), parsed.clone(), String::new());
                         }
 
                         set.insert(parsed);
@@ -486,7 +486,7 @@ fn parse_list<T: BuildHasher>(
                         }
 
                         if processing_mode == ProcessingMode::Append && !map.contains_key(&parsed) {
-                            map.shift_insert(set.len(), parsed.clone(), "".into());
+                            map.shift_insert(set.len(), parsed.clone(), String::new());
                         }
 
                         set.insert(parsed);
@@ -621,7 +621,7 @@ pub fn read_map(
                 if processing_mode == ProcessingMode::Append
                     && !names_translation_map.contains_key(&display_name_string)
                 {
-                    names_translation_map.shift_insert(names_lines.len(), display_name_string.clone(), "".into());
+                    names_translation_map.shift_insert(names_lines.len(), display_name_string.clone(), String::new());
                 }
 
                 names_lines.insert(display_name_string);
@@ -955,7 +955,11 @@ pub fn read_other(
                                 if inner_processing_type == ProcessingMode::Append
                                     && !other_translation_map.contains_key(&replaced)
                                 {
-                                    other_translation_map.shift_insert(other_lines.len(), replaced.clone(), "".into());
+                                    other_translation_map.shift_insert(
+                                        other_lines.len(),
+                                        replaced.clone(),
+                                        String::new(),
+                                    );
                                 }
 
                                 other_lines.insert(replaced);
@@ -1121,7 +1125,7 @@ pub fn read_system(
             }
 
             if processing_mode == ProcessingMode::Append && !system_translation_map.contains_key(&string) {
-                system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+                system_translation_map.shift_insert(system_lines.len(), string.clone(), String::new());
             }
 
             system_lines.insert(string);
@@ -1148,7 +1152,7 @@ pub fn read_system(
             }
 
             if processing_mode == ProcessingMode::Append && !system_translation_map.contains_key(&string) {
-                system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+                system_translation_map.shift_insert(system_lines.len(), string.clone(), String::new());
             }
 
             system_lines.insert(string);
@@ -1168,7 +1172,7 @@ pub fn read_system(
                 }
 
                 if processing_mode == ProcessingMode::Append && !system_translation_map.contains_key(&string) {
-                    system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+                    system_translation_map.shift_insert(system_lines.len(), string.clone(), String::new());
                 }
 
                 system_lines.insert(string);
@@ -1195,7 +1199,7 @@ pub fn read_system(
             }
 
             if processing_mode == ProcessingMode::Append && !system_translation_map.contains_key(&string) {
-                system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+                system_translation_map.shift_insert(system_lines.len(), string.clone(), String::new());
             }
 
             system_lines.insert(string);
@@ -1230,7 +1234,7 @@ pub fn read_system(
                         }
 
                         if processing_mode == ProcessingMode::Append && !system_translation_map.contains_key(&string) {
-                            system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+                            system_translation_map.shift_insert(system_lines.len(), string.clone(), String::new());
                         }
 
                         system_lines.insert(string);
@@ -1253,7 +1257,7 @@ pub fn read_system(
                     }
 
                     if processing_mode == ProcessingMode::Append && !system_translation_map.contains_key(&string) {
-                        system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+                        system_translation_map.shift_insert(system_lines.len(), string.clone(), String::new());
                     }
 
                     system_lines.insert(string);
@@ -1282,7 +1286,7 @@ pub fn read_system(
             }
 
             if processing_mode == ProcessingMode::Append && !system_translation_map.contains_key(&string) {
-                system_translation_map.shift_insert(system_lines.len(), string.clone(), "".into());
+                system_translation_map.shift_insert(system_lines.len(), string.clone(), String::new());
             }
 
             system_lines.insert(string);
@@ -1307,7 +1311,7 @@ pub fn read_system(
         }
 
         if processing_mode == ProcessingMode::Append && !system_translation_map.contains_key(&game_title_string) {
-            system_translation_map.shift_insert(system_lines.len(), game_title_string.clone(), "".into());
+            system_translation_map.shift_insert(system_lines.len(), game_title_string.clone(), String::new());
         }
 
         system_lines.insert(game_title_string);
