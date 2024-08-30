@@ -2250,9 +2250,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             case "previous-page-button": {
                 const page = Number.parseInt(searchCurrentPage.textContent as string);
 
-                if (page > 1) {
+                if (page > 0) {
                     searchCurrentPage.textContent = (page - 1).toString();
-
                     searchPanelFound.innerHTML = "";
 
                     for (const [id, result] of Object.entries(
@@ -2260,7 +2259,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                             await readTextFile(
                                 await join(
                                     settings.projectPath,
-                                    `matches-${Number.parseInt(searchCurrentPage.textContent) - 1}.json`,
+                                    programDataDir,
+                                    `matches-${Number.parseInt(searchCurrentPage.textContent)}.json`,
                                 ),
                             ),
                         ),
