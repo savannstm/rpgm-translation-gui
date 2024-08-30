@@ -1105,6 +1105,24 @@ pub fn read_system(
         }
     }
 
+    if engine_type != EngineType::New {
+        let str: &str = system_obj["__symbol__currency_unit"].as_str().unwrap().trim();
+
+        if !str.is_empty() {
+            let mut string: String = str.to_string();
+
+            if romanize {
+                string = romanize_string(string)
+            }
+
+            if processing_mode == ProcessingMode::Append && !system_translation_map.contains_key(&string) {
+                system_translation_map.shift_insert(system_lines.len(), string.clone(), String::new());
+            }
+
+            system_lines.insert(string);
+        }
+    }
+
     // Armor types names
     // Normally it's system strings, but might be needed for some purposes
     for string in system_obj[if engine_type == EngineType::New {

@@ -1145,6 +1145,24 @@ pub fn write_system(
             a
         });
 
+    if engine_type != EngineType::New {
+        let mut string: String = system_obj["__symbol__currency_unit"]
+            .as_str()
+            .unwrap()
+            .trim()
+            .to_string();
+
+        if romanize {
+            string = romanize_string(string);
+        }
+
+        if let Some(translated) = system_translation_map.get(&string) {
+            if !translated.is_empty() {
+                system_obj["__symbol__currency_unit"] = Value::from(translated);
+            }
+        }
+    }
+
     system_obj[if engine_type == EngineType::New {
         "armorTypes"
     } else {
