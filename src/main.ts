@@ -618,9 +618,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
 
-        let results: Map<HTMLTextAreaElement, string> | null = new Map();
-        let objectToWrite: Record<string, string> = {};
-        let count = 1;
+        const results = replace ? new Map<HTMLTextAreaElement, string>() : null;
+        const objectToWrite = new Map<string, string>();
         let file = 0;
 
         const searchArray = (
@@ -644,14 +643,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (matches) {
                     const result = createMatchesContainer(elementText, matches);
 
-                    if (replace) {
-                        results?.set(node[2], result);
-                    } else {
-                        objectToWrite[node[2].id] = result;
-                        results = null;
-                    }
-
-                    count++;
+                    replace
+                        ? (results as Map<HTMLTextAreaElement, string>).set(node[2], result)
+                        : objectToWrite.set(node[2].id, result);
                 }
             }
 
@@ -662,32 +656,27 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (matches) {
                     const result = createMatchesContainer(elementText, matches);
 
-                    if (replace) {
-                        results?.set(node[1], result);
-                    } else {
-                        objectToWrite[node[1].id] = result;
-                        results = null;
-                    }
-
-                    count++;
+                    replace
+                        ? (results as Map<HTMLTextAreaElement, string>).set(node[1], result)
+                        : objectToWrite.set(node[1].id, result);
                 }
             }
 
-            if (count % 1000 === 0) {
+            if ((objectToWrite.size + 1) % 1000 === 0) {
                 await writeTextFile(
                     await join(settings.projectPath, programDataDir, `matches-${file}.json`),
-                    JSON.stringify(objectToWrite),
+                    JSON.stringify(Object.fromEntries(objectToWrite)),
                 );
 
-                objectToWrite = {};
+                objectToWrite.clear();
                 file++;
             }
         }
 
-        if (file === 0) {
+        if (objectToWrite.size > 0) {
             await writeTextFile(
-                await join(settings.projectPath, programDataDir, "matches-0.json"),
-                JSON.stringify(objectToWrite),
+                await join(settings.projectPath, programDataDir, `matches-${file}.json`),
+                JSON.stringify(Object.fromEntries(objectToWrite)),
             );
         }
 
