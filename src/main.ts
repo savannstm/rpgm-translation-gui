@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-dynamic-delete */
 import {
     animateProgressText,
@@ -121,12 +122,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     await setTheme(theme);
 
     // Set language
-
     await setLanguage(settings.language);
 
     // Initialize the project
     await initializeProject(settings.projectPath);
-
     // #endregion
 
     const replaced = new Map<string, Record<string, string>>();
@@ -2282,7 +2281,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                             await readTextFile(
                                 await join(
                                     settings.projectPath,
-                                    `matches-${Number.parseInt(searchCurrentPage.textContent) + 1}.json`,
+                                    programDataDir,
+                                    `matches-${Number.parseInt(searchCurrentPage.textContent)}.json`,
                                 ),
                             ),
                         ),
@@ -2379,9 +2379,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const target = event.target as HTMLElement;
-
-        switch (target.id) {
+        switch ((event.target as Element).id) {
             case "replace-button":
                 if (searchInput.value.trim() && replaceInput.value.trim()) {
                     await replaceText(searchInput.value, true);
