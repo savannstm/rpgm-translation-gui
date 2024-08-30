@@ -294,7 +294,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 `${targetId.join("-")}-${line}`,
                             ) as HTMLTextAreaElement;
 
-                            nextElement.style.outlineColor = theme.outlineFocused;
+                            nextElement.style.borderColor = theme.borderFocused;
                             selectedTextareas.set(nextElement.id, nextElement.value);
                         }
                     } else {
@@ -305,7 +305,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 `${targetId.join("-")}-${line}`,
                             ) as HTMLTextAreaElement;
 
-                            nextElement.style.outlineColor = theme.outlineFocused;
+                            nextElement.style.borderColor = theme.borderFocused;
                             selectedTextareas.set(nextElement.id, nextElement.value);
                         }
                     }
@@ -315,7 +315,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 for (const id of selectedTextareas.keys()) {
                     const element = document.getElementById(id) as HTMLTextAreaElement;
-                    element.style.outlineColor = "";
+                    element.style.borderColor = "";
                 }
             }
         }
