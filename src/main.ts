@@ -1403,18 +1403,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const originalGameTitle = content[i].pop() as string;
                 const translatedGameTitle = content[i + 1].pop() as string;
 
-                if (settings.engineType === EngineType.New) {
-                    if (translatedGameTitle === "") {
-                        currentGameTitle.value = originalGameTitle;
-                    } else {
-                        currentGameTitle.value = translatedGameTitle;
-                    }
+                if (translatedGameTitle === "") {
+                    currentGameTitle.value = originalGameTitle;
                 } else {
-                    for (const line of (await readTextFile(await join(settings.projectPath, "Game.ini"))).split("\n")) {
-                        if (line.toLowerCase().includes("title")) {
-                            currentGameTitle.value = line.split("=", 2)[1].trim();
-                        }
-                    }
+                    currentGameTitle.value = translatedGameTitle;
                 }
             }
 
