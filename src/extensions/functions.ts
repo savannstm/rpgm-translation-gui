@@ -171,13 +171,17 @@ export function extractStrings(rubyCode: string, mode = false): string[] | [stri
 }
 
 // this function just takes forever to execute in rust
-export async function readScripts(string: string, otherPath: string, romanize: boolean) {
+export async function readScripts(scriptsContent: string, otherPath: string, romanize: boolean) {
     const strings = [];
+    const extractedStrings = extractStrings(scriptsContent) as string[];
 
-    const extractedStrings = extractStrings(string) as string[];
+    const stringIsOnlySymbolsRe = XRegExp(
+        String.raw`^[.()+\-:;\[\]^~%&!№$@\`*\/→×？?ｘ％▼|♥♪！：〜『』「」〽。…‥＝゠、，【】［］｛｝（）〔〕｟｠〘〙〈〉《》・\\#'"<>=_ー※▶ⅠⅰⅡⅱⅢⅲⅣⅳⅤⅴⅥⅵⅦⅶⅧⅷⅨⅸⅩⅹⅪⅺⅫⅻⅬⅼⅭⅽⅮⅾⅯⅿ\s0-9]+$`,
+    );
+    const forgotWhatItDoesRe = XRegExp(String.raw`^([d\d\p{P}+-]*|[d\p{P}+-]*)$`);
 
     for (const extracted of extractedStrings) {
-        let trimmed = extracted.replaceAll("　", " ").trim();
+        let trimmed = extracted;
 
         if (trimmed.length === 0) {
             continue;
@@ -186,15 +190,13 @@ export async function readScripts(string: string, otherPath: string, romanize: b
         if (
             /(Graphics|Data|Audio|Movies|System)\/.*\/?/.test(trimmed) ||
             /r[xv]data2?$/.test(trimmed) ||
-            XRegExp(
-                String.raw`^[.()+\-:;\[\]^~%&!№$@\`*\/→×？?ｘ％▼|♥♪！：〜『』「」〽。…‥＝゠、，【】［］｛｝（）〔〕｟｠〘〙〈〉《》・\\#'"<>=_ー※▶ⅠⅰⅡⅱⅢⅲⅣⅳⅤⅴⅥⅵⅦⅶⅧⅷⅨⅸⅩⅹⅪⅺⅫⅻⅬⅼⅭⅽⅮⅾⅯⅿ\s0-9]+$`,
-            ).test(trimmed) ||
+            stringIsOnlySymbolsRe.test(trimmed) ||
             /@window/.test(trimmed) ||
             /\$game/.test(trimmed) ||
             /_/.test(trimmed) ||
             /^\\e/.test(trimmed) ||
             /.*\(/.test(trimmed) ||
-            XRegExp(String.raw`^([d\d\p{P}+-]*|[d\p{P}+-]*)$`).test(trimmed) ||
+            forgotWhatItDoesRe.test(trimmed) ||
             /ALPHAC/.test(trimmed) ||
             /^(Actor<id>|ExtraDropItem|EquipLearnSkill|GameOver|Iconset|Window|true|false|MActor%d|[wr]b|\\f|\\n|\[[A-Z]*\])$/.test(
                 trimmed,

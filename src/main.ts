@@ -1516,7 +1516,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const [stringArray, indexArray] = extractStrings(code, true) as [string[], number[]];
 
             for (let i = stringArray.length - 1; i >= 0; i--) {
-                let string = stringArray[i].replaceAll("　", "").trim();
+                let string = stringArray[i];
 
                 if (string.length === 0 || !scriptsTranslationMap.has(string)) {
                     continue;
