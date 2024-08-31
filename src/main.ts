@@ -611,7 +611,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        for (const file of await readDir(settings.projectPath)) {
+        for (const file of await readDir(await join(settings.projectPath, programDataDir))) {
             if (file.name?.startsWith("matches")) {
                 await removeFile(file.path);
             }
