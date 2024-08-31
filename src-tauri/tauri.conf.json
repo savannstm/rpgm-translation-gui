@@ -39,7 +39,7 @@
                 "removeDir": true,
                 "removeFile": true,
                 "renameFile": false,
-                "scope": ["**/*"],
+                "scope": ["**"],
                 "writeFile": true
             },
             "path": {
