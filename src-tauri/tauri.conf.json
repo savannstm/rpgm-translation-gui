@@ -14,20 +14,7 @@
             "all": false,
             "shell": {
                 "all": false,
-                "open": true,
-                "execute": true,
-                "scope": [
-                    {
-                        "name": "rvpacker-txt-win",
-                        "cmd": "rvpacker-txt.bat",
-                        "args": true
-                    },
-                    {
-                        "name": "rvpacker-txt-linux",
-                        "cmd": "rvpacker-txt",
-                        "args": true
-                    }
-                ]
+                "open": true
             },
             "fs": {
                 "all": false,
