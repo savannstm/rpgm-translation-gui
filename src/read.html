@@ -6,94 +6,94 @@
         <link rel="stylesheet" href="style.css" />
         <link rel="stylesheet" href="theme-styles.css" />
         <link rel="stylesheet" href="material.css" />
-        <script type="module" src="./read.ts" defer></script>
+        <script type="module" src="read.ts" defer></script>
     </head>
     <body class="textPrimary backgroundDark m-0 overflow-x-hidden p-0 text-lg">
         <div class="p-8">
             <div class="mode text-2xl"></div>
-            <select id="reading-mode-select" class="backgroundSecond rounded-sm outline-none">
-                <option value="" class="chooseReadingMode"></option>
-                <option value="append" class="appendReadMode"></option>
-                <option value="force" class="forceReadMode"></option>
+            <select class="backgroundSecond rounded-sm outline-none" id="reading-mode-select">
+                <option class="chooseReadingMode" value=""></option>
+                <option class="appendReadMode" value="append"></option>
+                <option class="forceReadMode" value="force"></option>
             </select>
             <div id="mode-description"></div>
             <div class="options text-2xl"></div>
             <div id="settings-container">
                 <div class="flex flex-col">
                     <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
-                        <span id="logging-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
+                        <span class="checkbox borderPrimary size-8 text-xl" id="logging-checkbox"></span>
                         <span class="enableLoggingOption"></span>
                     </div>
 
                     <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
-                        <span id="romanize-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
+                        <span class="checkbox borderPrimary size-8 text-xl" id="romanize-checkbox"></span>
                         <span class="romanizeOption"></span>
                     </div>
 
                     <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
-                        <span id="custom-processing-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
+                        <span class="checkbox borderPrimary size-8 text-xl" id="custom-processing-checkbox"></span>
                         <span class="disableCustomProcessing"></span>
                     </div>
 
                     <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
-                        <span id="disable-processing-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
+                        <span class="checkbox borderPrimary size-8 text-xl" id="disable-processing-checkbox"></span>
                         <span class="disableProcessing"></span>
                     </div>
 
                     <div
-                        id="disable-processing-settings"
                         class="z-40 hidden -translate-y-full flex-col pl-4 transition-transform duration-300"
+                        id="disable-processing-settings"
                     >
                         <div class="flex flex-row gap-2 pt-2">
                             <span
-                                id="disable-maps-processing-checkbox"
                                 class="checkbox borderPrimary size-8 text-xl"
+                                id="disable-maps-processing-checkbox"
                             ></span>
                             <span class="disableMapsProcessingOption"></span>
                         </div>
 
                         <div class="flex flex-row gap-2 pt-2">
                             <span
-                                id="disable-other-processing-checkbox"
                                 class="checkbox borderPrimary size-8 text-xl"
+                                id="disable-other-processing-checkbox"
                             ></span>
                             <span class="disableOtherProcessingOption"></span>
                         </div>
 
                         <div class="flex flex-row gap-2 pt-2">
                             <span
-                                id="disable-system-processing-checkbox"
                                 class="checkbox borderPrimary size-8 text-xl"
+                                id="disable-system-processing-checkbox"
                             ></span>
                             <span class="disableSystemProcessingOption"></span>
                         </div>
 
                         <div class="flex flex-row gap-2 pt-2">
                             <span
-                                id="disable-plugins-processing-checkbox"
                                 class="checkbox borderPrimary size-8 text-xl"
+                                id="disable-plugins-processing-checkbox"
                             ></span>
                             <span class="disablePluginsProcessingOption"></span>
                         </div>
                     </div>
 
                     <div class="flex flex-row gap-2 pt-2">
-                        <span id="dont-ask-again-checkbox" class="checkbox borderPrimary size-8 text-xl"></span>
+                        <span class="checkbox borderPrimary size-8 text-xl" id="dont-ask-again-checkbox"></span>
                         <span class="dontAskAgain"></span>
                     </div>
                 </div>
             </div>
             <div class="flex items-center justify-center pt-4">
                 <button
-                    id="read-button"
                     class="button backgroundPrimaryHovered borderPrimary textThird readButtonText h-8 w-48 rounded-md border-2 text-xl"
+                    id="read-button"
                 ></button>
             </div>
         </div>
 
-        <div id="progress-window" class="fixed left-0 top-0 z-50 hidden h-full w-full bg-black bg-opacity-75">
-            <div id="logging-console" class="h-5/6 min-h-[83.333333%] w-full"></div>
-            <div id="progress-text" class="flex h-fit w-full items-center justify-center"></div>
+        <div class="fixed left-0 top-0 z-50 hidden h-full w-full bg-black bg-opacity-75" id="progress-window">
+            <div class="h-5/6 min-h-[83.333333%] w-full" id="logging-console"></div>
+            <div class="flex h-fit w-full items-center justify-center" id="progress-text"></div>
         </div>
     </body>
 </html>

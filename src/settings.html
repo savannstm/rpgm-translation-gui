@@ -9,38 +9,38 @@
         <script type="module" src="settings.ts" defer></script>
     </head>
     <body class="backgroundDark textPrimary text-lg">
-        <div id="options-menu" class="flex flex-col p-8">
+        <div class="flex flex-col p-8" id="options-menu">
             <div class="backgroundDark z-50 flex flex-row items-center gap-2 py-4">
-                <span id="backup-check" class="checkbox borderPrimary size-8 text-xl">check</span>
-                <span id="backup" class="backup"></span>
+                <span class="checkbox borderPrimary size-8 text-xl" id="backup-check">check</span>
+                <span class="backup" id="backup"></span>
             </div>
 
             <div class="overflow-hidden">
-                <div id="backup-settings" class="z-30 flex-col transition-all duration-300">
-                    <div id="backup-period" class="flex flex-row items-center py-4">
-                        <span id="backup-period-label" class="backupPeriodLabel mr-2"></span>
+                <div class="z-30 flex-col transition-all duration-300" id="backup-settings">
+                    <div class="flex flex-row items-center py-4" id="backup-period">
+                        <span class="backupPeriodLabel mr-2" id="backup-period-label"></span>
                         <input
-                            type="number"
+                            class="backgroundSecond mr-2 h-8 w-auto rounded-md p-2 text-xl outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             id="backup-period-input"
-                            class="backgroundSecond mr-2 h-8 w-auto rounded-md p-2 text-xl outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                        />
-                        <span id="backup-period-note" class="backupPeriodNote"></span>
-                    </div>
-                    <div id="backup-max" class="flex flex-row items-center py-4">
-                        <span id="backup-max-label" class="backupMaxLabel mr-2"></span>
-                        <input
                             type="number"
-                            id="backup-max-input"
-                            class="backgroundSecond mr-2 h-8 w-auto rounded-md p-2 text-xl outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                         />
-                        <span id="backup-max-note" class="backupMaxNote"></span>
+                        <span class="backupPeriodNote" id="backup-period-note"></span>
+                    </div>
+                    <div class="flex flex-row items-center py-4" id="backup-max">
+                        <span class="backupMaxLabel mr-2" id="backup-max-label"></span>
+                        <input
+                            class="backgroundSecond mr-2 h-8 w-auto rounded-md p-2 text-xl outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            id="backup-max-input"
+                            type="number"
+                        />
+                        <span class="backupMaxNote" id="backup-max-note"></span>
                     </div>
                 </div>
             </div>
 
             <div class="backgroundDark z-50 flex flex-row items-center gap-2 py-4">
                 <span class="font"></span>
-                <select id="font-select" class="backgroundSecond rounded-sm outline-none"></select>
+                <select class="backgroundSecond rounded-sm outline-none" id="font-select"></select>
             </div>
         </div>
     </body>
