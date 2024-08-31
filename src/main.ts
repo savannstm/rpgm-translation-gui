@@ -2310,41 +2310,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     searchInput.addEventListener("focus", () => {
-        searchInput.addEventListener("paste", () => {
+        searchInput.addEventListener("change", searchInput.calculateHeight);
+        searchInput.addEventListener("keydown", handleSearchInputKeypress);
+
+        searchInput.addEventListener("blur", () => {
+            searchInput.value = searchInput.value.trim();
+            searchInput.removeEventListener("keydown", handleSearchInputKeypress);
+            searchInput.removeEventListener("change", searchInput.calculateHeight);
             searchInput.calculateHeight();
         });
-        searchInput.addEventListener("keydown", async (event) => await handleSearchInputKeypress(event));
-
-        searchInput.addEventListener(
-            "blur",
-            () => {
-                searchInput.value = searchInput.value.trim();
-                searchInput.removeEventListener("keydown", async (event) => await handleSearchInputKeypress(event));
-                searchInput.removeEventListener("paste", () => {
-                    searchInput.calculateHeight();
-                });
-            },
-            { once: true },
-        );
     });
 
     replaceInput.addEventListener("focus", () => {
-        replaceInput.addEventListener("keydown", async (event) => await handleReplaceInputKeypress(event));
-        replaceInput.addEventListener("paste", () => {
+        replaceInput.addEventListener("keydown", handleReplaceInputKeypress);
+        replaceInput.addEventListener("change", replaceInput.calculateHeight);
+
+        replaceInput.addEventListener("blur", () => {
+            replaceInput.value = replaceInput.value.trim();
+            replaceInput.removeEventListener("keydown", handleReplaceInputKeypress);
+            replaceInput.removeEventListener("change", replaceInput.calculateHeight);
             replaceInput.calculateHeight();
         });
-
-        replaceInput.addEventListener(
-            "blur",
-            () => {
-                replaceInput.value = replaceInput.value.trim();
-                replaceInput.removeEventListener("keydown", async (event) => await handleReplaceInputKeypress(event));
-                replaceInput.removeEventListener("paste", () => {
-                    replaceInput.calculateHeight();
-                });
-            },
-            { once: true },
-        );
     });
 
     menuBar.addEventListener("click", (event) => handleMenuBarClick(event.target as HTMLElement));
