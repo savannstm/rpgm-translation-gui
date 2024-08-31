@@ -24,7 +24,6 @@ import {
     readBinaryFile,
     readDir,
     readTextFile,
-    removeFile,
     writeBinaryFile,
     writeTextFile,
 } from "@tauri-apps/api/fs";
@@ -609,14 +608,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const regexp: RegExp | undefined = await createRegExp(text);
         if (!regexp) {
             return;
-        }
-
-        const programDataFiles = await readDir(await join(settings.projectPath, programDataDir));
-
-        for (const file of programDataFiles) {
-            if (file.name?.startsWith("matches")) {
-                await removeFile(file.path);
-            }
         }
 
         const results = replace ? new Map<HTMLTextAreaElement, string>() : null;
