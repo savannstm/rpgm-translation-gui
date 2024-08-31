@@ -8,7 +8,7 @@ import { BaseDirectory } from "@tauri-apps/api/path";
 import { open as openLink } from "@tauri-apps/api/shell";
 const { Resource } = BaseDirectory;
 
-window.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", async () => {
     let settings!: Settings;
 
     await once<Settings>("settings", (data) => {
