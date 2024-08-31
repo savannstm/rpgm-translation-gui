@@ -389,8 +389,9 @@ fn write_list(
                                     if object_type.as_str().unwrap() != "bytes" {
                                         String::new()
                                     } else {
-                                        let bytes_array: Vec<u8> = from_value(&parameter_obj["data"]).unwrap();
-                                        unsafe { String::from_utf8_unchecked(bytes_array) }
+                                        unsafe {
+                                            String::from_utf8_unchecked(from_value(&parameter_obj["data"]).unwrap())
+                                        }
                                     }
                                 }
                                 None => String::new(),
@@ -438,8 +439,9 @@ fn write_list(
                                         if object_type.as_str().unwrap() != "bytes" {
                                             String::new()
                                         } else {
-                                            let bytes_array: Vec<u8> = from_value(&parameter_obj["data"]).unwrap();
-                                            unsafe { String::from_utf8_unchecked(bytes_array) }
+                                            unsafe {
+                                                String::from_utf8_unchecked(from_value(&parameter_obj["data"]).unwrap())
+                                            }
                                         }
                                     }
                                     None => String::new(),
@@ -488,8 +490,9 @@ fn write_list(
                                     if object_type.as_str().unwrap() != "bytes" {
                                         String::new()
                                     } else {
-                                        let bytes_array: Vec<u8> = from_value(&parameter_obj["data"]).unwrap();
-                                        unsafe { String::from_utf8_unchecked(bytes_array) }
+                                        unsafe {
+                                            String::from_utf8_unchecked(from_value(&parameter_obj["data"]).unwrap())
+                                        }
                                     }
                                 }
                                 None => String::new(),
@@ -537,8 +540,9 @@ fn write_list(
                                     if object_type.as_str().unwrap() != "bytes" {
                                         String::new()
                                     } else {
-                                        let bytes_array: Vec<u8> = from_value(&parameter_obj["data"]).unwrap();
-                                        unsafe { String::from_utf8_unchecked(bytes_array) }
+                                        unsafe {
+                                            String::from_utf8_unchecked(from_value(&parameter_obj["data"]).unwrap())
+                                        }
                                     }
                                 }
                                 None => String::new(),
