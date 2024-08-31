@@ -1453,15 +1453,22 @@ document.addEventListener("DOMContentLoaded", async () => {
                 rowElement.appendChild(spanElement);
                 rowElement.appendChild(innerDiv);
 
-                const linesNumber = originalText.count("\n") + 1;
-                const minHeight = linesNumber * 28 + 12;
+                document.body.appendChild(originalTextElement);
+
+                const minHeight =
+                    originalTextElement.getBoundingClientRect().height -
+                    Number.parseInt(window.getComputedStyle(originalTextElement).borderTop);
+
+                document.body.removeChild(originalTextElement);
 
                 rowElement.style.minHeight =
                     originalTextElement.style.minHeight =
                     translationTextElement.style.minHeight =
                     textParent.style.minHeight =
                         `${minHeight}px`;
-                contentDivHeight += minHeight;
+
+                // this 2 subtraction just required
+                contentDivHeight += minHeight - 2;
 
                 textContainer.appendChild(rowElement);
                 textContainer.appendChild(originalTextElement);
