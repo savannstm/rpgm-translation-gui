@@ -1457,7 +1457,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 const minHeight =
                     originalTextElement.getBoundingClientRect().height -
-                    Number.parseInt(window.getComputedStyle(originalTextElement).borderTop);
+                    Number.parseInt(window.getComputedStyle(originalTextElement).paddingTop) * 2;
 
                 document.body.removeChild(originalTextElement);
 
