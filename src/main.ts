@@ -1588,7 +1588,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const executionTime = await invokeCompile({
                 projectPath: settings.projectPath,
-                originalDir: originalDir,
+                originalDir,
                 outputPath: compileSettings.customOutputPath.path,
                 gameTitle: currentGameTitle.value,
                 romanize: compileSettings.romanize,
@@ -1626,14 +1626,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     function getNewLinePositions(textarea: HTMLTextAreaElement): { left: number; top: number }[] {
         const positions: { left: number; top: number }[] = [];
         const lines = textarea.value.split("\n");
-        const lineHeight = Number.parseFloat(window.getComputedStyle(textarea).lineHeight);
 
-        const offsetTop = textarea.offsetTop;
+        const { lineHeight, paddingTop, fontSize, fontFamily } = window.getComputedStyle(textarea);
+        const lineHeightNumber = Number.parseInt(lineHeight);
+        const paddingTopNumber = Number.parseInt(paddingTop);
+
+        const offsetTop = textarea.offsetTop + paddingTopNumber / 2;
         const offsetLeft = textarea.offsetLeft;
 
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d") as CanvasRenderingContext2D;
-        context.font = '18px "Segoe UI"';
+        context.font = `${fontSize} ${fontFamily}`;
 
         let top = offsetTop;
 
@@ -1643,7 +1646,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const left = offsetLeft + textWidth;
 
             positions.push({ left, top });
-            top += lineHeight;
+            top += lineHeightNumber;
         }
 
         return positions;
@@ -1658,7 +1661,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         for (const { left, top } of result) {
             const ghostNewLine = fromHTML(
-                `<div class="z-50 cursor-default pointer-events-none select-none absolute textThird" style="left: ${left}px; top: ${top + 2}px">\\n</div>`,
+                `<div class="z-50 cursor-default pointer-events-none select-none absolute textThird" style="left: ${left}px; top: ${top}px">\\n</div>`,
             ) as HTMLDivElement;
 
             activeGhostLines.push(ghostNewLine);
