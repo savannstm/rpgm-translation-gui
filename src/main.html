@@ -11,111 +11,111 @@
 
     <body class="textPrimary backgroundDark m-0 overflow-x-hidden p-0 text-2xl">
         <div>
-            <div id="menu-bar" class="backgroundPrimary sticky top-0 z-40 mr-2 flex h-6 w-full items-center text-sm">
+            <div class="backgroundPrimary sticky top-0 z-40 mr-2 flex h-6 w-full items-center text-sm" id="menu-bar">
                 <div class="menu-bar-button backgroundSecondHovered">
-                    <button id="file-menu-button" class="fileMenu px-2"></button>
+                    <button class="fileMenu px-2" id="file-menu-button"></button>
                 </div>
                 <div class="menu-bar-button backgroundSecondHovered">
-                    <button id="help-menu-button" class="helpMenu px-2"></button>
+                    <button class="helpMenu px-2" id="help-menu-button"></button>
                 </div>
                 <div class="menu-bar-button backgroundSecondHovered">
-                    <button id="language-menu-button" class="languageMenu px-2"></button>
+                    <button class="languageMenu px-2" id="language-menu-button"></button>
                 </div>
-                <div id="file-menu" class="dropdown-menu backgroundSecond hidden">
+                <div class="dropdown-menu backgroundSecond hidden" id="file-menu">
                     <button
-                        id="reload-button"
                         class="backgroundPrimary backgroundPrimaryHovered reloadButton p-2 text-base"
+                        id="reload-button"
                     ></button>
                 </div>
-                <div id="help-menu" class="dropdown-menu backgroundSecond hidden">
+                <div class="dropdown-menu backgroundSecond hidden" id="help-menu">
                     <button
-                        id="help-button"
                         class="backgroundPrimary backgroundPrimaryHovered helpButton p-2 text-base"
+                        id="help-button"
                     ></button>
                     <button
-                        id="about-button"
                         class="backgroundPrimary backgroundPrimaryHovered aboutButton p-2 text-base"
+                        id="about-button"
                     ></button>
                 </div>
-                <div id="language-menu" class="dropdown-menu backgroundSecond hidden">
-                    <button id="ru-button" class="backgroundPrimary backgroundPrimaryHovered p-2 text-base">
+                <div class="dropdown-menu backgroundSecond hidden" id="language-menu">
+                    <button class="backgroundPrimary backgroundPrimaryHovered p-2 text-base" id="ru-button">
                         Русский/Russian
                     </button>
-                    <button id="en-button" class="backgroundPrimary backgroundPrimaryHovered p-2 text-base">
+                    <button class="backgroundPrimary backgroundPrimaryHovered p-2 text-base" id="en-button">
                         English/Английский
                     </button>
                 </div>
             </div>
-            <div id="top-panel" class="backgroundPrimary sticky top-6 z-30 flex h-16 w-full items-center">
-                <div id="top-panel-buttons" class="flex h-16 w-full items-center text-3xl">
+            <div class="backgroundPrimary sticky top-6 z-30 flex h-16 w-full items-center" id="top-panel">
+                <div class="flex h-16 w-full items-center text-3xl" id="top-panel-buttons">
                     <button
+                        class="button backgroundPrimaryHovered textThird menuButtonTitle size-16 font-material outline-none"
                         id="menu-button"
-                        class="button backgroundPrimaryHovered textThird menuButtonTitle size-16 font-material"
                     >
                         <div>menu</div>
                     </button>
                     <button
+                        class="button backgroundPrimaryHovered textThird saveButtonTitle size-16 font-material outline-none"
                         id="save-button"
-                        class="button backgroundPrimaryHovered textThird saveButtonTitle size-16 font-material"
                     >
                         <div>save</div>
                     </button>
                     <button
+                        class="button backgroundPrimaryHovered textThird compileButtonTitle size-16 font-material outline-none"
                         id="compile-button"
-                        class="button backgroundPrimaryHovered textThird compileButtonTitle size-16 font-material"
                     >
                         <div>upload</div>
                     </button>
                     <button
+                        class="button backgroundPrimaryHovered textThird openButtonTitle size-16 font-material outline-none"
                         id="open-directory-button"
-                        class="button backgroundPrimaryHovered textThird openButtonTitle size-16 font-material"
                     >
                         <div>folder_open</div>
                     </button>
                     <button
+                        class="button backgroundPrimaryHovered textThird settingsButtonTitle size-16 font-material outline-none"
                         id="settings-button"
-                        class="button backgroundPrimaryHovered textThird settingsButtonTitle size-16 font-material"
                     >
                         <div>settings</div>
                     </button>
                     <button
+                        class="button backgroundPrimaryHovered textThird themeButtonTitle size-16 font-material outline-none"
                         id="theme-button"
-                        class="button backgroundPrimaryHovered textThird themeButtonTitle size-16 font-material"
                     >
                         <div>palette</div>
                     </button>
                     <button
+                        class="button backgroundPrimaryHovered textThird bookmarksButtonTitle size-16 font-material outline-none"
                         id="bookmarks-button"
-                        class="button backgroundPrimaryHovered textThird bookmarksButtonTitle size-16 font-material"
                     >
                         <div>bookmarks</div>
                     </button>
                     <button
+                        class="button backgroundPrimaryHovered textThird readButtonTitle size-16 font-material outline-none"
                         id="read-button"
-                        class="button backgroundPrimaryHovered textThird readButtonTitle size-16 font-material"
                     >
                         <div>menu_book</div>
                     </button>
                     <button
+                        class="button backgroundPrimaryHovered textThird searchButtonTitle size-16 font-material outline-none"
                         id="search-button"
-                        class="button backgroundPrimaryHovered textThird searchButtonTitle size-16 font-material"
                     >
                         search
                     </button>
-                    <div id="theme-menu" class="dropdown-menu backgroundSecond hidden w-16">
+                    <div class="dropdown-menu backgroundSecond hidden w-16" id="theme-menu">
                         <button
-                            id="create-theme-menu-button"
                             class="backgroundPrimary backgroundPrimaryHovered createTheme p-2 text-base"
+                            id="create-theme-menu-button"
                         ></button>
                     </div>
 
                     <div class="flex h-full w-full content-end justify-end pr-4">
-                        <div id="current-state" class="flex min-w-32 items-center justify-center p-4 text-sm"></div>
-                        <div id="game-info" class="flex flex-col items-center justify-center text-sm">
+                        <div class="flex min-w-32 items-center justify-center p-4 text-sm" id="current-state"></div>
+                        <div class="flex flex-col items-center justify-center text-sm" id="game-info">
                             <input
+                                class="input textSecond backgroundSecond min-h-8 w-96"
                                 id="current-game-title"
                                 type="text"
-                                class="input textSecond backgroundSecond min-h-8 w-96"
                             />
                             <div id="current-game-engine"></div>
                         </div>
@@ -124,15 +124,15 @@
             </div>
 
             <input
-                type="number"
-                id="goto-row-input"
                 class="backgroundPrimary borderSecond borderFocused fixed right-1/4 top-8 z-50 hidden h-12 w-6/12 rounded-md border-2 border-solid p-1 text-base outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                id="goto-row-input"
+                type="number"
             />
 
-            <div id="main" class="flex flex-row justify-start">
+            <div class="flex flex-row justify-start" id="main">
                 <div
-                    id="left-panel"
                     class="backgroundSecond fixed z-30 flex w-16 -translate-x-full flex-col text-xs transition-all duration-500"
+                    id="left-panel"
                 >
                     <button class="menu-button backgroundPrimary backgroundPrimaryHovered" title="~">maps</button>
                     <button class="menu-button backgroundPrimary backgroundPrimaryHovered" title="1">names</button>
@@ -153,33 +153,33 @@
                     <button class="menu-button backgroundPrimary backgroundPrimaryHovered">plugins</button>
                 </div>
 
-                <div id="content-container" class="flex w-full flex-col justify-start p-8 text-lg"></div>
+                <div class="flex w-full flex-col justify-start p-8 text-lg" id="content-container"></div>
 
                 <div
-                    id="search-results"
                     class="backgroundPrimary outlineThird fixed right-0 top-0 z-40 flex h-screen w-64 translate-x-full flex-col overflow-y-auto p-4 outline outline-2 transition-transform duration-500"
+                    id="search-results"
                     shown="false"
                     moving="false"
                 >
                     <button
-                        id="switch-search-content"
                         class="backgroundPrimaryHovered mb-2 flex h-12 w-full cursor-pointer select-none items-center justify-center font-material text-3xl"
+                        id="switch-search-content"
                     >
                         search
                     </button>
                     <div class="flex h-12 w-full items-center justify-evenly">
-                        <button id="previous-page-button" class="font-material">chevron_left</button>
-                        <span id="search-current-page" class="currentPage"></span>
-                        <span id="search-separator" class="separator"></span>
+                        <button class="font-material" id="previous-page-button">chevron_left</button>
+                        <span class="currentPage" id="search-current-page"></span>
+                        <span class="separator" id="search-separator"></span>
                         <span id="search-total-pages"></span>
-                        <button id="next-page-button" class="font-material">chevron_right</button>
+                        <button class="font-material" id="next-page-button">chevron_right</button>
                     </div>
-                    <div id="search-content" class="flex w-full flex-col"></div>
-                    <div id="replace-content" class="hidden w-full flex-col"></div>
+                    <div class="flex w-full flex-col" id="search-content"></div>
+                    <div class="hidden w-full flex-col" id="replace-content"></div>
                 </div>
             </div>
         </div>
-        <div id="theme-window" class="backgroundPrimary fixed bottom-0 z-50 hidden text-lg">
+        <div class="backgroundPrimary fixed bottom-0 z-50 hidden text-lg" id="theme-window">
             <div class="flex items-end justify-end pr-2">
                 <button class="font-material">close</button>
             </div>
@@ -232,7 +232,7 @@
                         <input id="textSecond" type="color" /> <label for="textSecond"></label>
                     </div>
                     <div class="flex flex-row gap-2">
-                        <input id="textThird" type="color" class="appearance-none border-none outline-none" />
+                        <input class="appearance-none border-none outline-none" id="textThird" type="color" />
                         <label for="textThird"></label>
                     </div>
                     <div class="flex flex-row gap-2">
@@ -242,82 +242,82 @@
             </div>
             <div class="flex flex-col items-center justify-center pb-4">
                 <div class="flex flex-row gap-2">
-                    <label for="theme-name-input" class="themeName"></label>
+                    <label class="themeName" for="theme-name-input"></label>
                     <input
+                        class="input textSecond backgroundSecond h-8 text-base"
+                        id="theme-name-input"
                         type="text"
                         name=""
-                        id="theme-name-input"
-                        class="input textSecond backgroundSecond h-8 text-base"
                     />
                 </div>
 
-                <label for="create-theme" class="allowedThemeNameCharacters"></label>
+                <label class="allowedThemeNameCharacters" for="create-theme"></label>
                 <button
-                    id="create-theme"
                     class="backgroundSecond backgroundPrimaryHovered createTheme h-8 w-32 rounded-lg"
+                    id="create-theme"
                 ></button>
             </div>
         </div>
 
-        <div id="project-status" class="flex items-center justify-center p-8"></div>
+        <div class="flex items-center justify-center p-8" id="project-status"></div>
 
-        <div id="search-menu" class="backgroundPrimary fixed z-50 hidden h-auto w-96">
+        <div class="backgroundPrimary fixed z-50 hidden h-auto w-96" id="search-menu">
             <br />
             <div class="flex h-auto flex-col">
-                <div id="search-field" class="flex h-auto flex-row items-center p-4">
+                <div class="flex h-auto flex-row items-center p-4" id="search-field">
                     <textarea
+                        class="input textSecond backgroundSecond h-auto text-base"
                         id="search-input"
                         rows="1"
                         cols="50"
-                        class="input textSecond backgroundSecond h-auto text-base"
                     ></textarea>
                 </div>
                 <div class="flex flex-row items-center justify-center">
                     <button
-                        id="replace-button"
                         class="button backgroundPrimaryHovered textThird replaceButtonTitle w-16 font-material"
+                        id="replace-button"
                     >
                         arrow_downward
                     </button>
                 </div>
 
-                <div id="replace-field" class="flex flex-row items-center p-4">
+                <div class="flex flex-row items-center p-4" id="replace-field">
                     <textarea
+                        class="input textSecond backgroundSecond h-auto text-base"
                         id="replace-input"
                         rows="1"
                         cols="50"
-                        class="input textSecond backgroundSecond h-auto text-base"
                     ></textarea>
                 </div>
             </div>
             <div class="flex flex-row justify-center">
                 <button
-                    id="case-button"
                     class="button backgroundPrimaryHovered textThird caseButtonTitle font-material"
+                    id="case-button"
                 >
                     match_case
                 </button>
                 <button
-                    id="whole-button"
                     class="button backgroundPrimaryHovered textThird wholeButtonTitle font-material"
+                    id="whole-button"
                 >
                     match_word
                 </button>
                 <button
-                    id="regex-button"
                     class="button backgroundPrimaryHovered textThird regexButtonTitle font-material"
+                    id="regex-button"
                 >
                     regular_expression
                 </button>
                 <button
-                    id="translation-button"
                     class="button backgroundPrimaryHovered textThird translationButtonTitle font-material"
+                    id="translation-button"
                 >
                     translate
                 </button>
                 <button
-                    id="location-button"
                     class="button backgroundPrimaryHovered textThird locationButtonTitle font-material"
+                    id="location-button"
                 >
                     location_on
                 </button>
@@ -325,8 +325,8 @@
         </div>
 
         <div
-            id="bookmarks-menu"
             class="backgroundPrimary fixed z-50 hidden h-auto max-h-64 min-h-4 w-48 flex-col overflow-auto text-lg"
+            id="bookmarks-menu"
         ></div>
     </body>
 </html>
