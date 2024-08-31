@@ -611,7 +611,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        for (const file of await readDir(await join(settings.projectPath, programDataDir))) {
+        const programDataFiles = await readDir(await join(settings.projectPath, programDataDir));
+
+        for (const file of programDataFiles) {
             if (file.name?.startsWith("matches")) {
                 await removeFile(file.path);
             }
@@ -682,9 +684,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         searchTotalPages.textContent = file.toString();
         searchCurrentPage.textContent = "0";
 
-        for (const [id, result] of Object.entries(
-            JSON.parse(await readTextFile(await join(settings.projectPath, programDataDir, "matches-0.json"))),
-        )) {
+        const matches = JSON.parse(
+            await readTextFile(await join(settings.projectPath, programDataDir, "matches-0.json")),
+        );
+
+        for (const [id, result] of Object.entries(matches)) {
             appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
         }
 
@@ -2263,17 +2267,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                     searchCurrentPage.textContent = (page - 1).toString();
                     searchPanelFound.innerHTML = "";
 
-                    for (const [id, result] of Object.entries(
-                        JSON.parse(
-                            await readTextFile(
-                                await join(
-                                    settings.projectPath,
-                                    programDataDir,
-                                    `matches-${Number.parseInt(searchCurrentPage.textContent)}.json`,
-                                ),
+                    const matches = JSON.parse(
+                        await readTextFile(
+                            await join(
+                                settings.projectPath,
+                                programDataDir,
+                                `matches-${Number.parseInt(searchCurrentPage.textContent)}.json`,
                             ),
                         ),
-                    )) {
+                    );
+
+                    for (const [id, result] of Object.entries(matches)) {
                         appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
                     }
                 }
@@ -2286,17 +2290,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                     searchCurrentPage.textContent = (page + 1).toString();
                     searchPanelFound.innerHTML = "";
 
-                    for (const [id, result] of Object.entries(
-                        JSON.parse(
-                            await readTextFile(
-                                await join(
-                                    settings.projectPath,
-                                    programDataDir,
-                                    `matches-${Number.parseInt(searchCurrentPage.textContent)}.json`,
-                                ),
+                    const matches = JSON.parse(
+                        await readTextFile(
+                            await join(
+                                settings.projectPath,
+                                programDataDir,
+                                `matches-${Number.parseInt(searchCurrentPage.textContent)}.json`,
                             ),
                         ),
-                    )) {
+                    );
+
+                    for (const [id, result] of Object.entries(matches)) {
                         appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
                     }
                 }
