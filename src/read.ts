@@ -1,4 +1,3 @@
-import { load } from "@savannstm/marshal";
 import {
     animateProgressText,
     applyLocalization,
@@ -14,6 +13,8 @@ import { emit, once } from "@tauri-apps/api/event";
 import { BaseDirectory, exists, readBinaryFile, readTextFile } from "@tauri-apps/api/fs";
 import { join } from "@tauri-apps/api/path";
 import { appWindow } from "@tauri-apps/api/window";
+
+import { load } from "@savannstm/marshal";
 import { inflate } from "pako";
 const { Resource } = BaseDirectory;
 

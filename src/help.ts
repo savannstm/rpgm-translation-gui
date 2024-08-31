@@ -1,7 +1,7 @@
-import { emit, once } from "@tauri-apps/api/event";
 import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
 import { HelpWindowLocalization } from "./extensions/localization";
 
+import { emit, once } from "@tauri-apps/api/event";
 import { readTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory } from "@tauri-apps/api/path";
 const { Resource } = BaseDirectory;

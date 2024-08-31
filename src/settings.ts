@@ -1,13 +1,13 @@
-import { emit, once } from "@tauri-apps/api/event";
 import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
-import "./extensions/math-extensions";
 import { SettingsWindowLocalization } from "./extensions/localization";
+import "./extensions/math-extensions";
 
+import { emit, once } from "@tauri-apps/api/event";
 import { readDir, readTextFile } from "@tauri-apps/api/fs";
-import { BaseDirectory } from "@tauri-apps/api/path";
-import { appWindow } from "@tauri-apps/api/window";
 import { platform as getPlatform } from "@tauri-apps/api/os";
+import { BaseDirectory } from "@tauri-apps/api/path";
 import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { appWindow } from "@tauri-apps/api/window";
 const { Resource } = BaseDirectory;
 
 interface FontObject extends Record<string, string> {
