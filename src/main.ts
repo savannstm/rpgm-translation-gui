@@ -486,11 +486,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     async function setLanguage(language: Language) {
-        if (!windowLanguage || !windowLocalization) {
-            windowLanguage = language;
-            windowLocalization = new MainWindowLocalization(language);
-        }
-
+        windowLanguage = language;
+        windowLocalization = new MainWindowLocalization(language);
         initializeLocalization();
     }
 
@@ -1831,13 +1828,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         switch (target.id) {
             case "ru-button":
                 if (windowLanguage !== Language.Russian) {
-                    windowLanguage = Language.Russian;
                     await setLanguage(Language.Russian);
                 }
                 break;
             case "en-button":
                 if (windowLanguage !== Language.English) {
-                    windowLanguage = Language.English;
                     await setLanguage(Language.English);
                 }
                 break;
