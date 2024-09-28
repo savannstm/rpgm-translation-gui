@@ -23,7 +23,7 @@ If you have troubled figuring out the program, check the `Help > Help` top menu 
 
 Clone the repository:
 
-`git clone https://github.com/savannstm/rpg-maker-translation-tools.git`.
+`git clone https://github.com/savannstm/rpgm-translation-gui.git`.
 
 cd to the `gui` directory and install all required Node.js dependencies:
 
