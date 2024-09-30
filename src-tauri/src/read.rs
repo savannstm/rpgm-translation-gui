@@ -1,19 +1,22 @@
 #![allow(clippy::too_many_arguments)]
 use crate::{
-    romanize_string, Code, EngineType, GameType, ProcessingMode, Variable, ENDS_WITH_IF_RE,
+    extract_strings, romanize_string, Code, EngineType, GameType, ProcessingMode, Variable, ENDS_WITH_IF_RE,
     INVALID_MULTILINE_VARIABLE_RE, INVALID_VARIABLE_RE, LISA_PREFIX_RE, STRING_IS_ONLY_SYMBOLS_RE,
 };
-use core::str;
+use encoding_rs::{CoderResult, Encoding};
+use flate2::read::ZlibDecoder;
 use indexmap::{IndexMap, IndexSet};
-use marshal_rs::load::load;
+use marshal_rs::{load::load, StringMode};
 use rayon::prelude::*;
-use sonic_rs::{from_str, from_value, Array, JsonContainerTrait, JsonValueTrait, Value};
+use regex::Regex;
+use sonic_rs::{from_str, from_value, prelude::*, Array, Value};
 use std::{
     ffi::OsString,
     fs::{read, read_dir, read_to_string, write, DirEntry},
     hash::{BuildHasher, BuildHasherDefault},
+    io::Read,
     path::Path,
-    str::from_utf8_unchecked,
+    str::{from_utf8_unchecked, Chars},
 };
 use xxhash_rust::xxh3::Xxh3;
 
@@ -21,19 +24,17 @@ trait Join {
     fn join(&self, delimiter: &str) -> String;
 }
 
-impl<T: ToString + AsRef<str>, S: std::hash::BuildHasher> Join for IndexSet<T, S> {
+impl<T: ToString + AsRef<str>, S: BuildHasher> Join for IndexSet<T, S> {
     fn join(&self, delimiter: &str) -> String {
         let mut joined: String = String::new();
 
-        if self.is_empty() {
-            return joined;
-        }
+        if !self.is_empty() {
+            joined.push_str(self.get_index(0).unwrap().as_ref());
 
-        joined.push_str(self.get_index(0).unwrap().as_ref());
-
-        for item in self.iter().skip(1) {
-            joined.push_str(delimiter);
-            joined.push_str(item.as_ref());
+            for item in self.iter().skip(1) {
+                joined.push_str(delimiter);
+                joined.push_str(item.as_ref());
+            }
         }
 
         joined
@@ -44,7 +45,7 @@ impl<T: ToString + AsRef<str>, S: std::hash::BuildHasher> Join for IndexSet<T, S
 fn parse_parameter(
     code: Code,
     mut parameter: &str,
-    game_type: &Option<GameType>,
+    game_type: Option<&GameType>,
     engine_type: &EngineType,
 ) -> Option<String> {
     if STRING_IS_ONLY_SYMBOLS_RE.is_match(parameter) {
@@ -101,7 +102,7 @@ fn parse_variable(
     mut variable_text: String,
     variable_type: &Variable,
     filename: &str,
-    game_type: &Option<GameType>,
+    game_type: Option<&GameType>,
     engine_type: &EngineType,
 ) -> Option<(String, bool)> {
     if STRING_IS_ONLY_SYMBOLS_RE.is_match(&variable_text) {
@@ -232,7 +233,7 @@ fn parse_variable(
                         }
 
                         if !filename.starts_with("Cl") {
-                            let mut variable_text_chars: std::str::Chars = variable_text.chars();
+                            let mut variable_text_chars: Chars = variable_text.chars();
 
                             if !variable_text.starts_with("flesh puppetry") {
                                 if let Some(first_char) = variable_text_chars.next() {
@@ -282,25 +283,20 @@ fn parse_variable(
 
 fn parse_list<T: BuildHasher>(
     list: &Array,
-    allowed_codes: &[u64],
+    allowed_codes: &[u16],
     romanize: bool,
-    game_type: &Option<GameType>,
+    game_type: Option<&GameType>,
     engine_type: &EngineType,
     processing_mode: &ProcessingMode,
+    (code_label, parameters_label): (&str, &str),
     set: &mut IndexSet<String, T>,
     map: &mut IndexMap<String, String, T>,
 ) {
     let mut in_sequence: bool = false;
-    let mut line: Vec<String> = Vec::with_capacity(4);
+    let mut line: Vec<String> = Vec::with_capacity(256);
 
-    let (code_label, parameters_label) = if engine_type == EngineType::New {
-        ("code", "parameters")
-    } else {
-        ("__symbol__code", "__symbol__parameters")
-    };
-
-    for list in list {
-        let code: u64 = list[code_label].as_u64().unwrap();
+    for item in list {
+        let code: u16 = item[code_label].as_u64().unwrap() as u16;
 
         if in_sequence && ![401, 405].contains(&code) {
             if !line.is_empty() {
@@ -326,11 +322,11 @@ fn parse_list<T: BuildHasher>(
             in_sequence = false;
         }
 
-        if allowed_codes.binary_search(&code).is_err() {
+        if !allowed_codes.contains(&code) {
             continue;
         }
 
-        let parameters: &Array = list[parameters_label].as_array().unwrap();
+        let parameters: &Array = item[parameters_label].as_array().unwrap();
 
         match code {
             401 | 405 => {
@@ -497,9 +493,9 @@ fn parse_list<T: BuildHasher>(
 }
 
 // ! In current implementation, function performs extremely inefficient inserting of owned string to both hashmap and a hashset
-/// Reads all Map .json files of maps_path and parses them into .txt files in output_path.
+/// Reads all Map files of maps_path and parses them into .txt files in output_path.
 /// # Parameters
-/// * `maps_path` - path to directory than contains .json game files
+/// * `maps_path` - path to directory than contains game files
 /// * `output_path` - path to output directory
 /// * `romanize` - whether to romanize text
 /// * `logging` - whether to log
@@ -516,7 +512,7 @@ pub fn read_map(
     file_parsed_msg: &str,
     file_already_parsed_msg: &str,
     file_is_not_parsed_msg: &str,
-    game_type: &Option<GameType>,
+    game_type: Option<&GameType>,
     mut processing_mode: &ProcessingMode,
     engine_type: &EngineType,
 ) {
@@ -547,7 +543,7 @@ pub fn read_map(
                     let json: Value = if engine_type == EngineType::New {
                         from_str(&read_to_string(entry.path()).unwrap()).unwrap()
                     } else {
-                        load(&read(entry.path()).unwrap(), None, Some(""))
+                        load(&read(entry.path()).unwrap(), None, Some("")).unwrap()
                     };
 
                     Some((filename_str.to_string(), json))
@@ -575,8 +571,7 @@ pub fn read_map(
                     read_to_string(maps_trans_output_path)
                         .unwrap()
                         .par_split('\n')
-                        .collect::<Vec<_>>()
-                        .into_iter(),
+                        .collect::<Vec<_>>(),
                 )
             {
                 maps_translation_map.insert(original.to_string(), translated.to_string());
@@ -598,19 +593,22 @@ pub fn read_map(
     // 401 - dialogue lines
     // 102 - dialogue choices array
     // 356 - system lines (special texts)
-    // 324 - i don't know what is it but it's some used in-game lines
-    const ALLOWED_CODES: [u64; 5] = [102, 320, 324, 356, 401];
+    // 324, 320 - i don't know what is it but it's some used in-game lines
+    const ALLOWED_CODES: [u16; 5] = [102, 320, 324, 356, 401];
 
-    let (display_name_label, events_label, pages_label, list_label) = if engine_type == EngineType::New {
-        ("displayName", "events", "pages", "list")
-    } else {
-        (
-            "__symbol__display_name",
-            "__symbol__events",
-            "__symbol__pages",
-            "__symbol__list",
-        )
-    };
+    let (display_name_label, events_label, pages_label, list_label, code_label, parameters_label) =
+        if engine_type == EngineType::New {
+            ("displayName", "events", "pages", "list", "code", "parameters")
+        } else {
+            (
+                "__symbol__display_name",
+                "__symbol__events",
+                "__symbol__pages",
+                "__symbol__list",
+                "__symbol__code",
+                "__symbol__parameters",
+            )
+        };
 
     for (filename, obj) in maps_obj_vec {
         if let Some(display_name) = obj[display_name_label].as_str() {
@@ -655,6 +653,7 @@ pub fn read_map(
                     game_type,
                     engine_type,
                     processing_mode,
+                    (code_label, parameters_label),
                     &mut maps_lines,
                     &mut maps_translation_map,
                 );
@@ -692,9 +691,9 @@ pub fn read_map(
 }
 
 // ! In current implementation, function performs extremely inefficient inserting of owned string to both hashmap and a hashset
-/// Reads all Other .json files of other_path and parses them into .txt files in output_path.
+/// Reads all other files of other_path and parses them into .txt files in output_path.
 /// # Parameters
-/// * `other_path` - path to directory than contains .json game files
+/// * `other_path` - path to directory than contains game files
 /// * `output_path` - path to output directory
 /// * `romanize` - whether to romanize text
 /// * `logging` - whether to log
@@ -711,7 +710,7 @@ pub fn read_other(
     file_parsed_msg: &str,
     file_already_parsed_msg: &str,
     file_is_not_parsed_msg: &str,
-    game_type: &Option<GameType>,
+    game_type: Option<&GameType>,
     processing_mode: &ProcessingMode,
     engine_type: &EngineType,
 ) {
@@ -727,9 +726,7 @@ pub fn read_other(
                     && !matches!(real_name, "Tilesets" | "Animations" | "System")
                     && ["json", "rvdata2", "rvdata", "rxdata"].contains(&extension)
                 {
-                    if game_type
-                        .as_ref()
-                        .is_some_and(|game_type| game_type == GameType::Termina)
+                    if game_type.is_some_and(|game_type: &GameType| game_type == GameType::Termina)
                         && real_name == "States"
                     {
                         return None;
@@ -738,7 +735,7 @@ pub fn read_other(
                     let json: Value = if engine_type == EngineType::New {
                         from_str(&read_to_string(entry.path()).unwrap()).unwrap()
                     } else {
-                        load(&read(entry.path()).unwrap(), None, Some(""))
+                        load(&read(entry.path()).unwrap(), None, Some("")).unwrap()
                     };
 
                     Some((filename.to_string(), json))
@@ -749,14 +746,14 @@ pub fn read_other(
             Err(_) => None,
         });
 
-    let mut inner_processing_type: &ProcessingMode = processing_mode;
+    let mut inner_processing_mode: &ProcessingMode = processing_mode;
 
     // 401 - dialogue lines
     // 405 - credits lines
     // 102 - dialogue choices array
     // 356 - system lines (special texts)
-    // 324 - i don't know what is it but it's some used in-game lines
-    const ALLOWED_CODES: [u64; 6] = [102, 320, 324, 356, 401, 405];
+    // 324, 320 - i don't know what is it but it's some used in-game lines
+    const ALLOWED_CODES: [u16; 6] = [102, 320, 324, 356, 401, 405];
 
     let (
         name_label,
@@ -769,6 +766,8 @@ pub fn read_other(
         note_label,
         pages_label,
         list_label,
+        code_label,
+        parameters_label,
     ) = if engine_type == EngineType::New {
         (
             "name",
@@ -781,6 +780,8 @@ pub fn read_other(
             "note",
             "pages",
             "list",
+            "code",
+            "parameters",
         )
     } else {
         (
@@ -794,6 +795,8 @@ pub fn read_other(
             "__symbol__note",
             "__symbol__pages",
             "__symbol__list",
+            "__symbol__code",
+            "__symbol__parameters",
         )
     };
 
@@ -804,9 +807,7 @@ pub fn read_other(
         let other_trans_output_path: &Path = &output_path.join(other_processed_filename + "_trans.txt");
 
         if processing_mode == ProcessingMode::Default && other_trans_output_path.exists() {
-            println!("{} {file_already_parsed_msg}", unsafe {
-                from_utf8_unchecked(other_trans_output_path.file_name().unwrap().as_encoded_bytes())
-            });
+            println!("{} {file_already_parsed_msg}", other_trans_output_path.display());
             continue;
         }
 
@@ -824,24 +825,21 @@ pub fn read_other(
                         read_to_string(other_trans_output_path)
                             .unwrap()
                             .par_split('\n')
-                            .collect::<Vec<_>>()
-                            .into_iter(),
+                            .collect::<Vec<_>>(),
                     )
                 {
                     other_translation_map.insert(original.to_string(), translated.to_string());
                 }
             } else {
                 println!("{file_is_not_parsed_msg}");
-                inner_processing_type = &ProcessingMode::Default;
+                inner_processing_mode = &ProcessingMode::Default;
             }
         }
 
-        // Other files except CommonEvents.json and Troops.json have the structure that consists
+        // Other files except CommonEvents and Troops have the structure that consists
         // of name, nickname, description and note
         if !filename.starts_with("Co") && !filename.starts_with("Tr") {
-            if game_type
-                .as_ref()
-                .is_some_and(|game_type| game_type == GameType::Termina)
+            if game_type.is_some_and(|game_type: &GameType| game_type == GameType::Termina)
                 && filename.starts_with("It")
             {
                 for string in [
@@ -889,7 +887,7 @@ pub fn read_other(
                                         other_lines.insert(last + &parsed);
                                     }
 
-                                    if inner_processing_type == ProcessingMode::Append {
+                                    if inner_processing_mode == ProcessingMode::Append {
                                         if let Some((key, value)) = other_translation_map.pop() {
                                             other_translation_map.insert(key, value + &parsed);
                                         }
@@ -904,13 +902,10 @@ pub fn read_other(
                                     parsed = romanize_string(parsed);
                                 }
 
-                                let replaced: String = parsed
-                                    .split('\n')
-                                    .map(|line: &str| line.trim())
-                                    .collect::<Vec<_>>()
-                                    .join(r"\#");
+                                let replaced: String =
+                                    parsed.split('\n').map(str::trim).collect::<Vec<_>>().join(r"\#");
 
-                                if inner_processing_type == ProcessingMode::Append
+                                if inner_processing_mode == ProcessingMode::Append
                                     && !other_translation_map.contains_key(&replaced)
                                 {
                                     other_translation_map.shift_insert(
@@ -929,7 +924,7 @@ pub fn read_other(
                 }
             }
         }
-        // Other files have the structure somewhat similar to Maps.json files
+        // Other files have the structure somewhat similar to Maps files
         else {
             // Skipping first element in array as it is null
             for obj in obj_arr.as_array().unwrap().iter().skip(1) {
@@ -958,6 +953,7 @@ pub fn read_other(
                         game_type,
                         engine_type,
                         processing_mode,
+                        (code_label, parameters_label),
                         &mut other_lines,
                         &mut other_translation_map,
                     );
@@ -982,9 +978,9 @@ pub fn read_other(
 }
 
 // ! In current implementation, function performs extremely inefficient inserting of owned string to both hashmap and a hashset
-/// Reads System .json file of system_file_path and parses it into .txt file of output_path.
+/// Reads System file of system_file_path and parses it into .txt file of output_path.
 /// # Parameters
-/// * `system_file_path` - path to directory than contains .json files
+/// * `system_file_path` - path to directory than contains game files
 /// * `output_path` - path to output directory
 /// * `romanize` - whether to romanize text
 /// * `logging` - whether to log
@@ -1014,7 +1010,7 @@ pub fn read_system(
     let system_obj: Value = if engine_type == EngineType::New {
         from_str(&read_to_string(system_file_path).unwrap()).unwrap()
     } else {
-        load(&read(system_file_path).unwrap(), None, Some(""))
+        load(&read(system_file_path).unwrap(), None, Some("")).unwrap()
     };
 
     let mut system_lines: IndexSet<String, BuildHasherDefault<Xxh3>> = IndexSet::default();
@@ -1031,8 +1027,7 @@ pub fn read_system(
                     read_to_string(system_trans_output_path)
                         .unwrap()
                         .par_split('\n')
-                        .collect::<Vec<_>>()
-                        .into_iter(),
+                        .collect::<Vec<_>>(),
                 )
             {
                 system_translation_map.insert(original.to_string(), translated.to_string());
@@ -1061,14 +1056,26 @@ pub fn read_system(
         }
     }
 
-    let (armor_types_label, elements_label, skill_types_label, weapon_types_label, game_title_label) =
+    let (armor_types_label, elements_label, skill_types_label, terms_label, weapon_types_label, game_title_label) =
         if engine_type == EngineType::New {
-            ("armorTypes", "elements", "skillTypes", "weaponTypes", "gameTitle")
+            (
+                "armorTypes",
+                "elements",
+                "skillTypes",
+                "terms",
+                "weaponTypes",
+                "gameTitle",
+            )
         } else {
             (
                 "__symbol__armor_types",
                 "__symbol__elements",
                 "__symbol__skill_types",
+                if engine_type == EngineType::XP {
+                    "__symbol__words"
+                } else {
+                    "__symbol__terms"
+                },
                 "__symbol__weapon_types",
                 "__symbol__game_title",
             )
@@ -1155,16 +1162,7 @@ pub fn read_system(
     }
 
     // Game terms vocabulary
-    for (key, value) in system_obj[if engine_type == EngineType::XP {
-        "__symbol__words"
-    } else if engine_type == EngineType::New {
-        "terms"
-    } else {
-        "__symbol__terms"
-    }]
-    .as_object()
-    .unwrap()
-    {
+    for (key, value) in system_obj[terms_label].as_object().unwrap() {
         if !key.starts_with("__symbol__") {
             continue;
         }
@@ -1264,6 +1262,91 @@ pub fn read_system(
     write(system_trans_output_path, translated_content).unwrap();
 
     if logging {
-        println!("{file_parsed_msg} System.json.");
+        println!("{file_parsed_msg} {}.", system_file_path.display());
     }
 }
+
+pub fn read_scripts(scripts_file_path: &Path, other_path: &Path, romanize: bool, logging: bool, file_parsed_msg: &str) {
+    let mut strings: Vec<String> = Vec::new();
+
+    let scripts_entries: Value = load(&read(scripts_file_path).unwrap(), Some(StringMode::Binary), None).unwrap();
+
+    let encodings: [&Encoding; 5] = [
+        encoding_rs::UTF_8,
+        encoding_rs::WINDOWS_1252,
+        encoding_rs::WINDOWS_1251,
+        encoding_rs::SHIFT_JIS,
+        encoding_rs::GB18030,
+    ];
+
+    let mut codes_content: Vec<String> = Vec::with_capacity(256);
+
+    for code in scripts_entries.as_array().unwrap() {
+        let bytes_stream: Vec<u8> = from_value(&code[2]["data"]).unwrap();
+
+        let mut inflated: Vec<u8> = Vec::new();
+        ZlibDecoder::new(&*bytes_stream).read_to_end(&mut inflated).unwrap();
+
+        let mut code_string: String = String::with_capacity(16_777_216);
+
+        for encoding in encodings {
+            let (result, _, had_errors) = encoding
+                .new_decoder()
+                .decode_to_string(&inflated, &mut code_string, true);
+
+            if result == CoderResult::InputEmpty && !had_errors {
+                break;
+            }
+        }
+
+        codes_content.push(code_string);
+    }
+
+    let extracted_strings: IndexSet<String> = extract_strings(&codes_content.join(""), false).0;
+
+    let regexes: [Regex; 11] = [
+        Regex::new(r"(Graphics|Data|Audio|Movies|System)\/.*\/?").unwrap(),
+        Regex::new(r"r[xv]data2?$").unwrap(),
+        STRING_IS_ONLY_SYMBOLS_RE.to_owned(),
+        Regex::new(r"@window").unwrap(),
+        Regex::new(r"\$game").unwrap(),
+        Regex::new(r"_").unwrap(),
+        Regex::new(r"^\\e").unwrap(),
+        Regex::new(r".*\(").unwrap(),
+        Regex::new(r"^([d\d\p{P}+-]*|[d\p{P}+-]&*)$").unwrap(),
+        Regex::new(r"ALPHAC").unwrap(),
+        Regex::new(r"^(Actor<id>|ExtraDropItem|EquipLearnSkill|GameOver|Iconset|Window|true|false|MActor%d|[wr]b|\\f|\\n|\[[A-Z]*\])$").unwrap(),
+    ];
+
+    'extracted: for mut extracted in extracted_strings {
+        if extracted.is_empty() {
+            continue;
+        }
+
+        for re in regexes.iter() {
+            if re.is_match(&extracted) {
+                continue 'extracted;
+            }
+        }
+
+        if romanize {
+            extracted = romanize_string(extracted);
+        }
+
+        strings.push(extracted);
+    }
+
+    if logging {
+        println!("{file_parsed_msg} {}", scripts_file_path.display());
+    }
+
+    write(other_path.join("scripts.txt"), strings.join("\n")).unwrap();
+    write(
+        other_path.join("scripts_trans.txt"),
+        "\n".repeat(strings.len().saturating_sub(1)),
+    )
+    .unwrap();
+}
+
+// read_plugins is not implemented and will NEVER be, as plugins can differ from each other incredibly.
+// Change plugins.js with your own hands.

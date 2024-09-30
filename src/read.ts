@@ -1,21 +1,13 @@
-import {
-    animateProgressText,
-    applyLocalization,
-    applyTheme,
-    getThemeStyleSheet,
-    readScripts,
-} from "./extensions/functions";
+import { animateProgressText, applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
 import { invokeRead } from "./extensions/invokes";
 import { ReadWindowLocalization } from "./extensions/localization";
 import { EngineType, ProcessingMode } from "./types/enums";
 
 import { emit, once } from "@tauri-apps/api/event";
-import { BaseDirectory, exists, readBinaryFile, readTextFile } from "@tauri-apps/api/fs";
+import { BaseDirectory, exists, readTextFile } from "@tauri-apps/api/fs";
 import { join } from "@tauri-apps/api/path";
 import { appWindow } from "@tauri-apps/api/window";
 
-import { load } from "@savannstm/marshal";
-import { inflate } from "pako";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -210,47 +202,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 gameTitle,
                 romanize: Boolean(romanizeCheckbox.textContent),
                 disableCustomProcessing: Boolean(customProcessingCheckbox.textContent),
-                disableProcessing: Object.values(disableProcessings).slice(0, -1),
+                disableProcessing: Object.values(disableProcessings),
                 logging: false,
                 processingMode: readingModeSelect.value === "append" ? ProcessingMode.Append : ProcessingMode.Force,
                 engineType,
             });
-
-            if (engineType !== EngineType.New) {
-                if (!disableProcessings.plugins) {
-                    const serializedScriptsData = load(
-                        await readBinaryFile(
-                            await join(
-                                projectPath,
-                                originalDir,
-                                `Scripts.${
-                                    engineType === EngineType.VXAce
-                                        ? "rvdata2"
-                                        : engineType === EngineType.VX
-                                          ? "rvdata"
-                                          : "rxdata"
-                                }`,
-                            ),
-                        ),
-                        {
-                            stringMode: "binary",
-                        },
-                    ) as { __type: "bytes"; data: number[] }[][];
-
-                    const codes: string[] = [];
-                    const decoder = new TextDecoder();
-
-                    for (const arr of serializedScriptsData) {
-                        codes.push(decoder.decode(inflate(new Uint8Array(arr[2].data))));
-                    }
-
-                    await readScripts(
-                        codes.join(""),
-                        await join(projectPath, ".rpgm-translation-gui/translation/other"),
-                        Boolean(romanizeCheckbox.textContent),
-                    );
-                }
-            }
 
             await emit("restart");
             appWindow.close();

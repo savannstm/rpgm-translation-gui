@@ -75,7 +75,7 @@ enum Code {
     Unknown,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 enum Variable {
     Name,
     Nickname,
@@ -170,13 +170,13 @@ where
     result
 }
 
-fn get_game_type(game_title: &str) -> Option<GameType> {
+fn get_game_type(game_title: &str) -> Option<&GameType> {
     let lowercased: String = game_title.to_lowercase();
 
     if Regex::new(r"\btermina\b").unwrap().is_match(&lowercased) {
-        Some(GameType::Termina)
+        Some(&GameType::Termina)
     } else if Regex::new(r"\blisa\b").unwrap().is_match(&lowercased) {
-        Some(GameType::LisaRPG)
+        Some(&GameType::LisaRPG)
     } else {
         None
     }
@@ -218,7 +218,7 @@ fn compile(
     let data_output_path: &Path = &output_path.join(data_dir).join("output/data");
     let plugins_output_path: &Path = &output_path.join(data_dir).join("output/js");
 
-    let game_type: &Option<GameType> = &if disable_custom_processing {
+    let game_type: Option<&GameType> = if disable_custom_processing {
         None
     } else {
         get_game_type(game_title)
@@ -279,19 +279,36 @@ fn compile(
 
     let plugins_file_path: &Path = &plugins_path.join("plugins.json");
 
-    if !disable_processing[3]
-        && game_type.is_some()
-        && game_type.as_ref().unwrap() == GameType::Termina
-        && plugins_path.exists()
-    {
-        write_plugins(
-            plugins_file_path,
-            plugins_path,
-            plugins_output_path,
-            shuffle_level,
-            logging,
-            "",
-        );
+    if !disable_processing[3] {
+        if game_type.is_some_and(|game_type: &GameType| game_type == GameType::Termina) && plugins_path.exists() {
+            write_plugins(
+                plugins_file_path,
+                plugins_path,
+                plugins_output_path,
+                shuffle_level,
+                logging,
+                "",
+            );
+        }
+
+        if engine_type != EngineType::New {
+            let scripts_file_path: &Path = &original_path.join(match engine_type {
+                EngineType::VXAce => "Scripts.rvdata2",
+                EngineType::VX => "Scripts.rvdata",
+                EngineType::XP => "Scripts.rxdata",
+                _ => unreachable!(),
+            });
+
+            write_scripts(
+                scripts_file_path,
+                other_path,
+                data_output_path,
+                romanize,
+                logging,
+                engine_type,
+                "",
+            );
+        }
     }
 
     start_time.elapsed().as_secs_f64()
@@ -304,7 +321,7 @@ fn read(
     game_title: &str,
     romanize: bool,
     disable_custom_processing: bool,
-    disable_processing: [bool; 3],
+    disable_processing: [bool; 4],
     logging: bool,
     processing_mode: u8,
     engine_type: u8,
@@ -324,7 +341,7 @@ fn read(
         _ => unreachable!(),
     };
 
-    let game_type: &Option<GameType> = &if disable_custom_processing {
+    let game_type: Option<&GameType> = if disable_custom_processing {
         None
     } else {
         get_game_type(game_title)
@@ -384,6 +401,21 @@ fn read(
             "",
             processing_mode,
             engine_type,
+        );
+    }
+
+    if !disable_processing[3] && engine_type != EngineType::New {
+        read_scripts(
+            &original_path.join(match engine_type {
+                EngineType::VXAce => "Scripts.rvdata2",
+                EngineType::VX => "Scripts.rvdata",
+                EngineType::XP => "Scripts.rxdata",
+                _ => unreachable!(),
+            }),
+            other_path,
+            romanize,
+            logging,
+            "",
         );
     }
 }

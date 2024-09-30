@@ -1,25 +1,27 @@
 [package]
 name = "rpgm-translation-gui"
-version = "3.11.5"
+version = "3.11.6"
 description = "A graphical interface that allows you to open RPG Maker games' text and edit it, then writing it back to the initial form."
 authors = ["savannstm <savannstm@gmail.com>"]
 edition = "2021"
 
 [build-dependencies]
-tauri-build = { version = "1", features = [] }
+tauri-build = { version = "1.5.5", features = [] }
 
 [dependencies]
 tauri = { version = "1", features = [ "protocol-asset", "dialog-open", "os-all", "window-close", "window-create", "dialog-message", "process-exit", "dialog-ask", "fs-write-file", "fs-create-dir", "fs-read-dir", "fs-read-file", "fs-exists", "fs-copy-file", "fs-remove-dir", "path-all", "shell-open"] }
 serde = { version = "1.0.210", features = ["derive"] }
-serde_json = "1.0.127"
+serde_json = "1.0.128"
 rayon = "1.10.0"
-regex = "1.10.6"
+regex = "1.11.0"
 indexmap = "2.5.0"
 xxhash-rust = { version = "0.8.12", features = ["xxh3"] }
-sonic-rs = "0.3.12"
+sonic-rs = "0.3.13"
 fastrand = "2.1.1"
 lazy_static = "1.5.0"
-marshal-rs = { version = "0.2.4", features = ["sonic"] }
+marshal-rs = { version = "0.3.0", features = ["sonic"] }
+flate2 = "1.0.34"
+encoding_rs = "0.8.34"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

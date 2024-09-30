@@ -1,14 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-dynamic-delete */
-import {
-    animateProgressText,
-    applyLocalization,
-    applyTheme,
-    extractStrings,
-    getThemeStyleSheet,
-    readScripts,
-    romanizeString,
-} from "./extensions/functions";
+import { animateProgressText, applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
 import "./extensions/htmlelement-extensions";
 import { invokeCompile, invokeRead } from "./extensions/invokes";
 import { MainWindowLocalization } from "./extensions/localization";
@@ -17,16 +9,7 @@ import { EngineType, Language, ProcessingMode, State } from "./types/enums";
 
 import { ask, message, open as openPath } from "@tauri-apps/api/dialog";
 import { emit, listen } from "@tauri-apps/api/event";
-import {
-    FileEntry,
-    createDir,
-    exists,
-    readBinaryFile,
-    readDir,
-    readTextFile,
-    writeBinaryFile,
-    writeTextFile,
-} from "@tauri-apps/api/fs";
+import { FileEntry, createDir, exists, readDir, readTextFile, writeTextFile } from "@tauri-apps/api/fs";
 import { locale as getLocale } from "@tauri-apps/api/os";
 import { BaseDirectory } from "@tauri-apps/api/path";
 import { exit } from "@tauri-apps/api/process";
@@ -34,8 +17,6 @@ import { invoke } from "@tauri-apps/api/tauri";
 import { WebviewWindow, appWindow } from "@tauri-apps/api/window";
 const { Resource } = BaseDirectory;
 
-import { dump, load } from "@savannstm/marshal";
-import { deflate, inflate } from "pako";
 import XRegExp from "xregexp";
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -1488,80 +1469,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function writeScripts(scriptsFilePath: string, otherPath: string, outputPath: string, romanize: boolean) {
-        const scriptEntries = load(await readBinaryFile(scriptsFilePath), { stringMode: "binary" }) as {
-            __type: "bytes";
-            data: number[];
-        }[][];
-        const originalScriptsText = (await readTextFile(join(otherPath, "scripts.txt"))).split("\n");
-        const translatedScriptsText = (await readTextFile(join(otherPath, "scripts_trans.txt"))).split("\n");
-
-        const scriptsTranslationMap = new Map(originalScriptsText.map((value, i) => [value, translatedScriptsText[i]]));
-
-        const decoder = new TextDecoder("utf-8", { fatal: true });
-
-        for (const [i, script] of scriptEntries.entries()) {
-            let code: string;
-
-            {
-                const inflated = inflate(new Uint8Array(script[2].data));
-
-                try {
-                    code = decoder.decode(inflated);
-                } catch {
-                    try {
-                        code = new TextDecoder("windows-1252", { fatal: true }).decode(inflated);
-                    } catch {
-                        try {
-                            code = new TextDecoder("shift-jis", { fatal: true }).decode(inflated);
-                        } catch {
-                            code = new TextDecoder("gbk", { fatal: true }).decode(inflated);
-                        }
-                    }
-                }
-            }
-
-            const [stringArray, indexArray] = extractStrings(code, true) as [string[], number[]];
-
-            for (let i = stringArray.length - 1; i >= 0; i--) {
-                let string = stringArray[i];
-
-                if (string.length === 0 || !scriptsTranslationMap.has(string)) {
-                    continue;
-                }
-
-                if (romanize) {
-                    string = romanizeString(string);
-                }
-
-                const translated = scriptsTranslationMap.get(string) as string;
-
-                if (translated) {
-                    const before = code.slice(0, indexArray[i]);
-                    const after = code.slice(indexArray[i] + string.length);
-
-                    code = before + translated + after;
-                }
-            }
-
-            scriptEntries[i][2] = { __type: "bytes", data: Array.from(deflate(code, { level: 6 })) };
-        }
-
-        await writeBinaryFile(
-            join(
-                outputPath,
-                `Scripts.${
-                    settings.engineType === EngineType.VXAce
-                        ? "rvdata2"
-                        : settings.engineType === EngineType.VX
-                          ? "rvdata"
-                          : "rxdata"
-                }`,
-            ),
-            dump(scriptEntries),
-        );
-    }
-
     async function compile(silent: boolean): Promise<void> {
         if (!settings.projectPath) {
             return;
@@ -1597,25 +1504,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 logging: compileSettings.logging,
                 engineType: settings.engineType,
             });
-
-            if (!compileSettings.disableProcessing.of.plugins) {
-                await writeScripts(
-                    join(
-                        settings.projectPath,
-                        originalDir,
-                        `Scripts.${
-                            settings.engineType === EngineType.VXAce
-                                ? "rvdata2"
-                                : settings.engineType === EngineType.VX
-                                  ? "rvdata"
-                                  : "rxdata"
-                        }`,
-                    ),
-                    join(settings.projectPath, programDataDir, translationDir, otherDir),
-                    join(settings.projectPath, programDataDir, "output", "Data"),
-                    compileSettings.romanize,
-                );
-            }
 
             alert(`${windowLocalization.compileSuccess} ${executionTime}`);
             compileButton.firstElementChild?.classList.remove("animate-spin");
@@ -1984,34 +1872,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                         gameTitle = line.split("=", 2)[1].trim();
                     }
                 }
-
-                const decoder = new TextDecoder();
-                const codes: string[] = [];
-
-                const serializedScriptsData = load(
-                    await readBinaryFile(
-                        join(
-                            settings.projectPath,
-                            originalDir,
-                            `Scripts.${
-                                settings.engineType === EngineType.VXAce
-                                    ? "rvdata2"
-                                    : settings.engineType === EngineType.VX
-                                      ? "rvdata"
-                                      : "rxdata"
-                            }`,
-                        ),
-                    ),
-                    {
-                        stringMode: "binary",
-                    },
-                ) as { __type: "bytes"; data: number[] }[][];
-
-                for (const arr of serializedScriptsData) {
-                    codes.push(decoder.decode(inflate(new Uint8Array(arr[2].data))));
-                }
-
-                await readScripts(codes.join(""), otherPath, false);
             }
 
             await invokeRead({
@@ -2020,7 +1880,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 gameTitle,
                 romanize: false,
                 disableCustomProcessing: false,
-                disableProcessing: [false, false, false],
+                disableProcessing: [false, false, false, false],
                 logging: false,
                 processingMode: ProcessingMode.Default,
                 engineType: settings.engineType,
