@@ -2,12 +2,13 @@ import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/
 import { SettingsWindowLocalization } from "./extensions/localization";
 import "./extensions/math-extensions";
 
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { emit, once } from "@tauri-apps/api/event";
-import { readDir, readTextFile } from "@tauri-apps/api/fs";
-import { platform as getPlatform } from "@tauri-apps/api/os";
 import { BaseDirectory } from "@tauri-apps/api/path";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { readDir, readTextFile } from "@tauri-apps/plugin-fs";
+import { platform as getPlatform } from "@tauri-apps/plugin-os";
+const appWindow = getCurrentWebviewWindow();
 const { Resource } = BaseDirectory;
 
 interface FontObject extends Record<string, string> {
@@ -30,7 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     applyTheme(
         getThemeStyleSheet() as CSSStyleSheet,
-        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[settings.theme],
+        JSON.parse(await readTextFile("res/themes.json", { baseDir: Resource }))[settings.theme],
     );
 
     applyLocalization(new SettingsWindowLocalization(settings.language));
@@ -47,7 +48,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         let fontPath: string;
 
         switch (platform) {
-            case "win32":
+            case "windows":
                 fontPath = "C:/Windows/Fonts";
                 break;
             case "linux":
@@ -57,13 +58,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
         }
 
-        for (const entry of await readDir(fontPath, { recursive: true })) {
-            const path = entry.path;
+        for (const entry of await readDir(fontPath)) {
             const name = entry.name as string;
             const extension = name.slice(-3);
 
             if (["ttf", "otf"].includes(extension)) {
-                fontsObject[path] = name;
+                fontsObject[join(fontPath, name)] = name;
             }
         }
 

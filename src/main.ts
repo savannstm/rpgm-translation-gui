@@ -7,17 +7,18 @@ import { MainWindowLocalization } from "./extensions/localization";
 import "./extensions/string-extensions";
 import { EngineType, Language, ProcessingMode, State } from "./types/enums";
 
-import { ask, message, open as openPath } from "@tauri-apps/api/dialog";
+import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import { FileEntry, createDir, exists, readDir, readTextFile, writeTextFile } from "@tauri-apps/api/fs";
-import { locale as getLocale } from "@tauri-apps/api/os";
 import { BaseDirectory } from "@tauri-apps/api/path";
-import { exit } from "@tauri-apps/api/process";
-import { invoke } from "@tauri-apps/api/tauri";
-import { WebviewWindow, appWindow } from "@tauri-apps/api/window";
+import { WebviewWindow, getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { ask, message, open as openPath } from "@tauri-apps/plugin-dialog";
+import { exists, mkdir, readDir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import { locale as getLocale } from "@tauri-apps/plugin-os";
+import { exit } from "@tauri-apps/plugin-process";
 const { Resource } = BaseDirectory;
 
 import XRegExp from "xregexp";
+const appWindow = getCurrentWebviewWindow();
 
 document.addEventListener("DOMContentLoaded", async () => {
     const tw = (strings: TemplateStringsArray, ...values: string[]): string => String.raw({ raw: strings }, ...values);
@@ -84,12 +85,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     let windowLocalization: MainWindowLocalization;
     let windowLanguage: Language;
 
-    const settings: Settings = (await exists(settingsPath, { dir: Resource }))
-        ? JSON.parse(await readTextFile(settingsPath, { dir: Resource }))
+    const settings: Settings = (await exists(settingsPath, { baseDir: Resource }))
+        ? JSON.parse(await readTextFile(settingsPath, { baseDir: Resource }))
         : await createSettings();
 
     // Set theme
-    const themes = JSON.parse(await readTextFile("res/themes.json", { dir: Resource })) as ThemeObject;
+    const themes = JSON.parse(await readTextFile("res/themes.json", { baseDir: Resource })) as ThemeObject;
 
     let theme: Theme = themes[settings.theme];
     let currentTheme: string;
@@ -195,7 +196,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function createDataDir(path: string) {
         if (!(await exists(path))) {
-            await createDir(path);
+            await mkdir(path);
         }
     }
 
@@ -328,7 +329,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             themes[themeName] = newTheme;
 
-            await writeTextFile("res/themes.json", JSON.stringify(themes), { dir: Resource });
+            await writeTextFile("res/themes.json", JSON.stringify(themes), { baseDir: Resource });
 
             const newThemeButton = document.createElement("button");
             newThemeButton.id = themeName;
@@ -455,12 +456,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     engineType: null,
                 }),
                 {
-                    dir: Resource,
+                    baseDir: Resource,
                 },
             );
 
             alert(windowLocalization.createdSettings);
-            return JSON.parse(await readTextFile(settingsPath, { dir: Resource }));
+            return JSON.parse(await readTextFile(settingsPath, { baseDir: Resource }));
         } else {
             await exit();
         }
@@ -959,7 +960,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             );
 
             for (const subDir of [mapsDir, otherDir, "plugins"]) {
-                await createDir(join(dirName, subDir), { recursive: true });
+                await mkdir(join(dirName, subDir), { recursive: true });
             }
         }
 
@@ -1346,16 +1347,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const contentNames: string[] = [];
         const content: string[][] = [];
 
-        for (const entry of await readDir(join(settings.projectPath, programDataDir, translationDir), {
-            recursive: true,
-        })) {
+        for (const entry of await readDir(join(settings.projectPath, programDataDir, translationDir))) {
             const folder = entry.name as string;
 
             if (folder.startsWith(".")) {
                 continue;
             }
 
-            for (const file of entry.children as FileEntry[]) {
+            for (const file of await readDir(join(settings.projectPath, programDataDir, translationDir, folder))) {
                 const name = file.name as string;
 
                 if (!name.endsWith(".txt") || name.includes("plain")) {
@@ -1677,7 +1676,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 await awaitSaving();
 
                 if (await exitProgram()) {
-                    await writeTextFile(settingsPath, JSON.stringify(settings), { dir: Resource });
+                    await writeTextFile(settingsPath, JSON.stringify(settings), { baseDir: Resource });
                     location.reload();
                 }
                 break;
@@ -1855,8 +1854,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const mapsPath = join(translationPath, mapsDir);
         const otherPath = join(translationPath, otherDir);
 
-        await createDir(mapsPath, { recursive: true });
-        await createDir(otherPath, { recursive: true });
+        await mkdir(mapsPath, { recursive: true });
+        await mkdir(otherPath, { recursive: true });
 
         if (!parsed) {
             let gameTitle!: string;
@@ -1906,7 +1905,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             await createLogFile(join(settings.projectPath, programDataDir, logFile));
             await createCompileSettings(join(settings.projectPath, programDataDir, "compile-settings.json"));
             initializeThemes();
-            await createDir(join(settings.projectPath, programDataDir, "backups"), { recursive: true });
+            await mkdir(join(settings.projectPath, programDataDir, "backups"), { recursive: true });
 
             nextBackupNumber = (await readDir(join(settings.projectPath, programDataDir, "backups")))
                 .map((entry) => {
@@ -1955,7 +1954,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         const unlistenRestart = await readWindow.once("restart", async () => {
-            await writeTextFile(settingsPath, JSON.stringify(settings), { dir: Resource });
+            await writeTextFile(settingsPath, JSON.stringify(settings), { baseDir: Resource });
             location.reload();
         });
 
@@ -2320,7 +2319,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await awaitSaving();
 
         if (await exitProgram()) {
-            await writeTextFile(settingsPath, JSON.stringify(settings), { dir: Resource });
+            await writeTextFile(settingsPath, JSON.stringify(settings), { baseDir: Resource });
             await exit();
         } else {
             event.preventDefault();

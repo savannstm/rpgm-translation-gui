@@ -424,10 +424,15 @@ fn main() {
     seed(69);
 
     Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(generate_handler![escape_text, read, compile])
         .setup(|_app: &mut App| {
             #[cfg(debug_assertions)]
-            _app.get_window("main").unwrap().open_devtools();
+            _app.get_webview_window("main").unwrap().open_devtools();
 
             Ok(())
         })

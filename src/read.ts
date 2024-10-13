@@ -4,9 +4,10 @@ import { ReadWindowLocalization } from "./extensions/localization";
 import { EngineType, ProcessingMode } from "./types/enums";
 
 import { emit, once } from "@tauri-apps/api/event";
-import { BaseDirectory, exists, readTextFile } from "@tauri-apps/api/fs";
 import { join } from "@tauri-apps/api/path";
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
+const appWindow = getCurrentWebviewWindow();
 
 const { Resource } = BaseDirectory;
 
@@ -27,7 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     applyTheme(
         getThemeStyleSheet() as CSSStyleSheet,
-        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
+        JSON.parse(await readTextFile("res/themes.json", { baseDir: Resource }))[theme],
     );
 
     const windowLocalization = new ReadWindowLocalization(language);

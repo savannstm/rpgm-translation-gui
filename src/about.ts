@@ -3,9 +3,9 @@ import { AboutWindowLocalization } from "./extensions/localization";
 
 import { getVersion } from "@tauri-apps/api/app";
 import { emit, once } from "@tauri-apps/api/event";
-import { readTextFile } from "@tauri-apps/api/fs";
 import { BaseDirectory } from "@tauri-apps/api/path";
-import { open as openLink } from "@tauri-apps/api/shell";
+import { readTextFile } from "@tauri-apps/plugin-fs";
+import { open as openLink } from "@tauri-apps/plugin-shell";
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     applyTheme(
         getThemeStyleSheet() as CSSStyleSheet,
-        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
+        JSON.parse(await readTextFile("res/themes.json", { baseDir: Resource }))[theme],
     );
 
     applyLocalization(new AboutWindowLocalization(language));

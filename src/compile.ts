@@ -1,11 +1,12 @@
 import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
 import { CompileWindowLocalization } from "./extensions/localization";
 
-import { open as openPath } from "@tauri-apps/api/dialog";
 import { emit, once } from "@tauri-apps/api/event";
-import { BaseDirectory, readTextFile, writeTextFile } from "@tauri-apps/api/fs";
 import { join } from "@tauri-apps/api/path";
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { open as openPath } from "@tauri-apps/plugin-dialog";
+import { BaseDirectory, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+const appWindow = getCurrentWebviewWindow();
 const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -25,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     applyTheme(
         getThemeStyleSheet() as CSSStyleSheet,
-        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
+        JSON.parse(await readTextFile("res/themes.json", { baseDir: Resource }))[theme],
     );
 
     applyLocalization(new CompileWindowLocalization(language));
