@@ -1,6 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-dynamic-delete */
-import { animateProgressText, applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import {
+    animateProgressText,
+    applyLocalization,
+    applyTheme,
+    CompileSettings,
+    getThemeStyleSheet,
+    join,
+} from "./extensions/functions";
 import "./extensions/htmlelement-extensions";
 import { invokeCompile, invokeRead } from "./extensions/invokes";
 import { MainWindowLocalization } from "./extensions/localization";
@@ -10,7 +17,7 @@ import { EngineType, Language, ProcessingMode, State } from "./types/enums";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { BaseDirectory } from "@tauri-apps/api/path";
-import { WebviewWindow, getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { ask, message, open as openPath } from "@tauri-apps/plugin-dialog";
 import { exists, mkdir, readDir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { locale as getLocale } from "@tauri-apps/plugin-os";
@@ -22,15 +29,13 @@ const appWindow = getCurrentWebviewWindow();
 
 document.addEventListener("DOMContentLoaded", async () => {
     const tw = (strings: TemplateStringsArray, ...values: string[]): string => String.raw({ raw: strings }, ...values);
-    const join = (...strings: string[]): string => strings.join("/");
 
     // #region Static constants
+    const NEW_LINE = "\\#";
+    const LINES_SEPARATOR = "<#>";
     const sheet = getThemeStyleSheet() as CSSStyleSheet;
 
     const translationDir = "translation";
-
-    const mapsDir = "maps";
-    const otherDir = "other";
 
     const programDataDir = ".rpgm-translation-gui";
     const logFile = "replacement-log.json";
@@ -959,39 +964,31 @@ document.addEventListener("DOMContentLoaded", async () => {
                 `${formattedDate}_${nextBackupNumber.toString().padStart(2, "0")}`,
             );
 
-            for (const subDir of [mapsDir, otherDir, "plugins"]) {
-                await mkdir(join(dirName, subDir), { recursive: true });
-            }
+            await mkdir(dirName, { recursive: true });
         }
 
-        let i = 0;
         for (const contentElement of contentContainer.children) {
             const outputArray: string[] = [];
 
             for (const child of contentElement.children) {
-                const node = child.firstElementChild?.children[2] as HTMLTextAreaElement;
-                outputArray.push(node.value.replaceAll("\n", "\\#"));
+                const originalTextNode = child.firstElementChild?.children[1] as HTMLDivElement;
+                const translatedTextNode = child.firstElementChild?.children[2] as HTMLTextAreaElement;
+
+                outputArray.push(
+                    (originalTextNode.textContent as string).replaceAll("\n", NEW_LINE) +
+                        LINES_SEPARATOR +
+                        translatedTextNode.value.replaceAll("\n", NEW_LINE),
+                );
             }
 
             if (contentElement.id === "system") {
-                outputArray.push((document.getElementById("current-game-title") as HTMLInputElement).value);
+                outputArray.push(
+                    (document.getElementById("current-game-title") as HTMLInputElement).value + LINES_SEPARATOR,
+                );
             }
 
-            const dirPath =
-                settings.engineType === EngineType.New
-                    ? i < 2
-                        ? mapsDir
-                        : i < 12
-                          ? otherDir
-                          : "plugins"
-                    : i < 2
-                      ? mapsDir
-                      : otherDir;
-
-            const filePath = `${dirPath}/${contentElement.id}_trans.txt`;
+            const filePath = `${contentElement.id}.txt`;
             await writeTextFile(join(dirName, filePath), outputArray.join("\n"));
-
-            i++;
         }
 
         if (!backup) {
@@ -1348,41 +1345,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         const content: string[][] = [];
 
         for (const entry of await readDir(join(settings.projectPath, programDataDir, translationDir))) {
-            const folder = entry.name as string;
+            const name = entry.name;
 
-            if (folder.startsWith(".")) {
+            if (!name.endsWith(".txt")) {
                 continue;
             }
 
-            for (const file of await readDir(join(settings.projectPath, programDataDir, translationDir, folder))) {
-                const name = file.name as string;
-
-                if (!name.endsWith(".txt") || name.includes("plain")) {
-                    continue;
-                }
-
-                contentNames.push(name.slice(0, -4));
-                content.push(
-                    (
-                        await readTextFile(join(settings.projectPath, programDataDir, translationDir, folder, name))
-                    ).split("\n"),
-                );
-            }
+            contentNames.push(name.slice(0, -4));
+            content.push(
+                (await readTextFile(join(settings.projectPath, programDataDir, translationDir, name))).split("\n"),
+            );
         }
 
         if (contentNames.includes("scripts")) {
             (leftPanel.lastElementChild as HTMLElement).innerHTML = State.Scripts;
         }
 
-        for (let i = 0; i < contentNames.length - 1; i += 2) {
+        for (let i = 0; i < contentNames.length; i++) {
             const contentName = contentNames[i];
             const contentDiv = document.createElement("div");
             contentDiv.id = contentName;
             contentDiv.className = tw`hidden flex-col`;
 
             if (contentName === "system") {
-                const originalGameTitle = content[i].pop() as string;
-                const translatedGameTitle = content[i + 1].pop() as string;
+                const [originalGameTitle, translatedGameTitle] = (content[i].pop() as string).split(LINES_SEPARATOR, 2);
 
                 if (translatedGameTitle === "") {
                     currentGameTitle.value = originalGameTitle;
@@ -1394,8 +1380,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             let contentDivHeight = 0;
 
             for (let j = 0; j < content[i].length; j++) {
-                const originalText = content[i][j].replaceAll("\\#", "\n");
-                const translationText = content[i + 1][j];
+                const [originalText, translationText] = content[i][j].split(LINES_SEPARATOR, 2);
+
+                const originalTextSplit = originalText.replaceAll(NEW_LINE, "\n");
+                const translationTextSplit = translationText.split(NEW_LINE);
 
                 const textParent = document.createElement("div");
                 textParent.id = `${contentName}-${j + 1}`;
@@ -1408,9 +1396,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 originalTextElement.title = windowLocalization.originalTextFieldTitle;
                 originalTextElement.id = `${contentName}-original-${j + 1}`;
                 originalTextElement.className = tw`backgroundPrimary borderPrimary -ml-0.5 inline-block w-full cursor-pointer whitespace-pre-wrap border-2 p-1`;
-                originalTextElement.textContent = originalText;
+                originalTextElement.textContent = originalTextSplit;
 
-                const translationTextSplit = translationText.split("\\#");
                 const translationTextElement = document.createElement("textarea");
                 translationTextElement.id = `${contentName}-translation-${j + 1}`;
                 translationTextElement.rows = translationTextSplit.length;
@@ -1496,8 +1483,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 originalDir,
                 outputPath: compileSettings.customOutputPath.path,
                 gameTitle: currentGameTitle.value,
+                mapsProcessingMode: compileSettings.mapsProcessingMode,
                 romanize: compileSettings.romanize,
-                shuffleLevel: compileSettings.shuffle.level,
                 disableCustomProcessing: compileSettings.disableCustomProcessing,
                 disableProcessing: Object.values(compileSettings.disableProcessing.of),
                 logging: compileSettings.logging,
@@ -1780,28 +1767,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function createCompileSettings(path: string) {
         if (!(await exists(path))) {
-            await writeTextFile(
-                path,
-                JSON.stringify({
-                    initialized: false,
-                    logging: false,
-                    romanize: false,
-                    shuffle: { enabled: false, level: 0 },
-                    customParsing: false,
-                    customOutputPath: { enabled: false, path: "" },
-                    disableCustomProcessing: false,
-                    disableProcessing: {
-                        enabled: false,
-                        of: {
-                            maps: false,
-                            other: false,
-                            system: false,
-                            plugins: false,
-                        },
-                    },
-                    doNotAskAgain: true,
-                }),
-            );
+            await writeTextFile(path, JSON.stringify(new CompileSettings()));
         }
     }
 
@@ -1851,13 +1817,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const translationPath = join(settings.projectPath, programDataDir, translationDir);
         const parsed = await exists(translationPath);
 
-        const mapsPath = join(translationPath, mapsDir);
-        const otherPath = join(translationPath, otherDir);
-
-        await mkdir(mapsPath, { recursive: true });
-        await mkdir(otherPath, { recursive: true });
-
         if (!parsed) {
+            await mkdir(translationPath, { recursive: true });
             let gameTitle!: string;
 
             if (settings.engineType === EngineType.New) {
@@ -1877,6 +1838,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 projectPath: settings.projectPath,
                 originalDir,
                 gameTitle,
+                mapsProcessingMode: 0,
                 romanize: false,
                 disableCustomProcessing: false,
                 disableProcessing: [false, false, false, false],
@@ -1908,11 +1870,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             await mkdir(join(settings.projectPath, programDataDir, "backups"), { recursive: true });
 
             nextBackupNumber = (await readDir(join(settings.projectPath, programDataDir, "backups")))
-                .map((entry) => {
-                    const name = entry.name as string;
-                    const number = name.slice(0, -2);
-                    return Number.parseInt(number);
-                })
+                .map((entry) => Number.parseInt(entry.name.slice(0, -2)))
                 .sort((a, b) => a - b)[0];
 
             if (!nextBackupNumber) {

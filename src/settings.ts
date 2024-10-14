@@ -1,4 +1,4 @@
-import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import { applyLocalization, applyTheme, getThemeStyleSheet, join } from "./extensions/functions";
 import { SettingsWindowLocalization } from "./extensions/localization";
 import "./extensions/math-extensions";
 
@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function fetchFonts(): Promise<FontObject | undefined> {
         const fontsObject = {} as FontObject;
-        const platform = await getPlatform();
+        const platform = getPlatform();
         let fontPath: string;
 
         switch (platform) {
@@ -59,7 +59,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         for (const entry of await readDir(fontPath)) {
-            const name = entry.name as string;
+            const name = entry.name;
             const extension = name.slice(-3);
 
             if (["ttf", "otf"].includes(extension)) {

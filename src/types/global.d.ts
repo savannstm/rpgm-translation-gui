@@ -34,10 +34,7 @@ interface CompileSettings {
     initialized: boolean;
     logging: boolean;
     romanize: boolean;
-    shuffle: {
-        enabled: boolean;
-        level: number;
-    };
+    mapsProcessingMode: number;
     disableCustomProcessing: boolean;
     customOutputPath: {
         enabled: boolean;
@@ -86,6 +83,7 @@ interface ReadCommandOptions extends Record<string, unknown> {
     projectPath: string;
     originalDir: string;
     gameTitle: string;
+    mapsProcessingMode: number;
     romanize: boolean;
     disableCustomProcessing: boolean;
     disableProcessing: boolean[];
@@ -99,8 +97,8 @@ interface CompileCommandOptions extends Record<string, unknown> {
     originalDir: string;
     outputPath: string;
     gameTitle: string;
+    mapsProcessingMode: number;
     romanize: boolean;
-    shuffleLevel: number;
     disableCustomProcessing: boolean;
     disableProcessing: boolean[];
     logging: boolean;

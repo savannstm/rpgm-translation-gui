@@ -12,9 +12,9 @@
         <div class="p-8">
             <div class="mode text-2xl"></div>
             <select class="backgroundSecond rounded-sm outline-none" id="reading-mode-select">
-                <option class="chooseReadingMode" value=""></option>
-                <option class="appendReadMode" value="append"></option>
-                <option class="forceReadMode" value="force"></option>
+                <option class="defaultReadingMode" value="default"></option>
+                <option class="appendReadingMode" value="append"></option>
+                <option class="forceReadingMode" value="force"></option>
             </select>
             <div id="mode-description"></div>
             <div class="options text-2xl"></div>
@@ -29,6 +29,12 @@
                         <span class="checkbox borderPrimary size-8 text-xl" id="romanize-checkbox"></span>
                         <span class="romanizeOption"></span>
                     </div>
+
+                    <select class="backgroundSecond rounded-sm outline-none" id="maps-processing-mode-select">
+                        <option class="defaultMapsMode" value="0">Default</option>
+                        <option class="separateMapsMode" value="1">Separate</option>
+                        <option class="preserveMapsMode" value="2">Preserve</option>
+                    </select>
 
                     <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
                         <span class="checkbox borderPrimary size-8 text-xl" id="custom-processing-checkbox"></span>

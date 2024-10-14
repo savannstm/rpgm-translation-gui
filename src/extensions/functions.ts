@@ -196,3 +196,38 @@ export function animateProgressText(progressText: HTMLElement, interval = 500) {
 
     return setInterval(updateText, interval);
 }
+
+export const join = (...strings: string[]): string => strings.join("/");
+
+export class CompileSettings {
+    initialized: boolean;
+    logging: boolean;
+    romanize: boolean;
+    mapsProcessingMode: number;
+    disableCustomProcessing: boolean;
+    customOutputPath: {
+        enabled: boolean;
+        path: string;
+    };
+    disableProcessing: {
+        enabled: boolean;
+        of: {
+            maps: boolean;
+            other: boolean;
+            system: boolean;
+            plugins: boolean;
+        };
+    };
+    doNotAskAgain: boolean;
+
+    constructor() {
+        this.initialized = false;
+        this.logging = false;
+        this.romanize = false;
+        this.mapsProcessingMode = 0;
+        this.disableCustomProcessing = false;
+        this.customOutputPath = { enabled: false, path: "" };
+        this.disableProcessing = { enabled: false, of: { maps: false, other: false, system: false, plugins: false } };
+        this.doNotAskAgain = true;
+    }
+}

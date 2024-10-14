@@ -1,0 +1,26 @@
+{
+    "identifier": "main",
+    "windows": ["main"],
+    "permissions": [
+        "core:window:allow-close",
+        "core:window:allow-destroy",
+        "core:webview:allow-create-webview-window",
+        "core:event:allow-listen",
+        "core:event:allow-unlisten",
+        "core:event:allow-emit",
+        "fs:allow-read-text-file",
+        "fs:allow-write-text-file",
+        "fs:allow-read-dir",
+        "fs:allow-mkdir",
+        "fs:allow-exists",
+        {
+            "identifier": "fs:scope",
+            "allow": ["**"]
+        },
+        "dialog:allow-open",
+        "dialog:allow-message",
+        "dialog:allow-ask",
+        "os:allow-locale",
+        "process:allow-exit"
+    ]
+}

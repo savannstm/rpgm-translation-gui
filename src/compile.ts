@@ -1,8 +1,7 @@
-import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import { applyLocalization, applyTheme, getThemeStyleSheet, join } from "./extensions/functions";
 import { CompileWindowLocalization } from "./extensions/localization";
 
 import { emit, once } from "@tauri-apps/api/event";
-import { join } from "@tauri-apps/api/path";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open as openPath } from "@tauri-apps/plugin-dialog";
 import { BaseDirectory, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
@@ -34,15 +33,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     const settingsContainer = document.getElementById("settings-container") as HTMLDivElement;
     const loggingCheckbox = document.getElementById("logging-checkbox") as HTMLSpanElement;
     const romanizeCheckbox = document.getElementById("romanize-checkbox") as HTMLSpanElement;
-    const shuffleCheckbox = document.getElementById("shuffle-checkbox") as HTMLSpanElement;
-    const shuffleSettings = document.getElementById("shuffle-settings") as HTMLDivElement;
     const customProcessingCheckbox = document.getElementById("custom-processing-checkbox") as HTMLSpanElement;
     const customOutputPathCheckbox = document.getElementById("custom-output-path-checkbox") as HTMLSpanElement;
     const customOutputPathSettings = document.getElementById("custom-output-path-settings") as HTMLDivElement;
     const disableProcessingCheckbox = document.getElementById("disable-processing-checkbox") as HTMLSpanElement;
     const disableProcessingSettings = document.getElementById("disable-processing-settings") as HTMLDivElement;
     const doNotAskAgainCheckbox = document.getElementById("dont-ask-again-checkbox") as HTMLSpanElement;
-    const shuffleSelect = document.getElementById("shuffle-select") as HTMLSelectElement;
+    const mapsProcessingModeSelect = document.getElementById("maps-processing-mode-select") as HTMLSelectElement;
     const outputPath = document.getElementById("output-path") as HTMLInputElement;
     const disableMapsProcessingCheckbox = document.getElementById(
         "disable-maps-processing-checkbox",
@@ -59,21 +56,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     const compileButton = document.getElementById("compile-button") as HTMLButtonElement;
 
     const compileSettings: CompileSettings = JSON.parse(
-        await readTextFile(await join(projectPath, ".rpgm-translation-gui", "compile-settings.json")),
+        await readTextFile(join(projectPath, ".rpgm-translation-gui", "compile-settings.json")),
     );
 
     loggingCheckbox.innerHTML = compileSettings.logging ? "check" : "";
     romanizeCheckbox.innerHTML = compileSettings.romanize ? "check" : "";
+    customProcessingCheckbox.innerHTML = compileSettings.disableCustomProcessing ? "check" : "";
 
-    if (compileSettings.shuffle.enabled) {
-        shuffleCheckbox.innerHTML = "check";
-        shuffleSettings.classList.add("flex", "translate-y-0");
+    if (compileSettings.mapsProcessingMode === 0) {
+        mapsProcessingModeSelect.value = "default";
+    } else if (compileSettings.mapsProcessingMode === 1) {
+        mapsProcessingModeSelect.value = "separate";
     } else {
-        shuffleCheckbox.innerHTML = "";
-        shuffleSettings.classList.add("hidden", "-translate-y-full");
+        mapsProcessingModeSelect.value = "preserve";
     }
 
-    customProcessingCheckbox.innerHTML = compileSettings.disableCustomProcessing ? "check" : "";
+    mapsProcessingModeSelect.addEventListener("change", () => {
+        compileSettings.mapsProcessingMode = Number.parseInt(mapsProcessingModeSelect.value);
+    });
 
     if (compileSettings.customOutputPath.enabled) {
         customOutputPathCheckbox.innerHTML = "check";
@@ -93,14 +93,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     doNotAskAgainCheckbox.innerHTML = compileSettings.doNotAskAgain ? "check" : "";
 
-    shuffleSelect.value = compileSettings.shuffle.level.toString();
-
     if (compileSettings.customOutputPath.path !== "") {
         outputPath.value = compileSettings.customOutputPath.path;
     } else {
-        const path = await join(await join(projectPath));
-        outputPath.value = path;
-        compileSettings.customOutputPath.path = path;
+        outputPath.value = projectPath;
+        compileSettings.customOutputPath.path = projectPath;
     }
 
     disableMapsProcessingCheckbox.innerHTML = compileSettings.disableProcessing.of.maps ? "check" : "";
@@ -128,31 +125,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 } else {
                     romanizeCheckbox.innerHTML = "";
                     compileSettings.romanize = false;
-                }
-                break;
-            case shuffleCheckbox.id:
-                if (!shuffleCheckbox.textContent) {
-                    shuffleSettings.classList.replace("hidden", "flex");
-
-                    requestAnimationFrame(() =>
-                        shuffleSettings.classList.replace("-translate-y-full", "translate-y-0"),
-                    );
-
-                    shuffleCheckbox.innerHTML = "check";
-                    compileSettings.shuffle.enabled = true;
-                } else {
-                    shuffleSettings.classList.replace("translate-y-0", "-translate-y-full");
-
-                    shuffleSettings.addEventListener(
-                        "transitionend",
-                        () => shuffleSettings.classList.replace("flex", "hidden"),
-                        {
-                            once: true,
-                        },
-                    );
-
-                    shuffleCheckbox.innerHTML = "";
-                    compileSettings.shuffle.enabled = false;
                 }
                 break;
             case customProcessingCheckbox.id:
@@ -276,7 +248,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         compileSettings.initialized = true;
 
         await writeTextFile(
-            await join(projectPath, ".rpgm-translation-gui", "compile-settings.json"),
+            join(projectPath, ".rpgm-translation-gui", "compile-settings.json"),
             JSON.stringify(compileSettings),
         );
 
@@ -292,7 +264,5 @@ document.addEventListener("DOMContentLoaded", async () => {
         await closeWindow();
     });
 
-    await appWindow.onCloseRequested(async () => {
-        await closeWindow();
-    });
+    await appWindow.onCloseRequested(closeWindow);
 });

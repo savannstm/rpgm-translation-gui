@@ -1,0 +1,17 @@
+{
+    "identifier": "read",
+    "windows": ["read"],
+    "permissions": [
+        "core:window:allow-close",
+        "core:window:allow-destroy",
+        "core:event:allow-listen",
+        "core:event:allow-unlisten",
+        "core:event:allow-emit",
+        "fs:allow-read-text-file",
+        "fs:allow-exists",
+        {
+            "identifier": "fs:scope",
+            "allow": ["**"]
+        }
+    ]
+}

@@ -1,4 +1,4 @@
-# rpgm-translation-gui
+# rpgmtranslate
 
 ## Основная информация
 
@@ -18,7 +18,7 @@
 ### Билдинг приложения
 
 Клонируйте репозиторий с помощью\
-`git clone https://github.com/savannstm/rpgm-translation-gui.git`.
+`git clone https://github.com/savannstm/rpgmtranslate.git`.
 
 Перейдите в директорию `gui` и установите все необходимые Node.js библиотеки с помощью\
 `npm install`.

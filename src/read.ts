@@ -1,10 +1,9 @@
-import { animateProgressText, applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import { animateProgressText, applyLocalization, applyTheme, getThemeStyleSheet, join } from "./extensions/functions";
 import { invokeRead } from "./extensions/invokes";
 import { ReadWindowLocalization } from "./extensions/localization";
 import { EngineType, ProcessingMode } from "./types/enums";
 
 import { emit, once } from "@tauri-apps/api/event";
-import { join } from "@tauri-apps/api/path";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
 const appWindow = getCurrentWebviewWindow();
@@ -56,6 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "disable-plugins-processing-checkbox",
     ) as HTMLSpanElement;
     const readButton = document.getElementById("read-button") as HTMLButtonElement;
+    const mapsProcessingModeSelect = document.getElementById("maps-processing-mode-select") as HTMLSelectElement;
 
     readingModeSelect.addEventListener("change", () => {
         if (readingModeSelect.value === "append") {
@@ -176,7 +176,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (engineType === EngineType.New) {
                 originalDir = "data";
 
-                if (await exists(await join(projectPath, "original"))) {
+                if (await exists(join(projectPath, "original"))) {
                     originalDir = "original";
                 }
             } else {
@@ -185,10 +185,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const progressText = document.getElementById("progress-text") as HTMLDivElement;
 
-            progressText.innerHTML =
-                readingModeSelect.value === "append"
-                    ? windowLocalization.readingInAppendMode
-                    : windowLocalization.readingInForceMode;
+            if (readingModeSelect.value === "append") {
+                progressText.innerHTML = windowLocalization.readingInAppendMode;
+            } else if (readingModeSelect.value === "force") {
+                progressText.innerHTML = windowLocalization.readingInForceMode;
+            }
 
             const progressWindow = document.getElementById("progress-window") as HTMLDivElement;
             progressWindow.classList.remove("hidden");
@@ -201,11 +202,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 projectPath,
                 originalDir,
                 gameTitle,
+                mapsProcessingMode: Number.parseInt(mapsProcessingModeSelect.value),
                 romanize: Boolean(romanizeCheckbox.textContent),
                 disableCustomProcessing: Boolean(customProcessingCheckbox.textContent),
                 disableProcessing: Object.values(disableProcessings),
                 logging: false,
-                processingMode: readingModeSelect.value === "append" ? ProcessingMode.Append : ProcessingMode.Force,
+                processingMode:
+                    readingModeSelect.value === "append"
+                        ? ProcessingMode.Append
+                        : readingModeSelect.value === "force"
+                          ? ProcessingMode.Force
+                          : ProcessingMode.Default,
                 engineType,
             });
 

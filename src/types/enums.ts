@@ -1,8 +1,8 @@
 export const enum EngineType {
-    XP,
-    VX,
-    VXAce,
     New,
+    VXAce,
+    VX,
+    XP,
 }
 
 export const enum ProcessingMode {
