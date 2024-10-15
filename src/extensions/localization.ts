@@ -341,6 +341,9 @@ export class CompileWindowLocalization {
     readonly dontAskAgain: string;
     readonly compileButtonText: string;
     readonly mapsProcessingMode: string;
+    readonly defaultMapsMode: string;
+    readonly separateMapsMode: string;
+    readonly preserveMapsMode: string;
 
     constructor(language: Language) {
         switch (language) {
@@ -367,6 +370,9 @@ export class CompileWindowLocalization {
                     "Больше не спрашивать (вы можете вновь открыть это окно двойным нажатием по кнопке компиляции)";
                 this.compileButtonText = "Скомпилировать";
                 this.mapsProcessingMode = "Режим обработки файлов maps";
+                this.defaultMapsMode = "Стандартный";
+                this.separateMapsMode = "Раздельный";
+                this.preserveMapsMode = "Сохранять дубликаты";
                 break;
             default:
                 this.options = "Options:";
@@ -391,6 +397,9 @@ export class CompileWindowLocalization {
                     "Don't ask again (you can open this window again by double-clicking compile button)";
                 this.compileButtonText = "Compile";
                 this.mapsProcessingMode = "Maps processing mode";
+                this.defaultMapsMode = "Default";
+                this.separateMapsMode = "Separate maps";
+                this.preserveMapsMode = "Preserve duplicates";
                 break;
         }
     }
@@ -418,6 +427,10 @@ export class ReadWindowLocalization {
     readonly readingInAppendMode: string;
     readonly readingInForceMode: string;
     readonly readingModeNotSelected: string;
+    readonly mapsProcessingMode: string;
+    readonly defaultMapsMode: string;
+    readonly separateMapsMode: string;
+    readonly preserveMapsMode: string;
 
     constructor(language: Language) {
         switch (language) {
@@ -448,6 +461,10 @@ export class ReadWindowLocalization {
                 this.readingInAppendMode = "Читаем в режиме добавления";
                 this.readingInForceMode = "Читаем в режиме принудительной перезаписи";
                 this.readingModeNotSelected = "Режим чтения не выбран.";
+                this.mapsProcessingMode = "Режим обработки файлов maps";
+                this.defaultMapsMode = "Стандартный";
+                this.separateMapsMode = "Раздельный";
+                this.preserveMapsMode = "Сохранять дубликаты";
                 break;
             default:
                 this.mode = "Reading mode:";
@@ -476,6 +493,10 @@ export class ReadWindowLocalization {
                 this.readingInAppendMode = "Reading in append mode";
                 this.readingInForceMode = "Reading in force rewrite mode";
                 this.readingModeNotSelected = "Reading mode is not selected.";
+                this.mapsProcessingMode = "Maps processing mode";
+                this.defaultMapsMode = "Default";
+                this.separateMapsMode = "Separate maps";
+                this.preserveMapsMode = "Preserve duplicates";
                 break;
         }
     }
