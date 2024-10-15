@@ -2270,7 +2270,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     await listen("fetch-settings", async () => {
-        await emit("settings", settings);
+        await emit("settings", [settings, theme]);
     });
 
     await appWindow.onCloseRequested(async (event) => {

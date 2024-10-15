@@ -340,6 +340,7 @@ export class CompileWindowLocalization {
     readonly disablePluginsProcessingOption: string;
     readonly dontAskAgain: string;
     readonly compileButtonText: string;
+    readonly mapsProcessingMode: string;
 
     constructor(language: Language) {
         switch (language) {
@@ -365,6 +366,7 @@ export class CompileWindowLocalization {
                 this.dontAskAgain =
                     "Больше не спрашивать (вы можете вновь открыть это окно двойным нажатием по кнопке компиляции)";
                 this.compileButtonText = "Скомпилировать";
+                this.mapsProcessingMode = "Режим обработки файлов maps";
                 break;
             default:
                 this.options = "Options:";
@@ -388,6 +390,7 @@ export class CompileWindowLocalization {
                 this.dontAskAgain =
                     "Don't ask again (you can open this window again by double-clicking compile button)";
                 this.compileButtonText = "Compile";
+                this.mapsProcessingMode = "Maps processing mode";
                 break;
         }
     }
@@ -396,8 +399,9 @@ export class CompileWindowLocalization {
 export class ReadWindowLocalization {
     readonly mode: string;
     readonly chooseReadingMode: string;
-    readonly appendReadMode: string;
-    readonly forceReadMode: string;
+    readonly defaultReadingMode: string;
+    readonly appendReadingMode: string;
+    readonly forceReadingMode: string;
     readonly appendModeDescription: string;
     readonly forceModeDescription: string;
     readonly options: string;
@@ -413,14 +417,16 @@ export class ReadWindowLocalization {
     readonly readButtonText: string;
     readonly readingInAppendMode: string;
     readonly readingInForceMode: string;
+    readonly readingModeNotSelected: string;
 
     constructor(language: Language) {
         switch (language) {
             case Language.Russian:
                 this.mode = "Режим чтения:";
                 this.chooseReadingMode = "Выберите режим чтения";
-                this.appendReadMode = "Добавление";
-                this.forceReadMode = "Перезапись";
+                this.defaultReadingMode = "Стандартный";
+                this.appendReadingMode = "Добавление";
+                this.forceReadingMode = "Перезапись";
                 this.appendModeDescription =
                     "В случае обновления игры, текст которой вы запарсили, либо же графического интерфейса, имеет смысл перечитать файлы в этом режиме, чтобы добавить новый текст к имеющемуся без потери прогресса.";
                 this.forceModeDescription =
@@ -441,12 +447,14 @@ export class ReadWindowLocalization {
                 this.readButtonText = "Прочитать";
                 this.readingInAppendMode = "Читаем в режиме добавления";
                 this.readingInForceMode = "Читаем в режиме принудительной перезаписи";
+                this.readingModeNotSelected = "Режим чтения не выбран.";
                 break;
             default:
                 this.mode = "Reading mode:";
                 this.chooseReadingMode = "Choose reading mode";
-                this.appendReadMode = "Append";
-                this.forceReadMode = "Force rewrite";
+                this.defaultReadingMode = "Default";
+                this.appendReadingMode = "Append";
+                this.forceReadingMode = "Force rewrite";
                 this.appendModeDescription =
                     "In case, when the game text you've parsed updates, or the GUI update, it makes sense to re-read files in this mode, to append new text to existing translation without overwriting the progress.";
                 this.forceModeDescription =
@@ -467,6 +475,7 @@ export class ReadWindowLocalization {
                 this.readButtonText = "Read";
                 this.readingInAppendMode = "Reading in append mode";
                 this.readingInForceMode = "Reading in force rewrite mode";
+                this.readingModeNotSelected = "Reading mode is not selected.";
                 break;
         }
     }

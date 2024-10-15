@@ -1,6 +1,6 @@
 # rpgmtranslate
 
-[README на русском](https://github.com/savannstm/rpgm-translation-gui/blob/main/README-ru.md)
+[README на русском](./README-ru.md)
 
 ## General
 

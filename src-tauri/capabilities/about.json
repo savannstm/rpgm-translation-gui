@@ -4,14 +4,10 @@
     "permissions": [
         "core:window:allow-close",
         "core:window:allow-destroy",
+        "core:app:allow-version",
         "core:event:allow-listen",
         "core:event:allow-unlisten",
         "core:event:allow-emit",
-        "fs:allow-read-text-file",
-        {
-            "identifier": "fs:scope",
-            "allow": ["**"]
-        },
         "shell:allow-open",
         "process:allow-exit"
     ]

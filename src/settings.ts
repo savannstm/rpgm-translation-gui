@@ -4,12 +4,10 @@ import "./extensions/math-extensions";
 
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { emit, once } from "@tauri-apps/api/event";
-import { BaseDirectory } from "@tauri-apps/api/path";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { readDir, readTextFile } from "@tauri-apps/plugin-fs";
+import { readDir } from "@tauri-apps/plugin-fs";
 import { platform as getPlatform } from "@tauri-apps/plugin-os";
 const appWindow = getCurrentWebviewWindow();
-const { Resource } = BaseDirectory;
 
 interface FontObject extends Record<string, string> {
     font: string;
@@ -18,9 +16,10 @@ interface FontObject extends Record<string, string> {
 
 document.addEventListener("DOMContentLoaded", async () => {
     let settings!: Settings;
+    let theme!: Theme;
 
-    await once<Settings>("settings", (data) => {
-        settings = data.payload;
+    await once<[Settings, Theme]>("settings", (data) => {
+        [settings, theme] = data.payload;
     });
 
     await emit("fetch-settings");
@@ -29,11 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    applyTheme(
-        getThemeStyleSheet() as CSSStyleSheet,
-        JSON.parse(await readTextFile("res/themes.json", { baseDir: Resource }))[settings.theme],
-    );
-
+    applyTheme(getThemeStyleSheet() as CSSStyleSheet, theme);
     applyLocalization(new SettingsWindowLocalization(settings.language));
 
     const backupCheck = document.getElementById("backup-check") as HTMLSpanElement;

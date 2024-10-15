@@ -4,15 +4,15 @@ import { CompileWindowLocalization } from "./extensions/localization";
 import { emit, once } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open as openPath } from "@tauri-apps/plugin-dialog";
-import { BaseDirectory, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 const appWindow = getCurrentWebviewWindow();
-const { Resource } = BaseDirectory;
 
 document.addEventListener("DOMContentLoaded", async () => {
     let settings!: Settings;
+    let theme!: Theme;
 
-    await once<Settings>("settings", (data) => {
-        settings = data.payload;
+    await once<[Settings, Theme]>("settings", (data) => {
+        [settings, theme] = data.payload;
     });
 
     await emit("fetch-settings");
@@ -21,13 +21,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    const { projectPath, theme, language } = settings;
+    const { projectPath, language } = settings;
 
-    applyTheme(
-        getThemeStyleSheet() as CSSStyleSheet,
-        JSON.parse(await readTextFile("res/themes.json", { baseDir: Resource }))[theme],
-    );
-
+    applyTheme(getThemeStyleSheet() as CSSStyleSheet, theme);
     applyLocalization(new CompileWindowLocalization(language));
 
     const settingsContainer = document.getElementById("settings-container") as HTMLDivElement;
