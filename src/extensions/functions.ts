@@ -1,3 +1,4 @@
+import { EngineType, Language } from "../types/enums";
 import { Localization } from "./localization";
 
 export function romanizeString(string: string): string {
@@ -229,5 +230,29 @@ export class CompileSettings {
         this.customOutputPath = { enabled: false, path: "" };
         this.disableProcessing = { enabled: false, of: { maps: false, other: false, system: false, plugins: false } };
         this.doNotAskAgain = true;
+    }
+}
+
+export class Settings {
+    language: Language;
+    backup: {
+        enabled: boolean;
+        period: number;
+        max: number;
+    };
+    theme: string;
+    fontUrl: string;
+    firstLaunch: boolean;
+    projectPath: string;
+    engineType: EngineType | null;
+
+    constructor(language: Language) {
+        this.language = language;
+        this.backup = { enabled: true, period: 60, max: 99 };
+        this.theme = "cool-zinc";
+        this.fontUrl = "";
+        this.firstLaunch = true;
+        this.projectPath = "";
+        this.engineType = null;
     }
 }

@@ -59,17 +59,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     romanizeCheckbox.innerHTML = compileSettings.romanize ? "check" : "";
     customProcessingCheckbox.innerHTML = compileSettings.disableCustomProcessing ? "check" : "";
 
-    if (compileSettings.mapsProcessingMode === 0) {
-        mapsProcessingModeSelect.value = "default";
-    } else if (compileSettings.mapsProcessingMode === 1) {
-        mapsProcessingModeSelect.value = "separate";
-    } else {
-        mapsProcessingModeSelect.value = "preserve";
-    }
+    mapsProcessingModeSelect.value = compileSettings.mapsProcessingMode.toString();
 
-    mapsProcessingModeSelect.addEventListener("change", () => {
-        compileSettings.mapsProcessingMode = Number.parseInt(mapsProcessingModeSelect.value);
-    });
+    mapsProcessingModeSelect.addEventListener(
+        "change",
+        () => (compileSettings.mapsProcessingMode = Number.parseInt(mapsProcessingModeSelect.value)),
+    );
 
     if (compileSettings.customOutputPath.enabled) {
         customOutputPathCheckbox.innerHTML = "check";

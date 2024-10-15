@@ -18,7 +18,6 @@ export const enum Language {
 
 export const enum State {
     Maps = "maps",
-    Names = "names",
     Actors = "actors",
     Armors = "armors",
     Classes = "classes",

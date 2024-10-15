@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         [document.getElementById("vk-link") as HTMLAnchorElement, "https://vk.com/stivhuis228"],
         [document.getElementById("tg-link") as HTMLAnchorElement, "https://t.me/Arsen1337Curduke"],
         [
-            document.getElementById("github-link") as HTMLAnchorElement,
+            document.getElementById("repo-link") as HTMLAnchorElement,
             "https://github.com/savannstm/rpgm-translation-gui",
         ],
         [document.getElementById("license-link") as HTMLAnchorElement, "http://www.wtfpl.net/about"],

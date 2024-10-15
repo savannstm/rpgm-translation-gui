@@ -237,6 +237,7 @@ export class SettingsWindowLocalization {
     readonly backupMaxNote: string;
     readonly backup: string;
     readonly font: string;
+    readonly defaultFont: string;
 
     constructor(language: Language) {
         switch (language) {
@@ -247,6 +248,7 @@ export class SettingsWindowLocalization {
                 this.backupMaxNote = "(минимум 1, максимум 99)";
                 this.backup = "Резервное копирование";
                 this.font = "Шрифт";
+                this.defaultFont = "Стандартный";
                 break;
             default:
                 this.backupPeriodLabel = "Create backup every:";
@@ -255,6 +257,7 @@ export class SettingsWindowLocalization {
                 this.backupMaxNote = "(min 1, max 99)";
                 this.backup = "Backup";
                 this.font = "Font";
+                this.defaultFont = "Default";
                 break;
         }
     }
@@ -266,7 +269,7 @@ export class AboutWindowLocalization {
     readonly socials: string;
     readonly vkLink: string;
     readonly tgLink: string;
-    readonly githubLink: string;
+    readonly repoLink: string;
     readonly license: string;
 
     constructor(language: Language) {
@@ -277,7 +280,7 @@ export class AboutWindowLocalization {
                 this.socials = "Мои соцсети:";
                 this.vkLink = "ВК";
                 this.tgLink = "Телеграм";
-                this.githubLink = "GitHub программы";
+                this.repoLink = "Репозиторий программы";
                 this.license = "Лицензия";
                 break;
             default:
@@ -286,7 +289,7 @@ export class AboutWindowLocalization {
                 this.socials = "My socials:";
                 this.vkLink = "VK";
                 this.tgLink = "Telegram";
-                this.githubLink = "Program's GitHub";
+                this.repoLink = "Program's repository";
                 this.license = "License";
                 break;
         }
@@ -371,7 +374,7 @@ export class CompileWindowLocalization {
                 this.compileButtonText = "Скомпилировать";
                 this.mapsProcessingMode = "Режим обработки файлов maps";
                 this.defaultMapsMode = "Стандартный";
-                this.separateMapsMode = "Раздельный";
+                this.separateMapsMode = "Раздельный текст карт";
                 this.preserveMapsMode = "Сохранять дубликаты";
                 break;
             default:
@@ -398,7 +401,7 @@ export class CompileWindowLocalization {
                 this.compileButtonText = "Compile";
                 this.mapsProcessingMode = "Maps processing mode";
                 this.defaultMapsMode = "Default";
-                this.separateMapsMode = "Separate maps";
+                this.separateMapsMode = "Separate maps text";
                 this.preserveMapsMode = "Preserve duplicates";
                 break;
         }
@@ -463,7 +466,7 @@ export class ReadWindowLocalization {
                 this.readingModeNotSelected = "Режим чтения не выбран.";
                 this.mapsProcessingMode = "Режим обработки файлов maps";
                 this.defaultMapsMode = "Стандартный";
-                this.separateMapsMode = "Раздельный";
+                this.separateMapsMode = "Раздельный текст карт";
                 this.preserveMapsMode = "Сохранять дубликаты";
                 break;
             default:
@@ -495,7 +498,7 @@ export class ReadWindowLocalization {
                 this.readingModeNotSelected = "Reading mode is not selected.";
                 this.mapsProcessingMode = "Maps processing mode";
                 this.defaultMapsMode = "Default";
-                this.separateMapsMode = "Separate maps";
+                this.separateMapsMode = "Separate maps text";
                 this.preserveMapsMode = "Preserve duplicates";
                 break;
         }

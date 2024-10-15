@@ -24,10 +24,10 @@ interface Settings {
         max: number;
     };
     theme: string;
-    font: string;
+    fontUrl: string;
     firstLaunch: boolean;
     projectPath: string;
-    engineType: EngineType;
+    engineType: EngineType | null;
 }
 
 interface CompileSettings {

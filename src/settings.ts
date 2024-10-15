@@ -37,10 +37,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const backupPeriodInput = document.getElementById("backup-period-input") as HTMLInputElement;
     const fontSelect = document.getElementById("font-select") as HTMLSelectElement;
 
-    async function fetchFonts(): Promise<FontObject | undefined> {
+    let fontUrl = "";
+
+    async function fetchFonts(): Promise<FontObject> {
         const fontsObject = {} as FontObject;
         const platform = getPlatform();
-        let fontPath: string;
+        let fontPath!: string;
 
         switch (platform) {
             case "windows":
@@ -49,8 +51,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             case "linux":
                 fontPath = "/usr/share/fonts";
                 break;
-            default:
-                return;
         }
 
         for (const entry of await readDir(fontPath)) {
@@ -87,12 +87,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         fontSelect.appendChild(optionElement);
     }
 
-    fontSelect.addEventListener("change", async () => {
+    fontSelect.addEventListener("change", () => {
         for (const element of fontSelect.children as HTMLCollectionOf<HTMLOptionElement>) {
             if (element.value === fontSelect.value) {
-                const font = new FontFace("font", `url(${convertFileSrc(element.id)})`);
-                document.fonts.add(await font.load());
-                document.body.style.fontFamily = "font";
+                fontUrl = convertFileSrc(element.id);
             }
         }
     });
@@ -126,10 +124,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     appWindow.onCloseRequested(async () => {
-        await emit("backup-settings", [
+        await emit("get-settings", [
             Boolean(backupCheck.textContent),
             Number.parseInt(backupMaxInput.value),
             Number.parseInt(backupPeriodInput.value),
+            fontUrl,
         ]);
     });
 });
