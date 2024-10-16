@@ -24,11 +24,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await emit("fetch-settings");
 
-    while (!settings) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    applyTheme(getThemeStyleSheet() as CSSStyleSheet, theme);
+    applyTheme(getThemeStyleSheet()!, theme);
     applyLocalization(new SettingsWindowLocalization(settings.language));
 
     const backupCheck = document.getElementById("backup-check") as HTMLSpanElement;
@@ -77,7 +75,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         backupSettings.classList.add("translate-y-0");
     }
 
-    for (const [path, name] of Object.entries((await fetchFonts()) as object)) {
+    for (const [path, name] of Object.entries((await fetchFonts()) as Record<string, string>)) {
         const optionElement = document.createElement("option");
 
         optionElement.id = path;
@@ -123,7 +121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         backupPeriodInput.value = Math.clamp(Number.parseInt(backupPeriodInput.value), 60, 3600).toString();
     });
 
-    appWindow.onCloseRequested(async () => {
+    await appWindow.onCloseRequested(async () => {
         await emit("get-settings", [
             Boolean(backupCheck.textContent),
             Number.parseInt(backupMaxInput.value),

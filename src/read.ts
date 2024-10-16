@@ -18,13 +18,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await emit("fetch-settings");
 
-    while (!settings) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const { projectPath, language, engineType } = settings;
 
-    applyTheme(getThemeStyleSheet() as CSSStyleSheet, theme);
+    applyTheme(getThemeStyleSheet()!, theme);
 
     const windowLocalization = new ReadWindowLocalization(language);
     applyLocalization(windowLocalization);
@@ -63,7 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    settingsContainer.addEventListener("click", async (event) => {
+    settingsContainer.addEventListener("click", (event) => {
         const target = event.target as HTMLElement;
 
         switch (target.id) {
@@ -209,11 +207,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                         : readingModeSelect.value === "force"
                           ? ProcessingMode.Force
                           : ProcessingMode.Default,
-                engineType,
+                engineType: engineType!,
             });
 
             await emit("restart");
-            appWindow.close();
+            await appWindow.close();
         });
 
         await emit("fetch");

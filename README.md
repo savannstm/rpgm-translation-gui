@@ -9,7 +9,7 @@ As the name says, this repository contains a graphical interface designed for ed
 The program is written using Rust and TypeScript, and the graphical interface is implemented using Tauri. Under the hood, this GUI uses [rvpacker-txt-rs](https://github.com/savannstm/rvpacker-txt-rs) to parse and write RPG Maker MV/MZ .json files, and [Rust implementation of Ruby Marshal](https://github.com/savannstm/marshal-rs) to parse and write RPG Maker XP/VX/VXAce files.
 The program can open folders with games on the above-mentioned engines, and then parse the text of the games into .txt files from the source files located in the "data" folder.
 
-![Interface](screenshots/interface.png)
+![Interface](./screenshots/interface.png)
 
 In some cases, the source files of the XP/VX/VXAce games may be encrypted (in this case, generally, there is no data folder in the root directory of the game).
 

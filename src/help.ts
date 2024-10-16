@@ -13,12 +13,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await emit("fetch-settings");
 
-    while (!settings) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const { language } = settings;
 
-    applyTheme(getThemeStyleSheet() as CSSStyleSheet, theme);
+    applyTheme(getThemeStyleSheet()!, theme);
     applyLocalization(new HelpWindowLocalization(language));
 });

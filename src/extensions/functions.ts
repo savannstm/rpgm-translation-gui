@@ -152,7 +152,7 @@ export function applyTheme(sheet: CSSStyleSheet, theme: Theme | [string, string]
 }
 
 export function applyLocalization(localization: Localization, theme: Theme | null = null) {
-    for (const [key, value] of Object.entries(localization)) {
+    for (const [key, value] of Object.entries(localization) as unknown as string[]) {
         if (theme) {
             if (key in theme) {
                 continue;
@@ -187,7 +187,7 @@ export function getThemeStyleSheet(): CSSStyleSheet | undefined {
 }
 
 export function animateProgressText(progressText: HTMLElement, interval = 500) {
-    const baseText = progressText.textContent?.replace(/\.+$/, "");
+    const baseText = progressText.textContent!.replace(/\.+$/, "");
     let dots = 0;
 
     function updateText() {

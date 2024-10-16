@@ -9,12 +9,12 @@ HTMLElement.prototype.secondHighestParent = function (childElement) {
         return childElement;
     }
 
-    let parent = childElement.parentElement as HTMLElement;
+    let parent = childElement.parentElement!;
     let previous = childElement;
 
     while (parent !== this) {
         previous = parent;
-        parent = parent.parentElement as HTMLElement;
+        parent = parent.parentElement!;
     }
 
     return previous;
@@ -32,7 +32,7 @@ HTMLTextAreaElement.prototype.calculateHeight = function () {
         Number.parseFloat(borderTopWidth) +
         Number.parseFloat(borderBottomWidth);
 
-    for (const child of (this?.parentElement?.children as HTMLCollectionOf<HTMLElement>) ?? []) {
-        child.style.height = `${newHeight}px`;
+    for (const child of this.parentElement?.children ?? []) {
+        (child as HTMLElement).style.height = `${newHeight}px`;
     }
 };

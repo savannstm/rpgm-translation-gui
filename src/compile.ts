@@ -17,13 +17,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await emit("fetch-settings");
 
-    while (!settings) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     const { projectPath, language } = settings;
 
-    applyTheme(getThemeStyleSheet() as CSSStyleSheet, theme);
+    applyTheme(getThemeStyleSheet()!, theme);
     applyLocalization(new CompileWindowLocalization(language));
 
     const settingsContainer = document.getElementById("settings-container") as HTMLDivElement;
@@ -52,8 +50,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const compileButton = document.getElementById("compile-button") as HTMLButtonElement;
 
     const compileSettings: CompileSettings = JSON.parse(
-        await readTextFile(join(projectPath, ".rpgm-translation-gui", "compile-settings.json")),
-    );
+        await readTextFile(join(projectPath, ".rpgmtranslate", "compile-settings.json")),
+    ) as CompileSettings;
 
     loggingCheckbox.innerHTML = compileSettings.logging ? "check" : "";
     romanizeCheckbox.innerHTML = compileSettings.romanize ? "check" : "";
@@ -223,7 +221,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
                 break;
             case "select-output-path": {
-                const directory = (await openPath({ directory: true, multiple: false })) as string;
+                const directory = (await openPath({ directory: true, multiple: false }))!;
 
                 if (directory) {
                     outputPath.value = directory;
@@ -239,7 +237,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         compileSettings.initialized = true;
 
         await writeTextFile(
-            join(projectPath, ".rpgm-translation-gui", "compile-settings.json"),
+            join(projectPath, ".rpgmtranslate", "compile-settings.json"),
             JSON.stringify(compileSettings),
         );
 
@@ -247,7 +245,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             await emit("compile");
         }
 
-        appWindow.close();
+        await appWindow.close();
     }
 
     compileButton.addEventListener("click", async () => {
