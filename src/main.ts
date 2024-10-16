@@ -988,9 +988,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             if (contentElement.id === "system") {
-                outputArray.push(
-                    (document.getElementById("current-game-title") as HTMLInputElement).value + LINES_SEPARATOR,
-                );
+                const originalTitle = currentGameTitle.getAttribute("original-title")!;
+                const output =
+                    originalTitle === currentGameTitle.value
+                        ? originalTitle + LINES_SEPARATOR
+                        : originalTitle + LINES_SEPARATOR + currentGameTitle.value;
+
+                outputArray.push(output);
             }
 
             const filePath = `${contentElement.id}.txt`;
@@ -1947,11 +1951,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 initializeFirstLaunch();
             }
 
-            currentGameTitle.value = (
-                await readTextFile(join(settings.projectPath, programDataDir, translationDir, "system.txt"))
-            )
-                .split("\n")
-                .pop()!;
+            const gameTitleLine: string = await invoke("read_last_line", {
+                filePath: join(settings.projectPath, programDataDir, translationDir, "system.txt"),
+            });
+            const [originalTitle, translatedTitle] = gameTitleLine.split(LINES_SEPARATOR);
+
+            currentGameTitle.setAttribute("original-title", originalTitle);
+
+            if (translatedTitle) {
+                currentGameTitle.value = translatedTitle;
+            } else {
+                currentGameTitle.value = originalTitle;
+            }
 
             if (projectStatus.textContent) {
                 projectStatus.innerHTML = "";
