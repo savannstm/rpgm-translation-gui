@@ -7,7 +7,12 @@ use regex::Regex;
 use sonic_rs::{prelude::*, Object};
 use std::mem::transmute;
 use std::path::Path;
-use std::{fs::create_dir_all, path::PathBuf, time::Instant};
+use std::{
+    fs::{create_dir_all, File},
+    io::{Read, Seek, SeekFrom},
+    path::PathBuf,
+    time::Instant,
+};
 #[cfg(debug_assertions)]
 use tauri::Manager;
 use tauri::{command, generate_context, generate_handler, App, Builder};
@@ -39,6 +44,7 @@ enum GameType {
 
 #[repr(u8)]
 #[derive(PartialEq, Clone, Copy)]
+#[allow(dead_code)]
 enum ProcessingMode {
     Force,
     Append,
@@ -47,6 +53,7 @@ enum ProcessingMode {
 
 #[repr(u8)]
 #[derive(PartialEq, Clone, Copy)]
+#[allow(dead_code)]
 enum EngineType {
     New,
     VXAce,
@@ -76,6 +83,7 @@ enum Variable {
 
 #[derive(PartialEq, Clone, Copy)]
 #[repr(u8)]
+#[allow(dead_code)]
 enum MapsProcessingMode {
     Default = 0,
     Separate = 1,
@@ -500,6 +508,32 @@ fn read(
     }
 }
 
+#[command]
+fn read_last_line(file_path: &str) -> String {
+    let mut file: File = File::open(file_path).unwrap();
+    let mut buffer: Vec<u8> = Vec::new();
+
+    let mut position: u64 = file.seek(SeekFrom::End(0)).unwrap();
+
+    while position > 0 {
+        position -= 1;
+        file.seek(SeekFrom::Start(position)).unwrap();
+
+        let mut byte = [0; 1];
+        file.read_exact(&mut byte).unwrap();
+
+        if byte == b"\n"[..] && !buffer.is_empty() {
+            break;
+        }
+
+        buffer.push(byte[0]);
+    }
+
+    buffer.reverse();
+
+    unsafe { String::from_utf8_unchecked(buffer) }
+}
+
 fn main() {
     Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -507,7 +541,7 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(generate_handler![escape_text, read, compile])
+        .invoke_handler(generate_handler![escape_text, read, compile, read_last_line])
         .setup(|_app: &mut App| {
             #[cfg(debug_assertions)]
             _app.get_webview_window("main").unwrap().open_devtools();
