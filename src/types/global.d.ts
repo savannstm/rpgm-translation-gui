@@ -15,9 +15,8 @@ interface HTMLTextAreaElement {
 interface Math {
     clamp(value: number, min: number, max: number): number;
 }
-
 interface Settings {
-    language: Language;
+    language: import("./enums").Language;
     backup: {
         enabled: boolean;
         period: number;
@@ -27,7 +26,7 @@ interface Settings {
     fontUrl: string;
     firstLaunch: boolean;
     projectPath: string;
-    engineType: EngineType | null;
+    engineType: import("./enums").EngineType | null;
 }
 
 interface CompileSettings {
@@ -88,8 +87,8 @@ interface ReadCommandOptions extends Record<string, unknown> {
     disableCustomProcessing: boolean;
     disableProcessing: boolean[];
     logging: boolean;
-    processingMode: ProcessingMode;
-    engineType: EngineType;
+    processingMode: import("./enums").ProcessingMode;
+    engineType: import("./enums").EngineType;
 }
 
 interface CompileCommandOptions extends Record<string, unknown> {
@@ -102,5 +101,5 @@ interface CompileCommandOptions extends Record<string, unknown> {
     disableCustomProcessing: boolean;
     disableProcessing: boolean[];
     logging: boolean;
-    engineType: EngineType;
+    engineType: import("./enums").EngineType;
 }
