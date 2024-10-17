@@ -24,5 +24,7 @@ export default tseslint.config({
         "@typescript-eslint/no-misused-promises": "off",
         "@typescript-eslint/restrict-template-expressions": "off",
         "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-dynamic-delete": "off",
+        "@typescript-eslint/no-unused-expressions": "off",
     },
 });

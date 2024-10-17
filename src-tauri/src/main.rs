@@ -9,11 +9,10 @@ use read::*;
 use regex::{escape, Regex};
 use sonic_rs::{prelude::*, Object};
 use std::{
-    fs::{create_dir_all, read_dir, File},
-    io::{BufRead, BufReader, Read, Seek, SeekFrom},
+    fs::{create_dir_all, File},
+    io::{Read, Seek, SeekFrom},
     mem::transmute,
-    path::Path,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::Instant,
 };
 #[cfg(debug_assertions)]
@@ -532,56 +531,6 @@ fn read_last_line(file_path: PathBuf) -> String {
     unsafe { String::from_utf8_unchecked(buffer) }
 }
 
-#[command]
-fn search_text_in_files(
-    files_path: PathBuf,
-    ignore_file: &str,
-    search_pattern: &str,
-    insensitive: bool,
-) -> Vec<[String; 2]> {
-    let search_pattern: Regex = unsafe {
-        regex::RegexBuilder::new(search_pattern)
-            .case_insensitive(insensitive)
-            .build()
-            .unwrap_unchecked()
-    };
-
-    println!("{}", search_pattern);
-    let mut matches: Vec<[String; 2]> = Vec::new();
-
-    for entry in read_dir(files_path).unwrap().flatten() {
-        let filename: std::ffi::OsString = entry.file_name();
-        let filename_str: &str = filename.to_str().unwrap();
-
-        if !filename_str.ends_with("txt") || (!ignore_file.is_empty() && filename_str.starts_with(ignore_file)) {
-            continue;
-        }
-
-        let file: File = File::open(entry.path()).unwrap();
-        let reader: BufReader<File> = BufReader::new(file);
-
-        for (line_number, line) in reader.lines().enumerate() {
-            if let Ok(line) = line {
-                let (original, translated) = line.split_once(LINES_SEPARATOR).unwrap();
-
-                if search_pattern.is_match(original) {
-                    matches.push([
-                        original.to_owned(),
-                        format!("{}-original-{}", &filename_str[..filename_str.len() - 4], line_number),
-                    ]);
-                } else if search_pattern.is_match(translated) {
-                    matches.push([
-                        translated.to_owned(),
-                        format!("{}-translated-{}", &filename_str[..filename_str.len() - 4], line_number),
-                    ]);
-                }
-            }
-        }
-    }
-
-    matches
-}
-
 fn main() {
     Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -589,13 +538,7 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(generate_handler![
-            escape_text,
-            read,
-            compile,
-            read_last_line,
-            search_text_in_files
-        ])
+        .invoke_handler(generate_handler![escape_text, read, compile, read_last_line,])
         .setup(|_app: &mut App| {
             #[cfg(debug_assertions)]
             _app.get_webview_window("main").unwrap().open_devtools();

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
-/* eslint-disable @typescript-eslint/no-dynamic-delete */
 import {
     animateProgressText,
     applyLocalization,
@@ -507,7 +505,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function appendMatch(metadata: string, result: string): void {
+    function appendMatch(metadata: string, result: string, counterpartTextMisc?: string): void {
         const [file, type, row] = metadata.split("-");
         const resultContainer = document.createElement("div");
 
@@ -537,10 +535,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         arrow.innerHTML = "arrow_downward";
         mainDiv.appendChild(arrow);
 
-        // TODO: Remove these dumb question marks
         const counterpart = document.createElement("div");
-        const counterpartText = type === "translation" ? counterpartElement?.value : counterpartElement?.innerHTML;
-        counterpart.innerHTML = counterpartText?.replaceAllMultiple({ "<": "&lt;", ">": "&gt;" });
+        const counterpartText =
+            type === "translation"
+                ? counterpartElement
+                    ? (counterpartElement as HTMLTextAreaElement).value
+                    : counterpartElement!.innerHTML
+                : counterpartTextMisc;
+        counterpart.innerHTML = counterpartText!.replaceAllMultiple({ "<": "&lt;", ">": "&gt;" });
 
         mainDiv.appendChild(counterpart);
 
@@ -590,23 +592,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const results = replace ? new Map<HTMLTextAreaElement, string>() : null;
-        const objectToWrite = new Map<string, string>();
+        const objectToWrite = new Map<string, string | [string, string]>();
         let file = 0;
 
-        // TODO: Because lazy loading of the files was implemented instead of whole bunch of text loaded at once,
-        // when searchLocation is false (search should perform globally), program should search text in other files.
-        // A convenient way to implement this - backend Rust function with BufReader, blackjack, whores and parallelization,
-        // that quickly search some texts inside those files without fully loading them in memory.
-        console.log(regexp.source);
         const currentSearchArray = contentContainer.firstElementChild?.children;
-        const otherSearchArray = !searchLocation
-            ? await invoke<[string, string][]>("search_text_in_files", {
-                  filesPath: join(settings.projectPath, programDataDir, translationDir),
-                  ignoreFile: join(contentContainer.firstElementChild?.id ?? ""),
-                  searchPattern: regexp.source,
-                  insensitive: regexp.flags.includes("i"),
-              })
-            : [];
 
         for (const child of currentSearchArray ?? []) {
             const node = child.firstElementChild?.children as HTMLCollectionOf<HTMLTextAreaElement>;
@@ -645,7 +634,50 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         }
 
-        for (const match of otherSearchArray) {
+        if (!searchLocation) {
+            const entires = await readDir(join(settings.projectPath, programDataDir, translationDir));
+
+            for (const entry of entires) {
+                const name = entry.name;
+
+                if (
+                    !name.endsWith(".txt") ||
+                    (contentContainer.firstElementChild?.id && name.startsWith(contentContainer.firstElementChild.id))
+                ) {
+                    continue;
+                }
+
+                const fileContent = await readTextFile(
+                    join(settings.projectPath, programDataDir, translationDir, name),
+                );
+
+                for (const [lineNumber, line] of fileContent.split("\n").entries()) {
+                    const [original, translated] = line.split(LINES_SEPARATOR);
+
+                    const originalMatches = original.match(regexp);
+                    const translatedMatches = translated.match(regexp);
+
+                    if (originalMatches) {
+                        const result = createMatchesContainer(original, originalMatches);
+                        objectToWrite.set(name, [result, `${name.slice(0, -4)}-original-${lineNumber}`]);
+                    }
+
+                    if (translatedMatches) {
+                        const result = createMatchesContainer(translated, translatedMatches);
+                        objectToWrite.set(name, [result, `${name.slice(0, -4)}-translated-${lineNumber}`]);
+                    }
+
+                    if ((objectToWrite.size + 1) % 1000 === 0) {
+                        await writeTextFile(
+                            join(settings.projectPath, programDataDir, `matches-${file}.json`),
+                            JSON.stringify(Object.fromEntries(objectToWrite)),
+                        );
+
+                        objectToWrite.clear();
+                        file++;
+                    }
+                }
+            }
         }
 
         if (objectToWrite.size > 0) {
@@ -662,8 +694,12 @@ document.addEventListener("DOMContentLoaded", async () => {
             await readTextFile(join(settings.projectPath, programDataDir, "matches-0.json")),
         ) as object;
 
-        for (const [id, result] of Object.entries(matches)) {
-            appendMatch(id, result as string);
+        for (const [id, result] of Object.entries(matches) as [string, string | [string, string]]) {
+            if (typeof result === "object") {
+                appendMatch(id, result[0] as string, result[1] as string);
+            } else {
+                appendMatch(id, result);
+            }
         }
 
         return results;
@@ -778,7 +814,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (button === 0) {
             await changeState(file);
 
-            console.log(elementId);
             document.getElementById(elementId)!.parentElement?.parentElement?.scrollIntoView({
                 block: "center",
                 inline: "center",
@@ -789,8 +824,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             } else {
                 if (replaceInput.value.trim()) {
-                    // TODO: Implement text replacing
-                    const newText = await replaceText("", false);
+                    // TODO: Implement text replacing for non-opened files
+                    const newText = await replaceText(document.getElementById(elementId) as HTMLTextAreaElement, false);
 
                     if (newText) {
                         saved = false;
@@ -1351,6 +1386,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function createContentForState(state: State) {
         let contentName = state.toString();
         let pathToContent = join(settings.projectPath, programDataDir, translationDir, contentName + ".txt");
+
+        console.log(pathToContent)
 
         if (contentName.startsWith("plugins") && !(await exists(pathToContent))) {
             // TODO: scripts check
