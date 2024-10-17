@@ -247,7 +247,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 bookmarks.splice(bookmarkId, 1);
 
                 for (const bookmark of bookmarksMenu.children) {
-                    if (bookmark.textContent! === bookmarkText) {
+                    if (bookmark.textContent === bookmarkText) {
                         bookmark.remove();
                     }
                 }
@@ -507,19 +507,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function appendMatch(element: HTMLDivElement, result: string): void {
+    function appendMatch(metadata: string, result: string): void {
+        const [file, type, row] = metadata.split("-");
         const resultContainer = document.createElement("div");
 
         const resultElement = document.createElement("div");
         resultElement.className = tw`textSecond borderPrimary backgroundSecond my-1 cursor-pointer border-2 p-1 text-xl`;
 
-        const thirdParent = element.parentElement?.parentElement?.parentElement as HTMLDivElement;
-
-        const [counterpartElement, sourceIndex] = element.id.includes("original")
-            ? [document.getElementById(element.id.replace("original", "translation"))!, 1]
-            : [document.getElementById(element.id.replace("translation", "original"))!, 0];
-
-        const [source, row] = element.id.split("-", 3).slice(1, 3);
+        const counterpartElement =
+            type === "original"
+                ? document.getElementById(metadata.replace("original", "translation"))
+                : document.getElementById(metadata.replace("translation", "original"));
 
         const mainDiv = document.createElement("div");
         mainDiv.className = tw`text-base`;
@@ -531,9 +529,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const originalInfo = document.createElement("div");
         originalInfo.className = tw`textThird text-xs`;
 
-        const secondParent = element.parentElement!.parentElement!;
-        const currentFile = secondParent.id.slice(0, secondParent.id.lastIndexOf("-"));
-        originalInfo.innerHTML = `${currentFile} - ${source} - ${row}`;
+        originalInfo.innerHTML = `${file} - ${type} - ${row}`;
         mainDiv.appendChild(originalInfo);
 
         const arrow = document.createElement("div");
@@ -541,22 +537,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         arrow.innerHTML = "arrow_downward";
         mainDiv.appendChild(arrow);
 
+        // TODO: Remove these dumb question marks
         const counterpart = document.createElement("div");
-        counterpart.innerHTML =
-            counterpartElement.tagName === "TEXTAREA"
-                ? (counterpartElement as HTMLTextAreaElement).value.replaceAllMultiple({ "<": "&lt;", ">": "&gt;" })
-                : counterpartElement.innerHTML.replaceAllMultiple({ "<": "&lt;", ">": "&gt;" });
+        const counterpartText = type === "translation" ? counterpartElement?.value : counterpartElement?.innerHTML;
+        counterpart.innerHTML = counterpartText?.replaceAllMultiple({ "<": "&lt;", ">": "&gt;" });
+
         mainDiv.appendChild(counterpart);
 
         const counterpartInfo = document.createElement("div");
         counterpartInfo.className = tw`textThird text-xs`;
 
-        counterpartInfo.innerHTML = `${currentFile} - ${sourceIndex === 0 ? "original" : "translation"} - ${row}`;
+        counterpartInfo.innerHTML = `${file} - ${type === "translation" ? "original" : "translation"} - ${row}`;
         mainDiv.appendChild(counterpartInfo);
 
         resultElement.appendChild(mainDiv);
 
-        resultElement.setAttribute("data", `${thirdParent.id},${element.id},${sourceIndex}`);
+        resultElement.setAttribute("data", `${file},${type},${row}`);
         resultContainer.appendChild(resultElement);
         searchPanelFound.appendChild(resultContainer);
     }
@@ -597,15 +593,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         const objectToWrite = new Map<string, string>();
         let file = 0;
 
-        const searchArray = (
-            searchLocation && state
-                ? [...(document.getElementById(state)?.children as HTMLCollectionOf<HTMLElement>)]
-                : [...(contentContainer.children as HTMLCollectionOf<HTMLElement>)].flatMap((parent) => [
-                      ...parent.children,
-                  ])
-        ) as HTMLElement[];
+        // TODO: Because lazy loading of the files was implemented instead of whole bunch of text loaded at once,
+        // when searchLocation is false (search should perform globally), program should search text in other files.
+        // A convenient way to implement this - backend Rust function with BufReader, blackjack, whores and parallelization,
+        // that quickly search some texts inside those files without fully loading them in memory.
+        console.log(regexp.source);
+        const currentSearchArray = contentContainer.firstElementChild?.children;
+        const otherSearchArray = !searchLocation
+            ? await invoke<[string, string][]>("search_text_in_files", {
+                  filesPath: join(settings.projectPath, programDataDir, translationDir),
+                  ignoreFile: join(contentContainer.firstElementChild?.id ?? ""),
+                  searchPattern: regexp.source,
+                  insensitive: regexp.flags.includes("i"),
+              })
+            : [];
 
-        for (const child of searchArray) {
+        for (const child of currentSearchArray ?? []) {
             const node = child.firstElementChild?.children as HTMLCollectionOf<HTMLTextAreaElement>;
 
             {
@@ -617,7 +620,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (matches) {
                     const result = createMatchesContainer(elementText, matches);
-
                     replace ? results!.set(node[2], result) : objectToWrite.set(node[2].id, result);
                 }
             }
@@ -628,7 +630,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (matches) {
                     const result = createMatchesContainer(elementText, matches);
-
                     replace ? results!.set(node[1], result) : objectToWrite.set(node[1].id, result);
                 }
             }
@@ -642,6 +643,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 objectToWrite.clear();
                 file++;
             }
+        }
+
+        for (const match of otherSearchArray) {
         }
 
         if (objectToWrite.size > 0) {
@@ -659,7 +663,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ) as object;
 
         for (const [id, result] of Object.entries(matches)) {
-            appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
+            appendMatch(id, result as string);
         }
 
         return results;
@@ -766,25 +770,27 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function handleResultClick(
         button: number,
-        currentState: HTMLElement,
-        element: HTMLElement,
+        file: State,
+        elementId: string,
         resultElement: HTMLDivElement,
         counterpartIndex: number,
     ): Promise<void> {
         if (button === 0) {
-            await changeState(currentState.id as State);
+            await changeState(file);
 
-            element.parentElement?.parentElement?.scrollIntoView({
+            console.log(elementId);
+            document.getElementById(elementId)!.parentElement?.parentElement?.scrollIntoView({
                 block: "center",
                 inline: "center",
             });
         } else if (button === 2) {
-            if (element.id.includes("original")) {
+            if (elementId.includes("original")) {
                 alert(windowLocalization.originalTextIrreplacable);
                 return;
             } else {
                 if (replaceInput.value.trim()) {
-                    const newText = await replaceText(element as HTMLTextAreaElement, false);
+                    // TODO: Implement text replacing
+                    const newText = await replaceText("", false);
 
                     if (newText) {
                         saved = false;
@@ -811,14 +817,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        const [thirdParent, element, counterpartIndex] = resultElement.getAttribute("data")!.split(",", 3);
+        const data = resultElement.getAttribute("data")!;
+        const [file, _type, row] = data.split(",", 3);
 
         await handleResultClick(
             event.button,
-            document.getElementById(thirdParent)!,
-            document.getElementById(element)!,
+            file as State,
+            data.replaceAll(",", "-"),
             resultElement,
-            Number.parseInt(counterpartIndex),
+            Number.parseInt(row),
         );
     }
 
@@ -973,33 +980,31 @@ document.addEventListener("DOMContentLoaded", async () => {
             await mkdir(dirName, { recursive: true });
         }
 
-        for (const contentElement of contentContainer.children) {
-            const outputArray: string[] = [];
+        const outputArray: string[] = [];
 
-            for (const child of contentElement.children) {
-                const originalTextNode = child.firstElementChild?.children[1] as HTMLDivElement;
-                const translatedTextNode = child.firstElementChild?.children[2] as HTMLTextAreaElement;
+        for (const child of contentContainer.firstElementChild?.children ?? []) {
+            const originalTextNode = child.firstElementChild?.children[1] as HTMLDivElement;
+            const translatedTextNode = child.firstElementChild?.children[2] as HTMLTextAreaElement;
 
-                outputArray.push(
-                    originalTextNode.textContent!.replaceAll("\n", NEW_LINE) +
-                        LINES_SEPARATOR +
-                        translatedTextNode.value.replaceAll("\n", NEW_LINE),
-                );
-            }
-
-            if (contentElement.id === "system") {
-                const originalTitle = currentGameTitle.getAttribute("original-title")!;
-                const output =
-                    originalTitle === currentGameTitle.value
-                        ? originalTitle + LINES_SEPARATOR
-                        : originalTitle + LINES_SEPARATOR + currentGameTitle.value;
-
-                outputArray.push(output);
-            }
-
-            const filePath = `${contentElement.id}.txt`;
-            await writeTextFile(join(dirName, filePath), outputArray.join("\n"));
+            outputArray.push(
+                originalTextNode.textContent!.replaceAll("\n", NEW_LINE) +
+                    LINES_SEPARATOR +
+                    translatedTextNode.value.replaceAll("\n", NEW_LINE),
+            );
         }
+
+        if (contentContainer.firstElementChild!.id === "system") {
+            const originalTitle = currentGameTitle.getAttribute("original-title")!;
+            const output =
+                originalTitle === currentGameTitle.value
+                    ? originalTitle + LINES_SEPARATOR
+                    : originalTitle + LINES_SEPARATOR + currentGameTitle.value;
+
+            outputArray.push(output);
+        }
+
+        const filePath = `${contentContainer.firstElementChild!.id}.txt`;
+        await writeTextFile(join(dirName, filePath), outputArray.join("\n"));
 
         if (!backup) {
             saved = true;
@@ -1028,8 +1033,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         observerMain.disconnect();
 
+        //! This code actually does not work (and won't ever) because fucking value attribute does not exist in innerHTML
+        //! So this epic memoization teqnique fails INEVITABLY
+        /*
         if (state) {
             await writeTextFile(join(settings.projectPath, programDataDir, state + ".txt"), contentContainer.innerHTML);
+        }
+        */
+
+        if (state) {
+            await save();
         }
 
         contentContainer.firstElementChild?.remove();
@@ -1040,17 +1053,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         } else {
             state = newState;
 
-            if (await exists(join(settings.projectPath, programDataDir, newState + ".txt"))) {
-                contentContainer.innerHTML = await readTextFile(
-                    join(settings.projectPath, programDataDir, newState + ".txt"),
-                );
-            } else {
-                await createContentForState(newState);
-            }
+            // Have to recreate content each time
+            await createContentForState(newState);
 
             currentState.innerHTML = newState;
 
-            for (const child of document.getElementById(newState)!.children) {
+            for (const child of contentContainer.firstElementChild!.children) {
                 observerMain.observe(child);
             }
 
@@ -1064,13 +1072,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         goToRowInput.classList.remove("hidden");
         goToRowInput.focus();
 
-        const element = document.getElementById(state as string) as HTMLDivElement;
-        const lastRow = element.lastElementChild!.id.split("-", 3).at(-1)!;
+        const lastRow = contentContainer.firstElementChild!.lastElementChild!.id.split("-", 3).at(-1)!;
 
         goToRowInput.placeholder = `${windowLocalization.goToRow} ${lastRow}`;
     }
 
-    function jumpToRow(key: string): void {
+    function jumpToRow(key: string) {
         const focusedElement = document.activeElement as HTMLElement;
         if (!contentContainer.contains(focusedElement) && focusedElement.tagName !== "TEXTAREA") {
             return;
@@ -1888,8 +1895,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             let gameTitle!: string;
 
             if (settings.engineType === EngineType.New) {
-                gameTitle = JSON.parse(await readTextFile(join(settings.projectPath, originalDir, "System.json")))
-                    .gameTitle as string;
+                gameTitle = (
+                    JSON.parse(await readTextFile(join(settings.projectPath, originalDir, "System.json"))) as {
+                        gameTitle: string;
+                    }
+                ).gameTitle;
             } else {
                 const iniFileContent = (await readTextFile(join(settings.projectPath, "Game.ini"))).split("\n");
 
@@ -1995,10 +2005,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         const unlistenFetch = await readWindow.once("fetch", async () => {
-            await emit("metadata", [
-                (document.getElementById("current-game-title") as HTMLInputElement).value,
-                settings.engineType,
-            ]);
+            await emit("metadata", [currentGameTitle.getAttribute("original-title")!, settings.engineType]);
         });
 
         await readWindow.once("tauri://destroyed", () => {
@@ -2158,7 +2165,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ) as object;
 
                     for (const [id, result] of Object.entries(matches)) {
-                        appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
+                        appendMatch(id, result as string);
                     }
                 }
                 break;
@@ -2177,7 +2184,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ) as object;
 
                     for (const [id, result] of Object.entries(matches)) {
-                        appendMatch(document.getElementById(id) as HTMLDivElement, result as string);
+                        appendMatch(id, result as string);
                     }
                 }
                 break;
