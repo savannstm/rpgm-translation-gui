@@ -1435,14 +1435,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             originalTextElement.title = windowLocalization.originalTextFieldTitle;
             originalTextElement.id = `${contentName}-original-${added}`;
             originalTextElement.className = tw`outlinePrimary backgroundPrimary font inline-block w-full cursor-pointer whitespace-pre-wrap p-1 outline outline-2`;
-            originalTextElement.style.fontFamily = "font";
+
+            if (settings.fontUrl) {
+                originalTextElement.style.fontFamily = "font";
+            }
+
             originalTextElement.textContent = originalTextSplit;
 
             const translationTextElement = document.createElement("textarea");
             translationTextElement.id = `${contentName}-translation-${added}`;
             translationTextElement.rows = translationTextSplit.length;
             translationTextElement.className = tw`outlinePrimary outlineFocused backgroundPrimary font h-auto w-full resize-none overflow-hidden p-1 outline outline-2 focus:z-10`;
-            translationTextElement.style.fontFamily = "font";
+
+            if (settings.fontUrl) {
+                translationTextElement.style.fontFamily = "font";
+            }
+
             translationTextElement.value = translationTextSplit.join("\n");
 
             translationTextElement.spellcheck = false;
