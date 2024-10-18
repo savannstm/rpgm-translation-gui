@@ -1229,10 +1229,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                         });
                         break;
                     case "Equal":
-                        await appWindow.setZoom((zoom += 0.1));
+                        if (zoom < 7) {
+                            await appWindow.setZoom((zoom += 0.1));
+                        }
                         break;
                     case "Minus":
-                        await appWindow.setZoom((zoom -= 0.1));
+                        if (zoom > 0.1) {
+                            await appWindow.setZoom((zoom -= 0.1));
+                        }
                         break;
                 }
             } else if (event.altKey) {
@@ -1396,9 +1400,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         let contentName = state.toString();
         let pathToContent = join(settings.projectPath, programDataDir, translationDir, contentName + ".txt");
 
+        if (contentName.startsWith("maps")) {
+            pathToContent = join(settings.projectPath, programDataDir, "temp-maps", "maps14.txt");
+        }
+
         if (contentName.startsWith("plugins") && !(await exists(pathToContent))) {
-            // TODO: scripts check
-            if (await exists("")) {
+            if (await exists(join(settings.projectPath, programDataDir, translationDir, "scripts.txt"))) {
                 contentName = "scripts";
                 pathToContent = join(settings.projectPath, programDataDir, translationDir, contentName + ".txt");
                 (leftPanel.lastElementChild as HTMLElement).innerHTML = State.Scripts;
@@ -1419,6 +1426,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         for (let i = 0; i < content.length; i++) {
             const [originalText, translationText] = content[i].split(LINES_SEPARATOR, 2);
+
+            if (!translationText) {
+                continue;
+            }
+
             const added = i + 1;
 
             const originalTextSplit = originalText.replaceAll(NEW_LINE, "\n");
@@ -1928,17 +1940,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function initializeFirstLaunch() {
-        new WebviewWindow("help", {
-            url: "help.html",
-            title: windowLocalization.helpButton,
-            center: true,
-            alwaysOnTop: true,
-        });
-
-        settings.firstLaunch = false;
-    }
-
     async function loadProject() {
         const translationPath = join(settings.projectPath, programDataDir, translationDir);
         const parsed = await exists(translationPath);
@@ -1992,6 +1993,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             await loadProject();
 
+            // TODO: Split maps to load each file independently, instead of loading the fucking large maps.txt with thousands
+            // of lines
+            const parts = (
+                await readTextFile(join(settings.projectPath, programDataDir, translationDir, "maps.txt"))
+            ).split(/^<!-- Map.*$/g);
+
+            await mkdir(join(settings.projectPath, programDataDir, "temp-maps"), { recursive: true });
+
+            for (const [i, part] of parts.entries()) {
+                await writeTextFile(join(settings.projectPath, programDataDir, "temp-maps", `maps${i + 1}.txt`), part);
+
+                const buttonElement = document.createElement("button");
+                buttonElement.className = "menu-button backgroundPrimary backgroundPrimaryHovered";
+                buttonElement.innerHTML = `maps${i + 1}.txt`;
+
+                leftPanel.insertBefore(buttonElement, leftPanel.children[i]);
+            }
+
+            // TODO: Maybe remove these functions and just inline the code
             await createDataDir(join(settings.projectPath, programDataDir));
             await createLogFile(join(settings.projectPath, programDataDir, logFile));
             await createCompileSettings(join(settings.projectPath, programDataDir, "compile-settings.json"));
@@ -2011,7 +2031,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             if (settings.firstLaunch) {
-                initializeFirstLaunch();
+                new WebviewWindow("help", {
+                    url: "help.html",
+                    title: windowLocalization.helpButton,
+                    center: true,
+                    alwaysOnTop: true,
+                });
+
+                settings.firstLaunch = false;
             }
 
             const gameTitleLine: string = await invoke("read_last_line", {
@@ -2068,8 +2095,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     leftPanel.addEventListener("click", async (event) => {
-        const newState = leftPanel.secondHighestParent(event.target as HTMLElement).textContent!.trim() as State;
-        await changeState(newState, true);
+        await changeState(leftPanel.secondHighestParent(event.target as HTMLElement).textContent as State, true);
     });
 
     topPanelButtonsContainer.addEventListener("click", async (event) => {
