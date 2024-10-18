@@ -1,11 +1,11 @@
 {
     "identifier": "help",
-    "windows": ["help"],
     "permissions": [
-        "core:window:allow-close",
-        "core:window:allow-destroy",
+        "core:event:allow-emit",
         "core:event:allow-listen",
         "core:event:allow-unlisten",
-        "core:event:allow-emit"
-    ]
+        "core:window:allow-close",
+        "core:window:allow-destroy"
+    ],
+    "windows": ["help"]
 }

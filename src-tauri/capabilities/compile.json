@@ -1,18 +1,15 @@
 {
     "identifier": "compile",
-    "windows": ["compile"],
     "permissions": [
-        "core:window:allow-close",
-        "core:window:allow-destroy",
+        "core:event:allow-emit",
         "core:event:allow-listen",
         "core:event:allow-unlisten",
-        "core:event:allow-emit",
+        "core:window:allow-close",
+        "core:window:allow-destroy",
+        "dialog:allow-open",
         "fs:allow-read-text-file",
         "fs:allow-write-text-file",
-        {
-            "identifier": "fs:scope",
-            "allow": ["**"]
-        },
-        "dialog:allow-open"
-    ]
+        { "allow": ["**"], "identifier": "fs:scope" }
+    ],
+    "windows": ["compile"]
 }

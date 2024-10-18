@@ -1,28 +1,25 @@
 {
     "identifier": "main",
-    "windows": ["main"],
     "permissions": [
-        "core:window:allow-close",
-        "core:window:allow-destroy",
-        "core:webview:allow-create-webview-window",
-        "core:webview:allow-set-webview-zoom",
+        "core:event:allow-emit",
         "core:event:allow-listen",
         "core:event:allow-unlisten",
-        "core:event:allow-emit",
-        "fs:allow-read-text-file",
-        "fs:allow-write-text-file",
-        "fs:allow-read-dir",
-        "fs:allow-mkdir",
-        "fs:allow-exists",
-        "fs:allow-remove",
-        {
-            "identifier": "fs:scope",
-            "allow": ["**"]
-        },
-        "dialog:allow-open",
-        "dialog:allow-message",
+        "core:webview:allow-create-webview-window",
+        "core:webview:allow-set-webview-zoom",
+        "core:window:allow-close",
+        "core:window:allow-destroy",
         "dialog:allow-ask",
+        "dialog:allow-message",
+        "dialog:allow-open",
+        "fs:allow-exists",
+        "fs:allow-mkdir",
+        "fs:allow-read-dir",
+        "fs:allow-read-text-file",
+        "fs:allow-remove",
+        "fs:allow-write-text-file",
+        { "allow": ["**"], "identifier": "fs:scope" },
         "os:allow-locale",
         "process:allow-exit"
-    ]
+    ],
+    "windows": ["main"]
 }

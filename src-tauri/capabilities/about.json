@@ -1,14 +1,14 @@
 {
     "identifier": "about",
-    "windows": ["about"],
     "permissions": [
-        "core:window:allow-close",
-        "core:window:allow-destroy",
         "core:app:allow-version",
+        "core:event:allow-emit",
         "core:event:allow-listen",
         "core:event:allow-unlisten",
-        "core:event:allow-emit",
-        "shell:allow-open",
-        "process:allow-exit"
-    ]
+        "core:window:allow-close",
+        "core:window:allow-destroy",
+        "process:allow-exit",
+        "shell:allow-open"
+    ],
+    "windows": ["about"]
 }
