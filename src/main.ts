@@ -1042,7 +1042,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             outputArray.length = entries.length;
 
             for (const entry of entries) {
-                outputArray[Number.parseInt(entry.name.slice(4))] = await readTextFile(join(tempPath, entry.name));
+                outputArray[Number.parseInt(entry.name.slice(4)) - 1] = await readTextFile(join(tempPath, entry.name));
             }
 
             await writeTextFile(join(translationPath, "maps.txt"), outputArray.join("\n"));
