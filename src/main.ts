@@ -646,7 +646,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 )
                     .split("\n")
                     .entries()) {
-                    console.log(line);
                     const [original, translated] = line.split(LINES_SEPARATOR);
 
                     const originalMatches = original.match(regexp);
