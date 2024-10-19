@@ -2024,6 +2024,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 result.push(line);
             }
 
+            parts.push(result.join("\n"));
             await mkdir(join(settings.projectPath, programDataDir, "temp-maps"), { recursive: true });
 
             for (const [i, part] of parts.entries()) {
