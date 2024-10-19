@@ -1,14 +1,13 @@
-import { applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import { applyLocalization, applyTheme, getThemeStyleSheet, join } from "./extensions/functions";
 import { SettingsWindowLocalization } from "./extensions/localization";
 import "./extensions/math-extensions";
 
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { emit, once } from "@tauri-apps/api/event";
-import { readDir, readTextFile } from "@tauri-apps/api/fs";
-import { platform as getPlatform } from "@tauri-apps/api/os";
-import { BaseDirectory } from "@tauri-apps/api/path";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
-import { appWindow } from "@tauri-apps/api/window";
-const { Resource } = BaseDirectory;
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { readDir } from "@tauri-apps/plugin-fs";
+import { platform as getPlatform } from "@tauri-apps/plugin-os";
+const appWindow = getCurrentWebviewWindow();
 
 interface FontObject extends Record<string, string> {
     font: string;
@@ -17,22 +16,17 @@ interface FontObject extends Record<string, string> {
 
 document.addEventListener("DOMContentLoaded", async () => {
     let settings!: Settings;
+    let theme!: Theme;
 
-    await once<Settings>("settings", (data) => {
-        settings = data.payload;
+    await once<[Settings, Theme]>("settings", (data) => {
+        [settings, theme] = data.payload;
     });
 
     await emit("fetch-settings");
 
-    while (!settings) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    applyTheme(
-        getThemeStyleSheet() as CSSStyleSheet,
-        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[settings.theme],
-    );
-
+    applyTheme(getThemeStyleSheet()!, theme);
     applyLocalization(new SettingsWindowLocalization(settings.language));
 
     const backupCheck = document.getElementById("backup-check") as HTMLSpanElement;
@@ -41,29 +35,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const backupPeriodInput = document.getElementById("backup-period-input") as HTMLInputElement;
     const fontSelect = document.getElementById("font-select") as HTMLSelectElement;
 
-    async function fetchFonts(): Promise<FontObject | undefined> {
+    let fontUrl = "";
+
+    async function fetchFonts(): Promise<FontObject> {
         const fontsObject = {} as FontObject;
-        const platform = await getPlatform();
-        let fontPath: string;
+        const fontPath = getPlatform() === "windows" ? "C:/Windows/Fonts" : "/usr/share/fonts";
 
-        switch (platform) {
-            case "win32":
-                fontPath = "C:/Windows/Fonts";
-                break;
-            case "linux":
-                fontPath = "/usr/share/fonts";
-                break;
-            default:
-                return;
-        }
-
-        for (const entry of await readDir(fontPath, { recursive: true })) {
-            const path = entry.path;
-            const name = entry.name as string;
+        for (const entry of await readDir(fontPath)) {
+            const name = entry.name;
             const extension = name.slice(-3);
 
             if (["ttf", "otf"].includes(extension)) {
-                fontsObject[path] = name;
+                fontsObject[join(fontPath, name)] = name;
             }
         }
 
@@ -82,22 +65,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         backupSettings.classList.add("translate-y-0");
     }
 
-    for (const [path, name] of Object.entries((await fetchFonts()) as object)) {
+    for (const [path, name] of Object.entries((await fetchFonts()) as Record<string, string>)) {
         const optionElement = document.createElement("option");
 
         optionElement.id = path;
-        optionElement.value = name;
-        optionElement.innerHTML = name;
+        optionElement.innerHTML = optionElement.value = name;
 
         fontSelect.appendChild(optionElement);
     }
 
-    fontSelect.addEventListener("change", async () => {
+    fontSelect.addEventListener("change", () => {
         for (const element of fontSelect.children as HTMLCollectionOf<HTMLOptionElement>) {
             if (element.value === fontSelect.value) {
-                const font = new FontFace("font", `url(${convertFileSrc(element.id)})`);
-                document.fonts.add(await font.load());
-                document.body.style.fontFamily = "font";
+                fontUrl = convertFileSrc(element.id);
             }
         }
     });
@@ -130,11 +110,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         backupPeriodInput.value = Math.clamp(Number.parseInt(backupPeriodInput.value), 60, 3600).toString();
     });
 
-    appWindow.onCloseRequested(async () => {
-        await emit("backup-settings", [
+    await appWindow.onCloseRequested(async () => {
+        await emit("get-settings", [
             Boolean(backupCheck.textContent),
             Number.parseInt(backupMaxInput.value),
             Number.parseInt(backupPeriodInput.value),
+            fontUrl,
         ]);
     });
 });

@@ -15,29 +15,25 @@ interface HTMLTextAreaElement {
 interface Math {
     clamp(value: number, min: number, max: number): number;
 }
-
 interface Settings {
-    language: Language;
+    language: import("./enums").Language;
     backup: {
         enabled: boolean;
         period: number;
         max: number;
     };
     theme: string;
-    font: string;
+    fontUrl: string;
     firstLaunch: boolean;
     projectPath: string;
-    engineType: EngineType;
+    engineType: import("./enums").EngineType | null;
 }
 
 interface CompileSettings {
     initialized: boolean;
     logging: boolean;
     romanize: boolean;
-    shuffle: {
-        enabled: boolean;
-        level: number;
-    };
+    mapsProcessingMode: number;
     disableCustomProcessing: boolean;
     customOutputPath: {
         enabled: boolean;
@@ -86,12 +82,13 @@ interface ReadCommandOptions extends Record<string, unknown> {
     projectPath: string;
     originalDir: string;
     gameTitle: string;
+    mapsProcessingMode: number;
     romanize: boolean;
     disableCustomProcessing: boolean;
     disableProcessing: boolean[];
     logging: boolean;
-    processingMode: ProcessingMode;
-    engineType: EngineType;
+    processingMode: import("./enums").ProcessingMode;
+    engineType: import("./enums").EngineType;
 }
 
 interface CompileCommandOptions extends Record<string, unknown> {
@@ -99,10 +96,18 @@ interface CompileCommandOptions extends Record<string, unknown> {
     originalDir: string;
     outputPath: string;
     gameTitle: string;
+    mapsProcessingMode: number;
     romanize: boolean;
-    shuffleLevel: number;
     disableCustomProcessing: boolean;
     disableProcessing: boolean[];
     logging: boolean;
-    engineType: EngineType;
+    engineType: import("./enums").EngineType;
+}
+
+interface TextAreaPropertiesMemo extends Record<string, string | number> {
+    lineHeight?: number;
+    padding?: number;
+    lineBreaks?: number;
+    fontSize?: string;
+    fontFamily?: string;
 }

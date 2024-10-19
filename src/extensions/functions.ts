@@ -1,3 +1,4 @@
+import { EngineType, Language } from "../types/enums";
 import { Localization } from "./localization";
 
 export function romanizeString(string: string): string {
@@ -151,7 +152,7 @@ export function applyTheme(sheet: CSSStyleSheet, theme: Theme | [string, string]
 }
 
 export function applyLocalization(localization: Localization, theme: Theme | null = null) {
-    for (const [key, value] of Object.entries(localization)) {
+    for (const [key, value] of Object.entries(localization) as unknown as string[]) {
         if (theme) {
             if (key in theme) {
                 continue;
@@ -186,7 +187,7 @@ export function getThemeStyleSheet(): CSSStyleSheet | undefined {
 }
 
 export function animateProgressText(progressText: HTMLElement, interval = 500) {
-    const baseText = progressText.textContent?.replace(/\.+$/, "");
+    const baseText = progressText.textContent!.replace(/\.+$/, "");
     let dots = 0;
 
     function updateText() {
@@ -195,4 +196,63 @@ export function animateProgressText(progressText: HTMLElement, interval = 500) {
     }
 
     return setInterval(updateText, interval);
+}
+
+export const join = (...strings: string[]): string => strings.join("/");
+
+export class CompileSettings {
+    initialized: boolean;
+    logging: boolean;
+    romanize: boolean;
+    mapsProcessingMode: number;
+    disableCustomProcessing: boolean;
+    customOutputPath: {
+        enabled: boolean;
+        path: string;
+    };
+    disableProcessing: {
+        enabled: boolean;
+        of: {
+            maps: boolean;
+            other: boolean;
+            system: boolean;
+            plugins: boolean;
+        };
+    };
+    doNotAskAgain: boolean;
+
+    constructor() {
+        this.initialized = false;
+        this.logging = false;
+        this.romanize = false;
+        this.mapsProcessingMode = 0;
+        this.disableCustomProcessing = false;
+        this.customOutputPath = { enabled: false, path: "" };
+        this.disableProcessing = { enabled: false, of: { maps: false, other: false, system: false, plugins: false } };
+        this.doNotAskAgain = true;
+    }
+}
+
+export class Settings {
+    language: Language;
+    backup: {
+        enabled: boolean;
+        period: number;
+        max: number;
+    };
+    theme: string;
+    fontUrl: string;
+    firstLaunch: boolean;
+    projectPath: string;
+    engineType: EngineType | null;
+
+    constructor(language: Language) {
+        this.language = language;
+        this.backup = { enabled: true, period: 60, max: 99 };
+        this.theme = "cool-zinc";
+        this.fontUrl = "";
+        this.firstLaunch = true;
+        this.projectPath = "";
+        this.engineType = null;
+    }
 }

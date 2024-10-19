@@ -1,21 +1,37 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(clippy::too_many_arguments)]
 
-use fastrand::seed;
-use lazy_static::lazy_static;
-use regex::escape;
-use regex::Regex;
-use std::path::Path;
-use std::{fs::create_dir_all, path::PathBuf, time::Instant};
-#[cfg(debug_assertions)]
-use tauri::Manager;
-use tauri::{command, generate_context, generate_handler, App, Builder};
-
 mod read;
 mod write;
 
+use lazy_static::lazy_static;
 use read::*;
+use regex::{escape, Regex};
+use sonic_rs::{prelude::*, Object};
+use std::{
+    fs::{create_dir_all, File},
+    io::{Read, Seek, SeekFrom},
+    mem::transmute,
+    path::{Path, PathBuf},
+    time::Instant,
+};
+#[cfg(debug_assertions)]
+use tauri::Manager;
+use tauri::{command, generate_context, generate_handler, App, Builder};
 use write::*;
+
+static NEW_LINE: &str = r"\#";
+static LINES_SEPARATOR: &str = "<#>";
+static mut EXTENSION: &str = "";
+
+lazy_static! {
+    static ref STRING_IS_ONLY_SYMBOLS_RE: Regex = Regex::new(r#"^[.()+\-:;\[\]^~%&!№$@`*\/→×？?ｘ％▼|♥♪！：〜『』「」〽。…‥＝゠、，【】［］｛｝（）〔〕｟｠〘〙〈〉《》・\\#'"<>=_ー※▶ⅠⅰⅡⅱⅢⅲⅣⅳⅤⅴⅥⅵⅦⅶⅧⅷⅨⅸⅩⅹⅪⅺⅫⅻⅬⅼⅭⅽⅮⅾⅯⅿ\s0-9]+$"#).unwrap();
+    static ref ENDS_WITH_IF_RE: Regex = Regex::new(r" if\(.*\)$").unwrap();
+    static ref LISA_PREFIX_RE: Regex = Regex::new(r"^(\\et\[[0-9]+\]|\\nbt)").unwrap();
+    static ref INVALID_MULTILINE_VARIABLE_RE: Regex = Regex::new(r"^#? ?<.*>.?$|^[a-z][0-9]$").unwrap();
+    static ref INVALID_VARIABLE_RE: Regex = Regex::new(r"^[+-]?[0-9]+$|^///|---|restrict eval").unwrap();
+    static ref SELECT_WORDS_RE: Regex = Regex::new(r"\S+").unwrap();
+}
 
 #[derive(PartialEq, Clone, Copy)]
 enum GameType {
@@ -23,56 +39,31 @@ enum GameType {
     LisaRPG,
 }
 
-impl PartialEq<GameType> for &GameType {
-    fn eq(&self, other: &GameType) -> bool {
-        *self == other
-    }
-}
-
-#[derive(PartialEq)]
+#[repr(u8)]
+#[derive(PartialEq, Clone, Copy)]
+#[allow(dead_code)]
 enum ProcessingMode {
-    Default,
-    Append,
     Force,
+    Append,
+    Default,
 }
 
-impl AsRef<ProcessingMode> for ProcessingMode {
-    fn as_ref(&self) -> &ProcessingMode {
-        self
-    }
-}
-
-impl PartialEq<ProcessingMode> for &ProcessingMode {
-    fn eq(&self, other: &ProcessingMode) -> bool {
-        *self == other
-    }
+#[repr(u8)]
+#[derive(PartialEq, Clone, Copy)]
+#[allow(dead_code)]
+enum EngineType {
+    New,
+    VXAce,
+    VX,
+    XP,
 }
 
 #[derive(PartialEq)]
-enum EngineType {
-    XP,
-    VX,
-    VXAce,
-    New,
-}
-
-impl AsRef<EngineType> for EngineType {
-    fn as_ref(&self) -> &EngineType {
-        self
-    }
-}
-
-impl PartialEq<EngineType> for &EngineType {
-    fn eq(&self, other: &EngineType) -> bool {
-        *self == other
-    }
-}
-
 enum Code {
     Dialogue, // also goes for credit
     Choice,
     System,
-    Unknown,
+    Misc,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -87,24 +78,45 @@ enum Variable {
     Note,
 }
 
-lazy_static! {
-    pub static ref STRING_IS_ONLY_SYMBOLS_RE: Regex = Regex::new(r#"^[.()+\-:;\[\]^~%&!№$@`*\/→×？?ｘ％▼|♥♪！：〜『』「」〽。…‥＝゠、，【】［］｛｝（）〔〕｟｠〘〙〈〉《》・\\#'"<>=_ー※▶ⅠⅰⅡⅱⅢⅲⅣⅳⅤⅴⅥⅵⅦⅶⅧⅷⅨⅸⅩⅹⅪⅺⅫⅻⅬⅼⅭⅽⅮⅾⅯⅿ\s0-9]+$"#).unwrap();
-    pub static ref ENDS_WITH_IF_RE: Regex = Regex::new(r" if\(.*\)$").unwrap();
-    pub static ref LISA_PREFIX_RE: Regex = Regex::new(r"^(\\et\[[0-9]+\]|\\nbt)").unwrap();
-    pub static ref INVALID_MULTILINE_VARIABLE_RE: Regex = Regex::new(r"^#? ?<.*>.?$|^[a-z][0-9]$").unwrap();
-    pub static ref INVALID_VARIABLE_RE: Regex = Regex::new(r"^[+-]?[0-9]+$|^///|---|restrict eval").unwrap();
-    pub static ref SELECT_WORDS_RE: Regex = Regex::new(r"\S+").unwrap();
+#[derive(PartialEq, Clone, Copy)]
+#[repr(u8)]
+#[allow(dead_code)]
+enum MapsProcessingMode {
+    Default = 0,
+    Separate = 1,
+    Preserve = 2,
 }
 
-pub fn romanize_string<T>(string: T) -> String
-where
-    T: AsRef<str>,
-    std::string::String: std::convert::From<T>,
-{
-    let actual_string: String = String::from(string);
-    let mut result: String = String::new();
+trait EachLine {
+    fn each_line(&self) -> Vec<String>;
+}
 
-    for char in actual_string.chars() {
+// Return a Vec of strings splitted by lines (inclusive), akin to each_line in Ruby
+impl EachLine for str {
+    fn each_line(&self) -> Vec<String> {
+        let mut result: Vec<String> = Vec::new();
+        let mut current_line: String = String::new();
+
+        for char in self.chars() {
+            current_line.push(char);
+
+            if char == '\n' {
+                result.push(std::mem::take(&mut current_line));
+            }
+        }
+
+        if !current_line.is_empty() {
+            result.push(std::mem::take(&mut current_line));
+        }
+
+        result
+    }
+}
+
+pub fn romanize_string(string: String) -> String {
+    let mut result: String = String::with_capacity(string.capacity());
+
+    for char in string.chars() {
         let replacement: &str = match char {
             '。' => ".",
             '、' | '，' => ",",
@@ -170,13 +182,112 @@ where
     result
 }
 
-fn get_game_type(game_title: &str) -> Option<&GameType> {
+pub fn get_object_data(object: &Object) -> String {
+    match object.get(&"__type") {
+        Some(object_type) => {
+            if object_type.as_str().is_some_and(|_type: &str| _type == "bytes") {
+                unsafe { String::from_utf8_unchecked(sonic_rs::from_value(&object["data"]).unwrap_unchecked()) }
+            } else {
+                String::new()
+            }
+        }
+        None => String::new(),
+    }
+}
+
+pub fn extract_strings(
+    ruby_code: &str,
+    mode: bool,
+) -> (
+    indexmap::IndexSet<String, std::hash::BuildHasherDefault<xxhash_rust::xxh3::Xxh3>>,
+    Vec<usize>,
+) {
+    fn is_escaped(index: usize, string: &str) -> bool {
+        let mut backslash_count: u8 = 0;
+
+        for char in string[..index].chars().rev() {
+            if char == '\\' {
+                backslash_count += 1;
+            } else {
+                break;
+            }
+        }
+
+        backslash_count % 2 == 1
+    }
+
+    let mut strings: indexmap::IndexSet<String, std::hash::BuildHasherDefault<xxhash_rust::xxh3::Xxh3>> =
+        indexmap::IndexSet::default();
+    let mut indices: Vec<usize> = Vec::new();
+    let mut inside_string: bool = false;
+    let mut inside_multiline_comment: bool = false;
+    let mut string_start_index: usize = 0;
+    let mut current_quote_type: char = '\0';
+    let mut global_index: usize = 0;
+
+    for line in ruby_code.each_line() {
+        let trimmed: &str = line.trim();
+
+        if !inside_string {
+            if trimmed.starts_with('#') {
+                global_index += line.len();
+                continue;
+            }
+
+            if trimmed.starts_with("=begin") {
+                inside_multiline_comment = true;
+            } else if trimmed.starts_with("=end") {
+                inside_multiline_comment = false;
+            }
+        }
+
+        if inside_multiline_comment {
+            global_index += line.len();
+            continue;
+        }
+
+        let char_indices: std::str::CharIndices = line.char_indices();
+
+        for (i, char) in char_indices {
+            if !inside_string && char == '#' {
+                break;
+            }
+
+            if !inside_string && (char == '"' || char == '\'') {
+                inside_string = true;
+                string_start_index = global_index + i;
+                current_quote_type = char;
+            } else if inside_string && char == current_quote_type && !is_escaped(i, &line) {
+                let extracted_string: String = ruby_code[string_start_index + 1..global_index + i]
+                    .replace("\r\n", NEW_LINE)
+                    .replace('\n', NEW_LINE);
+
+                if !strings.contains(&extracted_string) {
+                    strings.insert(extracted_string);
+                }
+
+                if mode {
+                    indices.push(string_start_index + 1);
+                }
+
+                inside_string = false;
+                current_quote_type = '\0';
+            }
+        }
+
+        global_index += line.len();
+    }
+
+    (strings, indices)
+}
+
+fn get_game_type(game_title: &str) -> Option<GameType> {
     let lowercased: String = game_title.to_lowercase();
 
     if Regex::new(r"\btermina\b").unwrap().is_match(&lowercased) {
-        Some(&GameType::Termina)
+        Some(GameType::Termina)
     } else if Regex::new(r"\blisa\b").unwrap().is_match(&lowercased) {
-        Some(&GameType::LisaRPG)
+        Some(GameType::LisaRPG)
     } else {
         None
     }
@@ -193,8 +304,8 @@ fn compile(
     original_dir: PathBuf,
     output_path: PathBuf,
     game_title: &str,
+    maps_processing_mode: u8,
     romanize: bool,
-    shuffle_level: u64,
     disable_custom_processing: bool,
     disable_processing: [bool; 4],
     logging: bool,
@@ -202,110 +313,102 @@ fn compile(
 ) -> f64 {
     let start_time: Instant = Instant::now();
 
-    let engine_type: &EngineType = &match engine_type {
-        0 => EngineType::XP,
-        1 => EngineType::VX,
-        2 => EngineType::VXAce,
-        3 => EngineType::New,
-        _ => unreachable!(),
+    let maps_processing_mode: MapsProcessingMode = unsafe { transmute(maps_processing_mode) };
+    let engine_type: EngineType = unsafe { transmute(engine_type) };
+
+    let extension: &str = match engine_type {
+        EngineType::New => ".json",
+        EngineType::VXAce => ".rvdata2",
+        EngineType::VX => ".rvdata",
+        EngineType::XP => ".rxdata",
     };
+
+    unsafe { EXTENSION = extension };
 
     let data_dir: &Path = &PathBuf::from(".rpgm-translation-gui");
     let original_path: &Path = &project_path.join(original_dir);
-    let maps_path: &Path = &project_path.join(data_dir).join("translation/maps");
-    let other_path: &Path = &project_path.join(data_dir).join("translation/other");
-    let plugins_path: &Path = &project_path.join(data_dir).join("translation/plugins");
-    let data_output_path: &Path = &output_path.join(data_dir).join("output/data");
-    let plugins_output_path: &Path = &output_path.join(data_dir).join("output/js");
+    let translation_path: &Path = &project_path.join(data_dir).join("translation");
+    let (data_output_path, plugins_output_path) = if engine_type == EngineType::New {
+        let plugins_output_path: PathBuf = output_path.join(data_dir).join("output/js");
+        create_dir_all(&plugins_output_path).unwrap();
 
-    let game_type: Option<&GameType> = if disable_custom_processing {
+        (
+            &output_path.join(data_dir).join("output/data"),
+            Some(plugins_output_path),
+        )
+    } else {
+        (&output_path.join(data_dir).join("output/Data"), None)
+    };
+
+    create_dir_all(data_output_path).unwrap();
+
+    let game_type: Option<GameType> = if disable_custom_processing {
         None
     } else {
         get_game_type(game_title)
     };
 
-    if engine_type == EngineType::New {
-        create_dir_all(data_output_path).unwrap();
-        create_dir_all(plugins_output_path).unwrap();
-    } else {
-        create_dir_all(output_path.join(data_dir).join("output/Data")).unwrap();
-    }
-
     if !disable_processing[0] {
         write_maps(
-            maps_path,
+            translation_path,
             original_path,
             data_output_path,
+            maps_processing_mode,
             romanize,
-            shuffle_level,
             logging,
-            "",
             game_type,
             engine_type,
+            "",
         );
     }
 
     if !disable_processing[1] {
         write_other(
-            other_path,
+            translation_path,
             original_path,
             data_output_path,
             romanize,
-            shuffle_level,
             logging,
-            "",
             game_type,
             engine_type,
+            "",
         );
     }
 
     if !disable_processing[2] {
         write_system(
-            &original_path.join(match engine_type {
-                EngineType::New => "System.json",
-                EngineType::VXAce => "System.rvdata2",
-                EngineType::VX => "System.rvdata",
-                EngineType::XP => "System.rxdata",
-            }),
-            other_path,
+            &original_path.join(String::from("System") + extension),
+            translation_path,
             data_output_path,
             romanize,
-            shuffle_level,
             logging,
-            "",
             engine_type,
+            "",
         );
     }
 
-    let plugins_file_path: &Path = &plugins_path.join("plugins.json");
-
     if !disable_processing[3] {
-        if game_type.is_some_and(|game_type: &GameType| game_type == GameType::Termina) && plugins_path.exists() {
+        let plugins_file_path: &Path = &translation_path.join("plugins.json");
+
+        if game_type.is_some_and(|game_type: GameType| game_type == GameType::Termina) && plugins_file_path.exists() {
             write_plugins(
                 plugins_file_path,
-                plugins_path,
-                plugins_output_path,
-                shuffle_level,
+                translation_path,
+                &unsafe { plugins_output_path.unwrap_unchecked() },
                 logging,
                 "",
             );
         }
 
-        if engine_type != EngineType::New {
-            let scripts_file_path: &Path = &original_path.join(match engine_type {
-                EngineType::VXAce => "Scripts.rvdata2",
-                EngineType::VX => "Scripts.rvdata",
-                EngineType::XP => "Scripts.rxdata",
-                _ => unreachable!(),
-            });
+        let scripts_file_path: &Path = &original_path.join(String::from("Scripts") + extension);
 
+        if engine_type != EngineType::New && scripts_file_path.exists() {
             write_scripts(
                 scripts_file_path,
-                other_path,
+                translation_path,
                 data_output_path,
                 romanize,
                 logging,
-                engine_type,
                 "",
             );
         }
@@ -319,6 +422,7 @@ fn read(
     project_path: PathBuf,
     original_dir: PathBuf,
     game_title: &str,
+    maps_processing_mode: u8,
     romanize: bool,
     disable_custom_processing: bool,
     disable_processing: [bool; 4],
@@ -326,22 +430,20 @@ fn read(
     processing_mode: u8,
     engine_type: u8,
 ) {
-    let processing_mode: &ProcessingMode = &match processing_mode {
-        0 => ProcessingMode::Default,
-        1 => ProcessingMode::Append,
-        2 => ProcessingMode::Force,
-        _ => unreachable!(),
+    let processing_mode: ProcessingMode = unsafe { transmute(processing_mode) };
+    let engine_type: EngineType = unsafe { transmute(engine_type) };
+    let maps_processing_mode: MapsProcessingMode = unsafe { transmute(maps_processing_mode) };
+
+    let extension: &str = match engine_type {
+        EngineType::New => ".json",
+        EngineType::VXAce => ".rvdata2",
+        EngineType::VX => ".rvdata",
+        EngineType::XP => ".rxdata",
     };
 
-    let engine_type: &EngineType = &match engine_type {
-        0 => EngineType::XP,
-        1 => EngineType::VX,
-        2 => EngineType::VXAce,
-        3 => EngineType::New,
-        _ => unreachable!(),
-    };
+    unsafe { EXTENSION = extension };
 
-    let game_type: Option<&GameType> = if disable_custom_processing {
+    let game_type: Option<GameType> = if disable_custom_processing {
         None
     } else {
         get_game_type(game_title)
@@ -349,70 +451,53 @@ fn read(
 
     let data_dir: &Path = &PathBuf::from(".rpgm-translation-gui");
     let original_path: &Path = &project_path.join(original_dir);
-    let maps_path: &Path = &project_path.join(data_dir).join("translation/maps");
-    let other_path: &Path = &project_path.join(data_dir).join("translation/other");
+    let translation_path: &Path = &project_path.join(data_dir).join("translation");
 
-    create_dir_all(maps_path).unwrap();
-    create_dir_all(other_path).unwrap();
+    create_dir_all(translation_path).unwrap();
 
     if !disable_processing[0] {
         read_map(
             original_path,
-            maps_path,
+            translation_path,
+            maps_processing_mode,
             romanize,
             logging,
-            "",
-            "",
-            "",
             game_type,
-            processing_mode,
             engine_type,
+            processing_mode,
+            ("", "", ""),
         );
     }
 
     if !disable_processing[1] {
         read_other(
             original_path,
-            other_path,
+            translation_path,
             romanize,
             logging,
-            "",
-            "",
-            "",
             game_type,
             processing_mode,
             engine_type,
+            ("", "", ""),
         );
     }
 
     if !disable_processing[2] {
         read_system(
-            &original_path.join(match engine_type {
-                EngineType::New => "System.json",
-                EngineType::VXAce => "System.rvdata2",
-                EngineType::VX => "System.rvdata",
-                EngineType::XP => "System.rxdata",
-            }),
-            other_path,
+            &original_path.join(String::from("System") + extension),
+            translation_path,
             romanize,
             logging,
-            "",
-            "",
-            "",
             processing_mode,
             engine_type,
+            ("", "", ""),
         );
     }
 
     if !disable_processing[3] && engine_type != EngineType::New {
         read_scripts(
-            &original_path.join(match engine_type {
-                EngineType::VXAce => "Scripts.rvdata2",
-                EngineType::VX => "Scripts.rvdata",
-                EngineType::XP => "Scripts.rxdata",
-                _ => unreachable!(),
-            }),
-            other_path,
+            &original_path.join(String::from("Scripts") + extension),
+            translation_path,
             romanize,
             logging,
             "",
@@ -420,14 +505,43 @@ fn read(
     }
 }
 
-fn main() {
-    seed(69);
+#[command]
+fn read_last_line(file_path: PathBuf) -> String {
+    let mut file: File = File::open(file_path).unwrap();
+    let mut buffer: Vec<u8> = Vec::new();
 
+    let mut position: u64 = file.seek(SeekFrom::End(0)).unwrap();
+
+    while position > 0 {
+        position -= 1;
+        file.seek(SeekFrom::Start(position)).unwrap();
+
+        let mut byte = [0; 1];
+        file.read_exact(&mut byte).unwrap();
+
+        if byte == b"\n"[..] && !buffer.is_empty() {
+            break;
+        }
+
+        buffer.push(byte[0]);
+    }
+
+    buffer.reverse();
+
+    unsafe { String::from_utf8_unchecked(buffer) }
+}
+
+fn main() {
     Builder::default()
-        .invoke_handler(generate_handler![escape_text, read, compile])
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
+        .invoke_handler(generate_handler![escape_text, read, compile, read_last_line,])
         .setup(|_app: &mut App| {
             #[cfg(debug_assertions)]
-            _app.get_window("main").unwrap().open_devtools();
+            _app.get_webview_window("main").unwrap().open_devtools();
 
             Ok(())
         })

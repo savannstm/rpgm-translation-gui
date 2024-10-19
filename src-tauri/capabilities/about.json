@@ -1,0 +1,14 @@
+{
+    "identifier": "about",
+    "permissions": [
+        "core:app:allow-version",
+        "core:event:allow-emit",
+        "core:event:allow-listen",
+        "core:event:allow-unlisten",
+        "core:window:allow-close",
+        "core:window:allow-destroy",
+        "process:allow-exit",
+        "shell:allow-open"
+    ],
+    "windows": ["about"]
+}

@@ -2,132 +2,50 @@
     "build": {
         "beforeDevCommand": "bun run dev",
         "beforeBuildCommand": "bun run build",
-        "devPath": "http://localhost:1420",
-        "distDir": "../src/dist"
+        "frontendDist": "../src/dist",
+        "devUrl": "http://localhost:1420"
     },
-    "package": {
-        "productName": "rpgm-translation-gui",
-        "version": "3.11.6"
-    },
-    "tauri": {
-        "allowlist": {
-            "all": false,
-            "shell": {
-                "all": false,
-                "open": true
+    "bundle": {
+        "active": true,
+        "targets": ["msi", "appimage", "deb"],
+        "windows": {
+            "allowDowngrades": true,
+            "certificateThumbprint": null,
+            "digestAlgorithm": null,
+            "nsis": null,
+            "timestampUrl": null,
+            "tsp": false,
+            "wix": {
+                "language": ["en-US", "ru-RU"]
             },
-            "fs": {
-                "all": false,
-                "copyFile": true,
-                "createDir": true,
-                "exists": true,
-                "readDir": true,
-                "readFile": true,
-                "removeDir": true,
-                "removeFile": false,
-                "renameFile": false,
-                "scope": ["**"],
-                "writeFile": true
-            },
-            "path": {
-                "all": true
-            },
-            "process": {
-                "all": false,
-                "exit": true
-            },
-            "dialog": {
-                "all": false,
-                "ask": true,
-                "confirm": false,
-                "message": true,
-                "open": true,
-                "save": false
-            },
-            "window": {
-                "all": false,
-                "center": false,
-                "close": true,
-                "create": true,
-                "hide": false,
-                "maximize": false,
-                "minimize": false,
-                "print": false,
-                "requestUserAttention": false,
-                "setAlwaysOnTop": false,
-                "setClosable": false,
-                "setContentProtected": false,
-                "setCursorGrab": false,
-                "setCursorIcon": false,
-                "setCursorPosition": false,
-                "setCursorVisible": false,
-                "setDecorations": false,
-                "setFocus": false,
-                "setFullscreen": false,
-                "setIcon": false,
-                "setIgnoreCursorEvents": false,
-                "setMaxSize": false,
-                "setMaximizable": false,
-                "setMinSize": false,
-                "setMinimizable": false,
-                "setPosition": false,
-                "setResizable": false,
-                "setSize": false,
-                "setSkipTaskbar": false,
-                "setTitle": false,
-                "show": false,
-                "startDragging": false,
-                "unmaximize": false,
-                "unminimize": false
-            },
-            "os": {
-                "all": true
-            },
-            "protocol": {
-                "all": false,
-                "asset": true,
-                "assetScope": ["**"]
+            "webviewInstallMode": {
+                "silent": true,
+                "type": "downloadBootstrapper"
             }
+        },
+        "resources": ["res/**/*"],
+        "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+    },
+    "productName": "rpgmtranslate",
+    "mainBinaryName": "rpgmtranslate",
+    "version": "4.0.0",
+    "identifier": "com.savannstm.rpgmtranslate",
+    "plugins": {},
+    "app": {
+        "security": {
+            "assetProtocol": {
+                "scope": ["**"],
+                "enable": true
+            },
+            "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost; connect-src ipc: http://ipc.localhost"
         },
         "windows": [
             {
-                "title": "RPGM Translation GUI",
+                "title": "RPGMTranslate",
                 "url": "main.html",
                 "label": "main",
                 "maximized": true
             }
-        ],
-        "security": {
-            "csp": "default-src 'self'; img-src 'self' asset: https://asset.localhost"
-        },
-        "bundle": {
-            "active": true,
-            "targets": ["msi", "appimage", "deb"],
-            "windows": {
-                "allowDowngrades": true,
-                "certificateThumbprint": null,
-                "digestAlgorithm": null,
-                "nsis": null,
-                "timestampUrl": null,
-                "tsp": false,
-                "webviewFixedRuntimePath": null,
-                "webviewInstallMode": {
-                    "silent": true,
-                    "type": "downloadBootstrapper"
-                },
-                "wix": {
-                    "language": ["en-US", "ru-RU"]
-                }
-            },
-            "identifier": "com.savannstm.rpgm-translation-gui",
-            "icon": [
-                "icons/32x32.png",
-                "icons/128x128.png",
-                "icons/128x128@2x.png",
-                "icons/icon.icns",
-                "icons/icon.ico"
-            ],
-            "resources": ["res/**/*"]
-        }
+        ]
     }
 }

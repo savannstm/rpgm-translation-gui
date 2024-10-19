@@ -24,20 +24,6 @@
                     </div>
 
                     <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
-                        <span class="checkbox borderPrimary size-8 text-xl" id="shuffle-checkbox"></span>
-                        <span class="shuffleOption"></span>
-                    </div>
-
-                    <div class="z-40 flex-row gap-2 pl-4 pt-2 transition-transform duration-300" id="shuffle-settings">
-                        <span class="shuffleLevel"></span>
-                        <select class="backgroundSecond rounded-sm outline-none" id="shuffle-select">
-                            <option class="chooseOptionText" value="0"></option>
-                            <option class="shuffleLinesOption" value="1"></option>
-                            <option class="shuffleAllOption" value="2"></option>
-                        </select>
-                    </div>
-
-                    <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
                         <span class="checkbox borderPrimary size-8 text-xl" id="custom-processing-checkbox"></span>
                         <span class="disableCustomProcessing"></span>
                     </div>
@@ -56,6 +42,16 @@
                             id="select-output-path"
                         ></button>
                         <input class="input textSecond backgroundSecond h-12 w-9/12" id="output-path" type="text" />
+                    </div>
+
+                    <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">
+                        <select class="backgroundSecond rounded-sm outline-none" id="maps-processing-mode-select">
+                            <option class="defaultMapsMode" value="0"></option>
+                            <option class="separateMapsMode" value="1"></option>
+                            <option class="preserveMapsMode" value="2"></option>
+                        </select>
+                        <span class="mapsProcessingMode"></span>
+                        <div id="maps-mode-description"></div>
                     </div>
 
                     <div class="backgroundDark z-50 flex flex-row gap-2 pt-2">

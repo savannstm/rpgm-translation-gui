@@ -1,0 +1,15 @@
+{
+    "identifier": "compile",
+    "permissions": [
+        "core:event:allow-emit",
+        "core:event:allow-listen",
+        "core:event:allow-unlisten",
+        "core:window:allow-close",
+        "core:window:allow-destroy",
+        "dialog:allow-open",
+        "fs:allow-read-text-file",
+        "fs:allow-write-text-file",
+        { "allow": ["**"], "identifier": "fs:scope" }
+    ],
+    "windows": ["compile"]
+}

@@ -1,34 +1,28 @@
-import { animateProgressText, applyLocalization, applyTheme, getThemeStyleSheet } from "./extensions/functions";
+import { animateProgressText, applyLocalization, applyTheme, getThemeStyleSheet, join } from "./extensions/functions";
 import { invokeRead } from "./extensions/invokes";
 import { ReadWindowLocalization } from "./extensions/localization";
 import { EngineType, ProcessingMode } from "./types/enums";
 
 import { emit, once } from "@tauri-apps/api/event";
-import { BaseDirectory, exists, readTextFile } from "@tauri-apps/api/fs";
-import { join } from "@tauri-apps/api/path";
-import { appWindow } from "@tauri-apps/api/window";
-
-const { Resource } = BaseDirectory;
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { exists } from "@tauri-apps/plugin-fs";
+const appWindow = getCurrentWebviewWindow();
 
 document.addEventListener("DOMContentLoaded", async () => {
     let settings!: Settings;
+    let theme!: Theme;
 
-    await once<Settings>("settings", (data) => {
-        settings = data.payload;
+    await once<[Settings, Theme]>("settings", (data) => {
+        [settings, theme] = data.payload;
     });
 
     await emit("fetch-settings");
 
-    while (!settings) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
-    const { projectPath, theme, language, engineType } = settings;
+    const { projectPath, language, engineType } = settings;
 
-    applyTheme(
-        getThemeStyleSheet() as CSSStyleSheet,
-        JSON.parse(await readTextFile("res/themes.json", { dir: Resource }))[theme],
-    );
+    applyTheme(getThemeStyleSheet()!, theme);
 
     const windowLocalization = new ReadWindowLocalization(language);
     applyLocalization(windowLocalization);
@@ -55,6 +49,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         "disable-plugins-processing-checkbox",
     ) as HTMLSpanElement;
     const readButton = document.getElementById("read-button") as HTMLButtonElement;
+    const mapsProcessingModeSelect = document.getElementById("maps-processing-mode-select") as HTMLSelectElement;
 
     readingModeSelect.addEventListener("change", () => {
         if (readingModeSelect.value === "append") {
@@ -66,7 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    settingsContainer.addEventListener("click", async (event) => {
+    settingsContainer.addEventListener("click", (event) => {
         const target = event.target as HTMLElement;
 
         switch (target.id) {
@@ -156,7 +151,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     readButton.addEventListener("click", async () => {
         if (!readingModeSelect.value) {
-            alert("Select reading mode");
+            alert(windowLocalization.readingModeNotSelected);
             return;
         }
 
@@ -175,7 +170,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (engineType === EngineType.New) {
                 originalDir = "data";
 
-                if (await exists(await join(projectPath, "original"))) {
+                if (await exists(join(projectPath, "original"))) {
                     originalDir = "original";
                 }
             } else {
@@ -184,10 +179,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const progressText = document.getElementById("progress-text") as HTMLDivElement;
 
-            progressText.innerHTML =
-                readingModeSelect.value === "append"
-                    ? windowLocalization.readingInAppendMode
-                    : windowLocalization.readingInForceMode;
+            if (readingModeSelect.value === "append") {
+                progressText.innerHTML = windowLocalization.readingInAppendMode;
+            } else if (readingModeSelect.value === "force") {
+                progressText.innerHTML = windowLocalization.readingInForceMode;
+            }
 
             const progressWindow = document.getElementById("progress-window") as HTMLDivElement;
             progressWindow.classList.remove("hidden");
@@ -200,16 +196,22 @@ document.addEventListener("DOMContentLoaded", async () => {
                 projectPath,
                 originalDir,
                 gameTitle,
+                mapsProcessingMode: Number.parseInt(mapsProcessingModeSelect.value),
                 romanize: Boolean(romanizeCheckbox.textContent),
                 disableCustomProcessing: Boolean(customProcessingCheckbox.textContent),
                 disableProcessing: Object.values(disableProcessings),
                 logging: false,
-                processingMode: readingModeSelect.value === "append" ? ProcessingMode.Append : ProcessingMode.Force,
-                engineType,
+                processingMode:
+                    readingModeSelect.value === "append"
+                        ? ProcessingMode.Append
+                        : readingModeSelect.value === "force"
+                          ? ProcessingMode.Force
+                          : ProcessingMode.Default,
+                engineType: engineType!,
             });
 
             await emit("restart");
-            appWindow.close();
+            await appWindow.close();
         });
 
         await emit("fetch");
