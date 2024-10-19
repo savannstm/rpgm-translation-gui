@@ -11,6 +11,7 @@
         "dialog:allow-ask",
         "dialog:allow-message",
         "dialog:allow-open",
+        "fs:allow-copy-file",
         "fs:allow-exists",
         "fs:allow-mkdir",
         "fs:allow-read-dir",
