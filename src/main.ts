@@ -1912,7 +1912,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // that's the dumbest function i've ever written
     async function waitForSave() {
         while (saving) {
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            await new Promise((resolve) => setTimeout(resolve, 200));
         }
     }
 
