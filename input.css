@@ -11,7 +11,7 @@
 }
 
 .menu-button {
-    @apply flex h-8 w-24 flex-col items-center justify-center p-2;
+    @apply flex h-8 w-full flex-col items-center justify-center p-2;
 }
 
 .dropdown-menu {
