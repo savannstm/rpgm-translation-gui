@@ -17,7 +17,6 @@ export const enum Language {
 }
 
 export const enum State {
-    Maps = "maps",
     Actors = "actors",
     Armors = "armors",
     Classes = "classes",
@@ -31,4 +30,10 @@ export const enum State {
     Weapons = "weapons",
     Plugins = "plugins",
     Scripts = "scripts",
+}
+
+export const enum SaveMode {
+    Backup,
+    SingleFile,
+    Maps,
 }

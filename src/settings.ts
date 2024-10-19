@@ -39,17 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function fetchFonts(): Promise<FontObject> {
         const fontsObject = {} as FontObject;
-        const platform = getPlatform();
-        let fontPath!: string;
-
-        switch (platform) {
-            case "windows":
-                fontPath = "C:/Windows/Fonts";
-                break;
-            case "linux":
-                fontPath = "/usr/share/fonts";
-                break;
-        }
+        const fontPath = getPlatform() === "windows" ? "C:/Windows/Fonts" : "/usr/share/fonts";
 
         for (const entry of await readDir(fontPath)) {
             const name = entry.name;
@@ -79,8 +69,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const optionElement = document.createElement("option");
 
         optionElement.id = path;
-        optionElement.value = name;
-        optionElement.innerHTML = name;
+        optionElement.innerHTML = optionElement.value = name;
 
         fontSelect.appendChild(optionElement);
     }

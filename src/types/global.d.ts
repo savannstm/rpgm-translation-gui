@@ -103,3 +103,11 @@ interface CompileCommandOptions extends Record<string, unknown> {
     logging: boolean;
     engineType: import("./enums").EngineType;
 }
+
+interface TextAreaPropertiesMemo extends Record<string, string | number> {
+    lineHeight?: number;
+    padding?: number;
+    lineBreaks?: number;
+    fontSize?: string;
+    fontFamily?: string;
+}

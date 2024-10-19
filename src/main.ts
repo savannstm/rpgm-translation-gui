@@ -8,23 +8,30 @@ import {
     Settings,
 } from "./extensions/functions";
 import "./extensions/htmlelement-extensions";
-import { invokeCompile, invokeRead } from "./extensions/invokes";
+import { invokeCompile, invokeEscapeText, invokeRead, invokeReadLastLine } from "./extensions/invokes";
 import { MainWindowLocalization } from "./extensions/localization";
 import "./extensions/string-extensions";
-import { EngineType, Language, ProcessingMode, State } from "./types/enums";
+import { EngineType, Language, ProcessingMode, SaveMode, State } from "./types/enums";
 
-import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import { BaseDirectory } from "@tauri-apps/api/path";
 import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { ask, message, open as openPath } from "@tauri-apps/plugin-dialog";
-import { exists, mkdir, readDir, readTextFile, remove as removeFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import {
+    BaseDirectory,
+    copyFile,
+    exists,
+    mkdir,
+    readDir,
+    readTextFile,
+    remove as removePath,
+    writeTextFile,
+} from "@tauri-apps/plugin-fs";
 import { locale as getLocale } from "@tauri-apps/plugin-os";
 import { exit } from "@tauri-apps/plugin-process";
 const { Resource } = BaseDirectory;
+const appWindow = getCurrentWebviewWindow();
 
 import XRegExp from "xregexp";
-const appWindow = getCurrentWebviewWindow();
 
 document.addEventListener("DOMContentLoaded", async () => {
     const tw = (strings: TemplateStringsArray, ...values: string[]): string => String.raw({ raw: strings }, ...values);
@@ -108,20 +115,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await initializeProject(settings.projectPath);
 
     // Load the font
-    const textAreaPropertiesMemo: {
-        lineHeight: number;
-        padding: number;
-        lineBreaks: number;
-        fontSize: string;
-        fontFamily: string;
-    } = {} as {
-        lineHeight: number;
-        padding: number;
-        lineBreaks: number;
-        fontSize: string;
-        fontFamily: string;
-    };
-
+    const textAreaPropertiesMemo: TextAreaPropertiesMemo = {};
     await loadFont(settings.fontUrl);
     // #endregion
 
@@ -315,7 +309,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function showThemeWindow(): void {
+    function showThemeWindow() {
         themeWindow.classList.remove("hidden");
 
         function changeStyle(inputElement: Event) {
@@ -326,7 +320,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             applyTheme(sheet, [id, value]);
         }
 
-        async function createTheme(): Promise<void> {
+        async function createTheme() {
             const themeNameInput = themeWindow.lastElementChild?.firstElementChild
                 ?.lastElementChild as HTMLInputElement;
             const themeName = themeNameInput.value;
@@ -437,7 +431,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return true;
     }
 
-    async function openDirectory(): Promise<void> {
+    async function openDirectory() {
         const directory = (await openPath({ directory: true, multiple: false }))!;
 
         if (directory) {
@@ -486,13 +480,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             return;
         }
 
-        let regexp = searchRegex
-            ? text
-            : await invoke<string>("escape_text", {
-                  text: text,
-              });
-
-        //fuck boundaries, they aren't working with symbols other than from ascii
+        let regexp = searchRegex ? text : await invokeEscapeText({ text });
         regexp = searchWhole ? `(?<!\\p{L})${regexp}(?!\\p{L})` : regexp;
 
         const attr = searchCase ? "g" : "gi";
@@ -505,17 +493,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function appendMatch(metadata: string, result: string, counterpartTextMisc?: string): void {
+    function appendMatch(metadata: string, result: string, counterpartTextMisc?: string) {
         const [file, type, row] = metadata.split("-");
+        const reverseType = type.startsWith("o") ? "translation" : "original";
         const resultContainer = document.createElement("div");
 
         const resultElement = document.createElement("div");
         resultElement.className = tw`textSecond borderPrimary backgroundSecond my-1 cursor-pointer border-2 p-1 text-xl`;
 
-        const counterpartElement =
-            type === "original"
-                ? document.getElementById(metadata.replace("original", "translation"))
-                : document.getElementById(metadata.replace("translation", "original"));
+        const counterpartElement = document.getElementById(metadata.replace(type, reverseType));
 
         const mainDiv = document.createElement("div");
         mainDiv.className = tw`text-base`;
@@ -549,7 +535,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const counterpartInfo = document.createElement("div");
         counterpartInfo.className = tw`textThird text-xs`;
 
-        counterpartInfo.innerHTML = `${file} - ${type === "translation" ? "original" : "translation"} - ${row}`;
+        counterpartInfo.innerHTML = `${file} - ${reverseType} - ${row}`;
         mainDiv.appendChild(counterpartInfo);
 
         resultElement.appendChild(mainDiv);
@@ -584,21 +570,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function searchText(
         text: string,
-        replace: boolean,
+        isReplace: boolean,
     ): Promise<null | undefined | Map<HTMLTextAreaElement, string>> {
         const regexp: RegExp | undefined = await createRegExp(text);
         if (!regexp) {
             return;
         }
 
-        const results = replace ? new Map<HTMLTextAreaElement, string>() : null;
+        const results = isReplace ? new Map<HTMLTextAreaElement, string>() : null;
         const objectToWrite = new Map<string, string | [string, string]>();
         let file = 0;
 
         const currentSearchArray = contentContainer.firstElementChild?.children;
 
         for (const child of currentSearchArray ?? []) {
-            const node = child.firstElementChild?.children as HTMLCollectionOf<HTMLTextAreaElement>;
+            const node = child.firstElementChild!.children as HTMLCollectionOf<HTMLTextAreaElement>;
 
             {
                 const elementText = node[2].value.replaceAllMultiple({
@@ -609,7 +595,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (matches) {
                     const result = createMatchesContainer(elementText, matches);
-                    replace ? results!.set(node[2], result) : objectToWrite.set(node[2].id, result);
+                    isReplace ? results!.set(node[2], result) : objectToWrite.set(node[2].id, result);
                 }
             }
 
@@ -619,7 +605,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 if (matches) {
                     const result = createMatchesContainer(elementText, matches);
-                    replace ? results!.set(node[1], result) : objectToWrite.set(node[1].id, result);
+                    isReplace ? results!.set(node[1], result) : objectToWrite.set(node[1].id, result);
                 }
             }
 
@@ -635,24 +621,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (!searchLocation) {
-            const entires = await readDir(join(settings.projectPath, programDataDir, translationDir));
+            const translationEntries = await readDir(join(settings.projectPath, programDataDir, translationDir));
+            const mapsEntries = await readDir(join(settings.projectPath, programDataDir, "temp-maps"));
 
-            for (const entry of entires) {
+            for (const [i, entry] of [
+                mapsEntries.sort((a, b) => Number.parseInt(a.name.slice(4)) - Number.parseInt(b.name.slice(4))),
+                translationEntries,
+            ]
+                .flat()
+                .entries()) {
                 const name = entry.name;
                 const nameWithoutExtension = name.slice(0, -4);
 
-                if (
-                    !name.endsWith(".txt") ||
-                    (contentContainer.firstElementChild?.id && name.startsWith(contentContainer.firstElementChild.id))
-                ) {
+                if (!name.endsWith(".txt") || (state && name.startsWith(state)) || name === "maps.txt") {
                     continue;
                 }
 
-                const fileContent = await readTextFile(
-                    join(settings.projectPath, programDataDir, translationDir, name),
-                );
-
-                for (const [lineNumber, line] of fileContent.split("\n").entries()) {
+                for (const [lineNumber, line] of (
+                    await readTextFile(
+                        i < mapsEntries.length
+                            ? join(settings.projectPath, programDataDir, "temp-maps", name)
+                            : join(settings.projectPath, programDataDir, translationDir, name),
+                    )
+                )
+                    .split("\n")
+                    .entries()) {
+                    console.log(line);
                     const [original, translated] = line.split(LINES_SEPARATOR);
 
                     const originalMatches = original.match(regexp);
@@ -706,7 +700,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return results;
     }
 
-    async function handleReplacedClick(event: MouseEvent): Promise<void> {
+    async function handleReplacedClick(event: MouseEvent) {
         const target = event.target as HTMLElement;
 
         const element = target.classList.contains("replaced-element") ? target : target.parentElement!;
@@ -744,7 +738,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function showSearchPanel(hide = true): void {
+    function showSearchPanel(hide = true) {
         if (searchPanel.getAttribute("moving") === "false") {
             if (hide) {
                 searchPanel.toggleMultiple("translate-x-0", "translate-x-full");
@@ -805,7 +799,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function handleResultClick(button: number, elementId: string, resultElement: HTMLDivElement): Promise<void> {
+    async function handleResultClick(button: number, elementId: string, resultElement: HTMLDivElement) {
         const [file, type, row] = elementId.split("-");
 
         if (button === 0) {
@@ -816,7 +810,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 inline: "center",
             });
         } else if (button === 2) {
-            if (type === "original") {
+            if (type.startsWith("o")) {
                 alert(windowLocalization.originalTextIrreplacable);
                 return;
             } else {
@@ -826,7 +820,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     let newText: string;
 
                     if (elementToReplace) {
-                        newText = (await replaceText(elementToReplace as HTMLTextAreaElement, false))!;
+                        newText = (await replaceText(elementToReplace as HTMLTextAreaElement))!;
                     } else {
                         const regexp: RegExp | undefined = await createRegExp(searchInput.value);
                         if (!regexp) {
@@ -845,9 +839,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const requiredLine = content[lineToReplace];
                         const [original, translated] = requiredLine.split(LINES_SEPARATOR);
 
-                        const translatedReplaced = translated.replace(regexp, replaceInput.value);
+                        const translatedReplaced = translated
+                            .split(regexp)
+                            .flatMap((part, i, arr) => [
+                                part,
+                                i < arr.length - 1 ? `<span class="bg-red-600">${replaceInput.value}</span>` : "",
+                            ])
+                            .join("");
 
-                        content[lineToReplace] = `${original}${LINES_SEPARATOR}${translatedReplaced}`;
+                        content[lineToReplace] =
+                            `${original}${LINES_SEPARATOR}${translatedReplaced.replaceAll(/<span(.*?)>|<\/span>/g, "")}`;
 
                         newText = translatedReplaced;
 
@@ -859,15 +860,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                     if (newText) {
                         saved = false;
-                        const index = type === "original" ? 3 : 0;
-                        resultElement.firstElementChild!.children[index].innerHTML = newText;
+                        resultElement.firstElementChild!.children[type.startsWith("o") ? 3 : 0].innerHTML = newText;
                     }
                 }
             }
         }
     }
 
-    async function handleResultSelecting(event: MouseEvent): Promise<void> {
+    async function handleResultSelecting(event: MouseEvent) {
         const target = event.target as HTMLDivElement;
 
         const resultElement = (
@@ -885,7 +885,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await handleResultClick(event.button, resultElement.getAttribute("data")!, resultElement);
     }
 
-    async function displaySearchResults(text: string | null = null, hide = true): Promise<void> {
+    async function displaySearchResults(text: string | null = null, hide = true) {
         if (!text) {
             showSearchPanel(hide);
             return;
@@ -924,8 +924,21 @@ document.addEventListener("DOMContentLoaded", async () => {
         searchPanelFound.addEventListener("mousedown", handleResultSelecting);
     }
 
-    async function replaceText(text: string | HTMLTextAreaElement, replaceAll: boolean): Promise<string | undefined> {
-        if (!replaceAll && text instanceof HTMLTextAreaElement) {
+    async function updateLog() {
+        const logFilePath = join(settings.projectPath, programDataDir, logFile);
+        const prevFile = JSON.parse(await readTextFile(logFilePath)) as Record<string, Record<string, string>>;
+
+        const newObject: Record<string, Record<string, string>> = {
+            ...prevFile,
+            ...replaced,
+        };
+
+        await writeTextFile(logFilePath, JSON.stringify(newObject));
+        replaced = {};
+    }
+
+    async function replaceText(text: string | HTMLTextAreaElement): Promise<string | undefined> {
+        if (text instanceof HTMLTextAreaElement) {
             const regexp: RegExp | undefined = await createRegExp(searchInput.value);
             if (!regexp) {
                 return;
@@ -933,87 +946,111 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const replacerText: string = replaceInput.value;
 
-            const newTextParts = text.value
+            const newValue = text.value
                 .split(regexp)
                 .flatMap((part, i, arr) => [
                     part,
                     i < arr.length - 1 ? `<span class="bg-red-600">${replacerText}</span>` : "",
-                ]);
-
-            const newValue = newTextParts.join("");
+                ])
+                .join("");
 
             replaced[text.id] = { original: text.value, translation: newValue };
 
-            const prevFile: Record<string, Record<string, string>> = JSON.parse(
-                await readTextFile(join(settings.projectPath, programDataDir, logFile)),
-            ) as Record<string, Record<string, string>>;
+            await updateLog();
 
-            const newObject: Record<string, Record<string, string>> = {
-                ...prevFile,
-                ...replaced,
-            };
-
-            await writeTextFile(join(settings.projectPath, programDataDir, logFile), JSON.stringify(newObject));
-            replaced = {};
-
-            text.value = newValue;
+            text.value = newValue.replaceAll(/<span(.*?)>|<\/span>/g, "");
             return newValue;
-        }
-
-        text = (text as string).trim();
-        if (!text) {
-            return;
-        }
-
-        const results: null | undefined | Map<HTMLTextAreaElement, string> = await searchText(text, true);
-        if (!results) {
-            return;
-        }
-
-        const regexp: RegExp | undefined = await createRegExp(text);
-        if (!regexp) {
-            return;
-        }
-
-        for (const textarea of results.keys()) {
-            if (!textarea.id.includes("original")) {
-                const newValue = textarea.value.replace(regexp, replaceInput.value);
-
-                replaced[textarea.id] = {
-                    original: textarea.value,
-                    translation: newValue,
-                };
-
-                textarea.value = newValue;
+        } else {
+            text = text.trim();
+            if (!text) {
+                return;
             }
+
+            const results: null | undefined | Map<HTMLTextAreaElement, string> = await searchText(text, true);
+            if (!results) {
+                return;
+            }
+
+            const regexp: RegExp | undefined = await createRegExp(text);
+            if (!regexp) {
+                return;
+            }
+
+            for (const textarea of results.keys()) {
+                if (!textarea.id.includes("original")) {
+                    const newValue = textarea.value.replace(regexp, replaceInput.value);
+
+                    replaced[textarea.id] = {
+                        original: textarea.value,
+                        translation: newValue,
+                    };
+
+                    textarea.value = newValue;
+                }
+            }
+
+            await updateLog();
         }
-
-        const prevFile: Record<string, Record<string, string>> = JSON.parse(
-            await readTextFile(join(settings.projectPath, programDataDir, logFile)),
-        ) as Record<string, Record<string, string>>;
-
-        const newObject: Record<string, Record<string, string>> = {
-            ...prevFile,
-            ...replaced,
-        };
-
-        await writeTextFile(join(settings.projectPath, programDataDir, logFile), JSON.stringify(newObject));
-        replaced = {};
     }
 
-    async function save(backup = false): Promise<void> {
-        if (saving || !state || !settings.projectPath) {
+    async function save(mode: SaveMode) {
+        if (saved || saving || !state || !settings.projectPath) {
             return;
         }
 
         saving = true;
-        saveButton.firstElementChild?.classList.add("animate-spin");
+        saveButton.firstElementChild!.classList.add("animate-spin");
 
-        let dirName: string = join(settings.projectPath, programDataDir, translationDir);
+        const translationPath = join(settings.projectPath, programDataDir, translationDir);
+        const outputArray: string[] = [];
 
-        if (backup) {
+        for (const child of contentContainer.firstElementChild!.children) {
+            const originalTextElement = child.firstElementChild!.children[1] as HTMLDivElement;
+            const translatedTextElement = child.firstElementChild!.children[2] as HTMLTextAreaElement;
+
+            outputArray.push(
+                originalTextElement.textContent!.replaceAll("\n", NEW_LINE) +
+                    LINES_SEPARATOR +
+                    translatedTextElement.value.replaceAll("\n", NEW_LINE),
+            );
+        }
+
+        if (state === State.System) {
+            const originalTitle = currentGameTitle.getAttribute("original-title")!;
+            const output =
+                originalTitle +
+                LINES_SEPARATOR +
+                (originalTitle === currentGameTitle.value ? "" : currentGameTitle.value);
+
+            outputArray.push(output);
+        }
+
+        const filePath = `${state}.txt`;
+
+        await writeTextFile(
+            state.startsWith("maps")
+                ? join(settings.projectPath, programDataDir, "temp-maps", filePath)
+                : join(translationPath, filePath),
+            outputArray.join("\n"),
+        );
+
+        outputArray.length = 0;
+
+        if (mode === SaveMode.Maps && state.startsWith("maps")) {
+            const tempPath = join(settings.projectPath, programDataDir, "temp-maps");
+            const entries = await readDir(tempPath);
+            outputArray.length = entries.length;
+
+            for (const entry of entries) {
+                outputArray[Number.parseInt(entry.name.slice(4))] = await readTextFile(join(tempPath, entry.name));
+            }
+
+            await writeTextFile(join(translationPath, "maps.txt"), outputArray.join("\n"));
+        }
+
+        if (mode === SaveMode.Backup) {
             const date = new Date();
-            const formattedDate: string = [
+            const formattedDate = [
                 date.getFullYear(),
                 (date.getMonth() + 1).toString().padStart(2, "0"),
                 date.getDate().toString().padStart(2, "0"),
@@ -1024,47 +1061,32 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             nextBackupNumber = (nextBackupNumber % settings.backup.max) + 1;
 
-            dirName = join(
+            const backupFolderName = join(
                 settings.projectPath,
                 programDataDir,
                 "backups",
                 `${formattedDate}_${nextBackupNumber.toString().padStart(2, "0")}`,
             );
 
-            await mkdir(dirName, { recursive: true });
+            await mkdir(backupFolderName, { recursive: true });
+            await mkdir(join(backupFolderName, "temp-maps"));
+            await mkdir(join(backupFolderName, translationDir));
+
+            for (const entry of await readDir(translationPath)) {
+                await copyFile(join(translationPath, entry.name), join(backupFolderName, translationDir, entry.name));
+            }
+
+            const tempMapsPath = join(settings.projectPath, programDataDir, "temp-maps");
+            for (const entry of await readDir(tempMapsPath)) {
+                await copyFile(join(tempMapsPath, entry.name), join(backupFolderName, "temp-maps", entry.name));
+            }
         }
 
-        const outputArray: string[] = [];
-
-        for (const child of contentContainer.firstElementChild!.children) {
-            const originalTextElement = child.firstElementChild?.children[1] as HTMLDivElement;
-            const translatedTextElement = child.firstElementChild?.children[2] as HTMLTextAreaElement;
-
-            outputArray.push(
-                originalTextElement.textContent!.replaceAll("\n", NEW_LINE) +
-                    LINES_SEPARATOR +
-                    translatedTextElement.value.replaceAll("\n", NEW_LINE),
-            );
-        }
-
-        if (contentContainer.firstElementChild!.id === "system") {
-            const originalTitle = currentGameTitle.getAttribute("original-title")!;
-            const output =
-                originalTitle === currentGameTitle.value
-                    ? originalTitle + LINES_SEPARATOR
-                    : originalTitle + LINES_SEPARATOR + currentGameTitle.value;
-
-            outputArray.push(output);
-        }
-
-        const filePath = `${contentContainer.firstElementChild!.id}.txt`;
-        await writeTextFile(join(dirName, filePath), outputArray.join("\n"));
-
-        if (!backup) {
+        if (mode !== SaveMode.Backup) {
             saved = true;
         }
 
-        saveButton.firstElementChild?.classList.remove("animate-spin");
+        saveButton.firstElementChild!.classList.remove("animate-spin");
         saving = false;
     }
 
@@ -1072,7 +1094,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const intervalId = setInterval(async () => {
             if (settings.backup.enabled) {
                 backupIsActive = true;
-                await save(true);
+                await save(SaveMode.Backup);
             } else {
                 backupIsActive = false;
                 clearInterval(intervalId);
@@ -1088,7 +1110,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         observerMain.disconnect();
 
         if (state) {
-            await save();
+            await save(SaveMode.SingleFile);
         }
 
         contentContainer.firstElementChild?.remove();
@@ -1172,7 +1194,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function handleKeypress(event: KeyboardEvent): Promise<void> {
+    async function handleKeypress(event: KeyboardEvent) {
         if (!settings.projectPath) {
             return;
         }
@@ -1201,7 +1223,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         replacedTextareas = {};
                         break;
                     case "KeyS":
-                        await save();
+                        await save(SaveMode.Maps);
                         break;
                     case "KeyG":
                         event.preventDefault();
@@ -1262,9 +1284,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                     case "KeyR":
                         await displaySearchResults();
                         break;
-                    case "Backquote":
-                        await changeState(State.Maps);
-                        break;
                     case "Digit1":
                         await changeState(State.Actors);
                         break;
@@ -1322,7 +1341,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function handleSearchInputKeypress(event: KeyboardEvent): Promise<void> {
+    async function handleSearchInputKeypress(event: KeyboardEvent) {
         if (!settings.projectPath) {
             return;
         }
@@ -1401,7 +1420,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         let pathToContent = join(settings.projectPath, programDataDir, translationDir, contentName + ".txt");
 
         if (contentName.startsWith("maps")) {
-            pathToContent = join(settings.projectPath, programDataDir, "temp-maps", "maps14.txt");
+            pathToContent = join(settings.projectPath, programDataDir, "temp-maps", `${contentName}.txt`);
         }
 
         if (contentName.startsWith("plugins") && !(await exists(pathToContent))) {
@@ -1426,11 +1445,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         for (let i = 0; i < content.length; i++) {
             const [originalText, translationText] = content[i].split(LINES_SEPARATOR, 2);
-
-            if (!translationText) {
-                continue;
-            }
-
             const added = i + 1;
 
             const originalTextSplit = originalText.replaceAll(NEW_LINE, "\n");
@@ -1458,17 +1472,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             translationTextElement.id = `${contentName}-translation-${added}`;
             translationTextElement.rows = translationTextSplit.length;
             translationTextElement.className = tw`outlinePrimary outlineFocused backgroundPrimary font h-auto w-full resize-none overflow-hidden p-1 outline outline-2 focus:z-10`;
+            translationTextElement.spellcheck = false;
+            translationTextElement.autocomplete = "off";
+            translationTextElement.autocapitalize = "off";
+            translationTextElement.autofocus = false;
 
             if (settings.fontUrl) {
                 translationTextElement.style.fontFamily = "font";
             }
 
             translationTextElement.value = translationTextSplit.join("\n");
-
-            translationTextElement.spellcheck = false;
-            translationTextElement.autocomplete = "off";
-            translationTextElement.autocapitalize = "off";
-            translationTextElement.autofocus = false;
 
             const rowElement = document.createElement("div");
             rowElement.id = `${contentName}-row-${added}`;
@@ -1519,7 +1532,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         contentContainer.appendChild(contentDiv);
     }
 
-    async function compile(silent: boolean): Promise<void> {
+    async function compile(silent: boolean) {
         if (!settings.projectPath) {
             return;
         }
@@ -1540,7 +1553,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
             await compileWindow.once("tauri://destroyed", compileUnlisten);
         } else {
-            compileButton.firstElementChild?.classList.add("animate-spin");
+            compileButton.firstElementChild!.classList.add("animate-spin");
 
             const executionTime = await invokeCompile({
                 projectPath: settings.projectPath,
@@ -1556,7 +1569,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             alert(`${windowLocalization.compileSuccess} ${executionTime}`);
-            compileButton.firstElementChild?.classList.remove("animate-spin");
+            compileButton.firstElementChild!.classList.remove("animate-spin");
         }
     }
 
@@ -1600,7 +1613,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return positions;
     }
 
-    function trackFocus(focusedElement: Event): void {
+    function trackFocus(focusedElement: Event) {
         for (const ghost of activeGhostLines) {
             ghost.remove();
         }
@@ -1637,6 +1650,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const newHeight = lineBreaks * lineHeight + padding * 2;
 
         const parent = target.parentElement;
+
         if (parent) {
             for (const child of parent.children) {
                 (child as HTMLElement).style.height = `${newHeight}px`;
@@ -1644,7 +1658,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function handleFocus(event: FocusEvent): void {
+    function handleFocus(event: FocusEvent) {
         const target = event.target as HTMLTextAreaElement;
 
         if (
@@ -1661,7 +1675,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function handleBlur(event: FocusEvent): void {
+    function handleBlur(event: FocusEvent) {
         const target = event.target as HTMLTextAreaElement;
 
         for (const ghost of activeGhostLines) {
@@ -1767,9 +1781,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!askExitUnsaved) {
             askExit = await ask(windowLocalization.exit);
         } else {
-            if (!saved) {
-                await save();
-            }
+            await save(SaveMode.Maps);
             return true;
         }
 
@@ -1780,7 +1792,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function fileMenuClick(event: Event): Promise<void> {
+    async function fileMenuClick(event: Event) {
         const target = event.target as HTMLElement;
         fileMenu.classList.replace("flex", "hidden");
 
@@ -1837,7 +1849,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    function handleMenuBarClick(event: Event): void {
+    function handleMenuBarClick(event: Event) {
         const target = event.target as HTMLElement;
 
         switch (target.id) {
@@ -1979,7 +1991,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    async function initializeProject(pathToProject: string): Promise<void> {
+    async function initializeProject(pathToProject: string) {
         projectStatus.innerHTML = windowLocalization.loadingProject;
         const interval = animateProgressText(projectStatus);
 
@@ -1993,11 +2005,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             await loadProject();
 
-            // TODO: Split maps to load each file independently, instead of loading the fucking large maps.txt with thousands
-            // of lines
-            const parts = (
+            const lines = (
                 await readTextFile(join(settings.projectPath, programDataDir, translationDir, "maps.txt"))
-            ).split(/^<!-- Map.*$/g);
+            ).split("\n");
+            const parts: string[] = [];
+            const result: string[] = [];
+            let currentFile;
+
+            for (const line of lines) {
+                if (line.startsWith("<!-- Map")) {
+                    if (currentFile && line !== currentFile) {
+                        parts.push(result.join("\n"));
+                        result.length = 0;
+                    }
+
+                    currentFile = line;
+                }
+
+                result.push(line);
+            }
 
             await mkdir(join(settings.projectPath, programDataDir, "temp-maps"), { recursive: true });
 
@@ -2006,7 +2032,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
                 const buttonElement = document.createElement("button");
                 buttonElement.className = "menu-button backgroundPrimary backgroundPrimaryHovered";
-                buttonElement.innerHTML = `maps${i + 1}.txt`;
+                buttonElement.innerHTML = `maps${i + 1}`;
 
                 leftPanel.insertBefore(buttonElement, leftPanel.children[i]);
             }
@@ -2041,10 +2067,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 settings.firstLaunch = false;
             }
 
-            const gameTitleLine: string = await invoke("read_last_line", {
-                filePath: join(settings.projectPath, programDataDir, translationDir, "system.txt"),
-            });
-            const [originalTitle, translatedTitle] = gameTitleLine.split(LINES_SEPARATOR);
+            const [originalTitle, translatedTitle] = (
+                await invokeReadLastLine({
+                    filePath: join(settings.projectPath, programDataDir, translationDir, "system.txt"),
+                })
+            ).split(LINES_SEPARATOR);
 
             currentGameTitle.setAttribute("original-title", originalTitle);
 
@@ -2110,7 +2137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 leftPanel.toggleMultiple("translate-x-0", "-translate-x-full");
                 break;
             case saveButton.id:
-                await save();
+                await save(SaveMode.Maps);
                 break;
             case "compile-button":
                 if (clickTimer === null) {
@@ -2310,7 +2337,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     contentContainer.addEventListener("click", async (event) => {
         const target = event.target as HTMLElement;
 
-        if (target.id.includes("-original-")) {
+        if (target.id.includes("original")) {
             await navigator.clipboard.writeText(target.textContent!);
         }
     });
@@ -2325,7 +2352,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         switch (target.id) {
             case "replace-button":
                 if (searchInput.value.trim() && replaceInput.value.trim()) {
-                    await replaceText(searchInput.value, true);
+                    await replaceText(searchInput.value);
                 }
                 break;
             case "case-button":
@@ -2438,8 +2465,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         for (const entry of dataDirEntries) {
             const name = entry.name;
 
-            if (entry.isFile && !["compile-settings.json", "replacement-log.json"].includes(name)) {
-                await removeFile(join(settings.projectPath, programDataDir, name));
+            if (name === "temp-maps") {
+                await removePath(join(settings.projectPath, programDataDir, "temp-maps"), { recursive: true });
+            } else if (entry.isFile && !["compile-settings.json", "replacement-log.json"].includes(name)) {
+                await removePath(join(settings.projectPath, programDataDir, name));
             }
         }
     }
